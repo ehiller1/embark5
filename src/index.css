@@ -1,0 +1,181 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 350 30% 98%;
+    --foreground: 342 50% 18%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 342 50% 18%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 342 50% 18%;
+
+    --primary: 342 80% 55%;
+    --primary-foreground: 350 30% 98%;
+
+    --secondary: 350 65% 38%;
+    --secondary-foreground: 350 30% 98%;
+
+    --muted: 350 30% 94%;
+    --muted-foreground: 342 10% 50%;
+
+    --accent: 350 30% 94%;
+    --accent-foreground: 342 50% 25%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 350 30% 98%;
+
+    --border: 350 30% 90%;
+    --input: 350 30% 90%;
+    --ring: 342 80% 55%;
+
+    --radius: 0.75rem;
+
+    --sidebar-background: 350 30% 98%;
+    --sidebar-foreground: 342 10% 40%;
+    --sidebar-primary: 342 50% 18%;
+    --sidebar-primary-foreground: 350 30% 98%;
+    --sidebar-accent: 350 30% 94%;
+    --sidebar-accent-foreground: 342 50% 18%;
+    --sidebar-border: 350 30% 88%;
+    --sidebar-ring: 342 80% 55%;
+  }
+
+  .dark {
+    --background: 342 50% 8%;
+    --foreground: 350 30% 98%;
+
+    --card: 342 50% 8%;
+    --card-foreground: 350 30% 98%;
+
+    --popover: 342 50% 8%;
+    --popover-foreground: 350 30% 98%;
+
+    --primary: 342 80% 55%;
+    --primary-foreground: 342 50% 15%;
+
+    --secondary: 350 65% 38%;
+    --secondary-foreground: 350 30% 98%;
+
+    --muted: 342 35% 15%;
+    --muted-foreground: 350 20% 70%;
+
+    --accent: 342 35% 15%;
+    --accent-foreground: 350 30% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 350 30% 98%;
+
+    --border: 342 35% 15%;
+    --input: 342 35% 15%;
+    --ring: 350 80% 80%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-[hsl(var(--border))];
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif tracking-tight;
+  }
+  
+  h1 {
+    @apply text-3xl md:text-4xl lg:text-5xl font-semibold;
+  }
+  
+  h2 {
+    @apply text-2xl md:text-3xl font-semibold;
+  }
+  
+  h3 {
+    @apply text-xl md:text-2xl font-medium;
+  }
+}
+
+@layer components {
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-journey hover:-translate-y-1 hover:border-journey-pink/30;
+  }
+  
+  .gradient-text {
+    @apply bg-clip-text text-transparent bg-gradient-journey;
+  }
+  
+  .section-container {
+    @apply py-12 px-4 sm:px-6 lg:px-8;
+  }
+  
+  .accent-border {
+    @apply border-l-4 border-journey-pink pl-4;
+  }
+  
+  .card-elegant {
+    @apply rounded-xl border border-border bg-card p-6 shadow-sm transition-all hover:shadow-journey;
+  }
+  
+  .icon-container {
+    @apply flex items-center justify-center w-8 h-8 rounded-full bg-journey-lightPink/50 text-journey-pink;
+  }
+  
+  .nav-item {
+    @apply flex items-center gap-2 px-3 py-2 rounded-md hover:bg-journey-lightPink/30 transition-colors;
+  }
+  
+  .nav-item-active {
+    @apply bg-journey-lightPink/40 text-journey-darkRed font-medium;
+  }
+  
+  .btn-subtle {
+    @apply px-4 py-2 rounded-md bg-journey-lightPink/30 text-journey-darkRed hover:bg-journey-lightPink/50 transition-colors;
+  }
+  
+  .btn-primary {
+    @apply px-4 py-2 rounded-md bg-gradient-journey text-white hover:shadow-journey transition-all;
+  }
+  
+  .tooltip {
+    @apply absolute z-50 px-2 py-1 text-xs rounded bg-foreground text-background opacity-0 group-hover:opacity-100 transition-opacity;
+  }
+}
+
+@layer utilities {
+  .glass-effect {
+    @apply bg-white/70 backdrop-blur-sm border border-white/20;
+  }
+  
+  .pink-glass {
+    @apply bg-journey-lightPink/30 backdrop-blur-sm border border-journey-pink/10 shadow-sm;
+  }
+  
+  .shimmer-effect {
+    @apply bg-gradient-to-r from-transparent via-white/20 to-transparent bg-[length:200%_100%] animate-shimmer;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .hover-lift {
+    @apply transition-all hover:-translate-y-1 hover:shadow-journey;
+  }
+  
+  .flex-center {
+    @apply flex items-center justify-center;
+  }
+  
+  .flex-between {
+    @apply flex items-center justify-between;
+  }
+}

@@ -1,0 +1,306 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Card, CardContent } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { toast } from '@/hooks/use-toast';
+import { useNarrativeAvatar, type CommunityAvatar } from '@/hooks/useNarrativeAvatar';
+import { useOpenAI } from '@/hooks/useOpenAI';
+import { usePrompts } from '@/hooks/usePrompts';
+import { Loader2 } from 'lucide-react';
+
+interface CommunityAvatarModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectCommunityAvatar: (avatar: CommunityAvatar) => void;
+}
+
+export function CommunityAvatarModal({ open, onOpenChange, selectCommunityAvatar }: CommunityAvatarModalProps) {
+  const {
+    communityAvatars,
+    fetchCommunityAvatars,
+    saveCommunityAvatar,
+    getDefaultCommunityIconUrl,
+  } = useNarrativeAvatar();
+  const { generateResponse } = useOpenAI();
+  const { getPromptByType } = usePrompts();
+
+  const [avatarName, setAvatarName] = useState('');
+  const [avatarPointOfView, setAvatarPointOfView] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>('select');
+  const [generatedAvatars, setGeneratedAvatars] = useState<CommunityAvatar[]>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (open) {
+      setIsLoading(true);
+      fetchCommunityAvatars()
+        .catch(err => {
+          toast({ title: 'Load Failed', description: String(err), variant: 'destructive' });
+        })
+        .finally(() => {
+          if (isMounted) setIsLoading(false);
+        });
+    } else {
+      setAvatarName('');
+      setAvatarPointOfView('');
+      setActiveTab('select');
+    }
+    return () => { isMounted = false; };
+  }, [open, fetchCommunityAvatars, toast]);
+
+  useEffect(() => {
+    if (open && !isLoading) {
+      setActiveTab(communityAvatars.length === 0 ? 'create' : 'select');
+    }
+  }, [open, isLoading, communityAvatars.length]);
+
+  const handleGenerateAvatar = async () => {
+    if (!avatarName.trim()) {
+      toast({ title: 'Name Required', description: 'Enter a name.', variant: 'destructive' });
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      // Get the community avatar generation prompt from the database
+      const { data: promptData, error: promptError } = await getPromptByType('community_avatar_generation');
+      if (promptError || !promptData?.prompt) {
+        throw new Error('Failed to retrieve community avatar generation prompt');
+      }
+
+      // Replace placeholders in the prompt
+      const populatedPrompt = promptData.prompt
+        .replace(/\$\(research_summary\)/g, `Community name: ${avatarName}`)
+        .replace(/\$\(community_assessment\)/g, '')
+        .replace(/\$\(community_research\)/g, '');
+
+      const response = await generateResponse({
+        messages: [
+          { role: 'system', content: populatedPrompt }
+        ],
+        temperature: 0.7,
+        maxTokens: 1000
+      });
+
+      if (response?.text) {
+        try {
+          // Parse the response as JSON
+          const parsedResponse = JSON.parse(response.text);
+          if (parsedResponse.avatars && Array.isArray(parsedResponse.avatars)) {
+            // Store all generated avatars
+            setGeneratedAvatars(parsedResponse.avatars);
+            // Use the first generated avatar as default
+            const generatedAvatar = parsedResponse.avatars[0];
+            setAvatarPointOfView(generatedAvatar.avatar_point_of_view);
+          } else {
+            throw new Error('Invalid response format');
+          }
+        } catch (parseError) {
+          console.error('Error parsing avatar response:', parseError);
+          throw new Error('Failed to parse generated avatar');
+        }
+      } else {
+        throw new Error('No text returned');
+      }
+    } catch (err) {
+      console.error('Error generating avatar:', err);
+      toast({ title: 'Generation Failed', description: 'Please try again.', variant: 'destructive' });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSaveAvatar = async () => {
+    if (!avatarName.trim() || !avatarPointOfView.trim()) {
+      toast({ title: 'Info Required', description: 'Provide name & POV.', variant: 'destructive' });
+      return;
+    }
+    setIsSaving(true);
+    try {
+      const result = await saveCommunityAvatar({
+        avatar_name: avatarName,
+        avatar_point_of_view: avatarPointOfView,
+        image_url: getDefaultCommunityIconUrl(),
+      });
+      if (!result.success) throw new Error('Save unsuccessful');
+      toast({ title: 'Avatar Saved', description: 'Your community avatar has been saved.' });
+      selectCommunityAvatar(result.data as CommunityAvatar);
+      onOpenChange(false);
+    } catch (err) {
+      console.error(err);
+      toast({ title: 'Save Failed', description: 'Please try again.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSelectAvatar = (avatar: CommunityAvatar) => {
+    selectCommunityAvatar(avatar);
+    onOpenChange(false);
+    toast({ title: 'Avatar Selected', description: avatar.avatar_name });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Community Avatar</DialogTitle>
+          <DialogDescription>
+            Select or create a community avatar to represent demographics and needs.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Tabs
+          value={activeTab}
+          onValueChange={(val: string) => setActiveTab(val)}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="select">Select Avatar</TabsTrigger>
+            <TabsTrigger value="create">Create Avatar</TabsTrigger>
+          </TabsList>
+
+          {/* Select Tab */}
+          <TabsContent value="select" className="pt-4">
+            {isLoading ? (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : communityAvatars.length === 0 ? (
+              <div className="text-center p-8">
+                <p className="text-muted-foreground">No avatars found.</p>
+                <Button variant="outline" onClick={() => setActiveTab('create')} className="mt-4">
+                  Create Avatar
+                </Button>
+              </div>
+            ) : (
+              <ScrollArea className="h-[400px] pr-4">
+                <div className="space-y-4">
+                  {communityAvatars.map(avatar => (
+                    <Card
+                      key={avatar.id}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Select ${avatar.avatar_name}`}
+                      onClick={() => handleSelectAvatar(avatar)}
+                      onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && handleSelectAvatar(avatar)}
+                      className="cursor-pointer hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-primary"
+                    >
+                      <CardContent className="p-4">
+                        <h4 className="font-medium mb-2">{avatar.avatar_name}</h4>
+                        <p className="text-sm text-muted-foreground line-clamp-3">
+                          {avatar.avatar_point_of_view}
+                        </p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </TabsContent>
+
+          {/* Create Tab */}
+          <TabsContent value="create" className="pt-4 space-y-4">
+            <div className="space-y-2">
+              <label htmlFor="avatar-name" className="text-sm font-medium">
+                Avatar Name
+              </label>
+              <Input
+                id="avatar-name"
+                placeholder="Enter community name"
+                value={avatarName}
+                onChange={e => setAvatarName(e.target.value)}
+              />
+            </div>
+
+            {generatedAvatars.length > 0 ? (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium">Generated Avatars</h3>
+                <ScrollArea className="h-[300px] pr-4">
+                  <div className="space-y-4">
+                    {generatedAvatars.map((avatar, index) => (
+                      <Card
+                        key={index}
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`Select generated avatar ${index + 1}`}
+                        onClick={() => setAvatarPointOfView(avatar.avatar_point_of_view)}
+                        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && setAvatarPointOfView(avatar.avatar_point_of_view)}
+                        className={`cursor-pointer hover:bg-accent/50 focus:outline-none focus:ring-2 focus:ring-primary ${
+                          avatarPointOfView === avatar.avatar_point_of_view ? 'bg-accent/50' : ''
+                        }`}
+                      >
+                        <CardContent className="p-4">
+                          <h4 className="font-medium mb-2">Generated Avatar {index + 1}</h4>
+                          <p className="text-sm text-muted-foreground line-clamp-3">
+                            {avatar.avatar_point_of_view}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <label htmlFor="avatar-pov" className="text-sm font-medium">
+                  Point of View
+                </label>
+                <Textarea
+                  id="avatar-pov"
+                  placeholder="Enter point of view"
+                  value={avatarPointOfView}
+                  onChange={e => setAvatarPointOfView(e.target.value)}
+                  rows={4}
+                />
+              </div>
+            )}
+
+            <div className="flex justify-between">
+              <Button
+                onClick={handleGenerateAvatar}
+                disabled={isGenerating || !avatarName.trim()}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  'Generate Avatar'
+                )}
+              </Button>
+
+              <Button
+                onClick={handleSaveAvatar}
+                disabled={isSaving || !avatarName.trim() || !avatarPointOfView.trim()}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Avatar'
+                )}
+              </Button>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </DialogContent>
+    </Dialog>
+  );
+}

@@ -1,0 +1,57 @@
+
+project_id = "jeezilcobzdayekigzvf"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+
+[analytics]
+enabled = true
+port = 54327
+
+[[functions]]
+name = "serpapi"
+verify_jwt = false
+
+[[functions]]
+name = "gemini"
+verify_jwt = false
+
+[[functions]]
+name = "generate-church-avatars"
+verify_jwt = false
+
+[[functions]]
+name = "generate-community-avatars"
+verify_jwt = false
+
+[[functions]]
+name = "openai"
+verify_jwt = false
