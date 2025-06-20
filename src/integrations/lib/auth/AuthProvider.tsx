@@ -76,11 +76,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // A direct update of ALL rows might be restricted.
       // The most straightforward way if RLS allows, is to update where user_id is not null (or some other broad condition)
       // For the demo, let's assume we want to change any existing user_id to the new one.
+      // Since RLS is disabled for network_connections, we can update all rows without filters
       const { error: updateError } = await supabase
         .from('network_connections')
         .update({ user_id: userId })
-        .neq('user_id', 'dummy-value-to-ensure-update-all-for-demo'); // This ensures the filter doesn't prevent updates
-        // A .isNotNull('user_id') or similar could also work if RLS allows broad updates.
+        .select(); // Using select() without filters will update all rows
 
       if (updateError) {
         console.error('[AuthProvider] Error updating network_connections for demo:', updateError);

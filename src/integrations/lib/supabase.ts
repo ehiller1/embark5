@@ -13,6 +13,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     detectSessionInUrl: true,
     storageKey: 'embark-auth-token',
   },
+  global: {
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json'
+    },
+  },
 });
 
 console.log('[supabase] Client initialized');

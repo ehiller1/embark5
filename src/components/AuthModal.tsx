@@ -8,8 +8,10 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/use-toast";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 // Import from the new auth provider
 import { useAuth } from "@/integrations/lib/auth/AuthProvider";
+import { supabase } from "@/integrations/lib/supabase";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -22,6 +24,9 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [activeTab, setActiveTab] = useState<string>("signin");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [churches, setChurches] = useState<{ church_id: string; church_name: string }[]>([]);
+  const [selectedChurch, setSelectedChurch] = useState<string>("");
+  const [churchesLoading, setChurchesLoading] = useState<boolean>(false);
   const { toast } = useToast();
   const { login, signup, isAuthenticated } = useAuth();
   
@@ -44,8 +49,45 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setChurchName('');
       setPhone('');
       setRole('Clergy');
+      setSelectedChurch('');
     }
   }, [isOpen, activeTab]);
+
+  // Fetch churches when the modal opens and role is Parish
+  useEffect(() => {
+    async function fetchChurches() {
+      if (isOpen && role === 'Parish') {
+        setChurchesLoading(true);
+        try {
+          // Get unique churches from profiles where role='Clergy'
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('church_id, church_name')
+            .eq('role', 'Clergy')
+            .not('church_id', 'is', null)
+            .not('church_name', 'is', null);
+          
+          if (error) {
+            console.error('Error fetching churches:', error);
+            return;
+          }
+          
+          // Filter out any duplicates (by church_id)
+          const uniqueChurches = data.filter((church, index, self) =>
+            index === self.findIndex((c) => c.church_id === church.church_id)
+          );
+          
+          setChurches(uniqueChurches);
+        } catch (err) {
+          console.error('Unexpected error fetching churches:', err);
+        } finally {
+          setChurchesLoading(false);
+        }
+      }
+    }
+    
+    fetchChurches();
+  }, [isOpen, role]);
   
   const [signinEmail, setSigninEmail] = useState("");
   const [signinPassword, setSigninPassword] = useState("");
@@ -113,6 +155,12 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       return;
     }
     
+    // Validate church selection for Parish users
+    if (role === 'Parish' && !selectedChurch) {
+      setFormError('Please select a church to associate with your account');
+      return;
+    }
+    
     if (password.length < 6) {
       setFormError('Password must be at least 6 characters long');
       return;
@@ -123,8 +171,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     
     let churchId: string | undefined = undefined;
     if (role === 'Clergy') {
-      // Only generate church_id for Clergy
+      // Generate new church_id for Clergy users
       churchId = uuidv4();
+    } else if (role === 'Parish') {
+      // Use selected church_id for Parish users
+      churchId = selectedChurch;
     }
 
     const userData: any = {
@@ -299,6 +350,38 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </label>
                   </div>
                 </div>
+                
+                {/* Church selection dropdown for Parish users */}
+                {role === 'Parish' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="churchSelect">Select Church <span className="text-red-500">*</span></Label>
+                    <Select 
+                      value={selectedChurch} 
+                      onValueChange={setSelectedChurch}
+                      disabled={isLoading || churchesLoading}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={churchesLoading ? "Loading churches..." : "Select a church"} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {churches.length > 0 ? (
+                          churches.map((church) => (
+                            <SelectItem key={church.church_id} value={church.church_id}>
+                              {church.church_name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="" disabled>
+                            {churchesLoading ? "Loading..." : "No churches available"}
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Associate your account with an existing church
+                    </p>
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
