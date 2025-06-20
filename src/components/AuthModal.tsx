@@ -27,6 +27,21 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [churches, setChurches] = useState<{ church_id: string; church_name: string }[]>([]);
   const [selectedChurch, setSelectedChurch] = useState<string>("");
   const [churchesLoading, setChurchesLoading] = useState<boolean>(false);
+  
+  // Define all state variables at the top, before they are used in useEffect
+  const [signinEmail, setSigninEmail] = useState("");
+  const [signinPassword, setSigninPassword] = useState("");
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [role, setRole] = useState<'Clergy' | 'Parish'>('Clergy');
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [churchName, setChurchName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  
   const { toast } = useToast();
   const { login, signup, isAuthenticated } = useAuth();
   
@@ -89,15 +104,6 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     fetchChurches();
   }, [isOpen, role]);
   
-  const [signinEmail, setSigninEmail] = useState("");
-  const [signinPassword, setSigninPassword] = useState("");
-  
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [role, setRole] = useState<'Clergy' | 'Parish'>('Clergy');
-  const [address, setAddress] = useState("");
-  const [city, setCity] = useState("");
-  const [state, setState] = useState("");
   const [churchName, setChurchName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
