@@ -94,6 +94,7 @@ export function useNarrativeAvatar() {
     church: false,
     community: false
   });
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
     // Try to load selected avatars from localStorage on initial render
@@ -127,7 +128,7 @@ export function useNarrativeAvatar() {
   const fetchChurchAvatars = useCallback(async () => {
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 15000); // 15-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 8000); // Reduced to 8-second timeout
     
     try {
       // Only select the fields we need, limit to 50 results to avoid huge payload
@@ -145,6 +146,7 @@ export function useNarrativeAvatar() {
         console.error('Error fetching church avatars:', error);
         // Set empty array to prevent UI from waiting indefinitely
         setChurchAvatars([]);
+        setIsInitialized(true); // Mark as initialized even on failure
         return;
       }
       
@@ -165,12 +167,13 @@ export function useNarrativeAvatar() {
       }
       
       setChurchAvatars(mappedData);
+      setIsInitialized(true); // Mark as initialized on success
     } catch (err: unknown) {
       clearTimeout(timeoutId);
       
       // Check if this is an abort error (timeout)
       if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('[useNarrativeAvatar] Church avatars fetch timed out after 15 seconds');
+        console.warn('[useNarrativeAvatar] Church avatars fetch timed out after 8 seconds');
       } else {
         console.error('Unexpected error fetching church avatars:', err);
       }
@@ -190,7 +193,13 @@ export function useNarrativeAvatar() {
         } else {
           console.warn('[useNarrativeAvatar] Maximum fetch retries reached for church avatars');
           localStorage.removeItem('church_avatars_fetch_retry');
+          setIsInitialized(true); // Mark as initialized even on failure
         }
+      }
+    } finally {
+      // Clear retry count on successful completion
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('church_avatars_fetch_retry');
       }
     }
   }, []);
@@ -198,7 +207,7 @@ export function useNarrativeAvatar() {
   const fetchCommunityAvatars = useCallback(async () => {
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 15000); // 15-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 8000); // Reduced to 8-second timeout
     
     try {
       // Only select the fields we need, limit to 50 results to avoid huge payload
@@ -216,6 +225,7 @@ export function useNarrativeAvatar() {
         console.error('Error fetching community avatars:', error);
         // Set empty array to prevent UI from waiting indefinitely
         setCommunityAvatars([]);
+        setIsInitialized(true); // Mark as initialized even on failure
         return;
       }
       
@@ -236,12 +246,13 @@ export function useNarrativeAvatar() {
       }
       
       setCommunityAvatars(mappedData);
+      setIsInitialized(true); // Mark as initialized on success
     } catch (err: unknown) {
       clearTimeout(timeoutId);
       
       // Check if this is an abort error (timeout)
       if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('[useNarrativeAvatar] Community avatars fetch timed out after 15 seconds');
+        console.warn('[useNarrativeAvatar] Community avatars fetch timed out after 8 seconds');
       } else {
         console.error('Unexpected error fetching community avatars:', err);
       }
@@ -261,7 +272,13 @@ export function useNarrativeAvatar() {
         } else {
           console.warn('[useNarrativeAvatar] Maximum fetch retries reached for community avatars');
           localStorage.removeItem('community_avatars_fetch_retry');
+          setIsInitialized(true); // Mark as initialized even on failure
         }
+      }
+    } finally {
+      // Clear retry count on successful completion
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('community_avatars_fetch_retry');
       }
     }
   }, []);
@@ -269,7 +286,7 @@ export function useNarrativeAvatar() {
   const fetchCompanions = useCallback(async () => {
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 15000); // 15-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 8000); // Reduced to 8-second timeout
     
     try {
       // Only select the fields we need, limit to 50 results to avoid huge payload
@@ -286,6 +303,7 @@ export function useNarrativeAvatar() {
         console.error('Error fetching companions:', error);
         // Set empty array to prevent UI from waiting indefinitely
         setCompanions([]);
+        setIsInitialized(true); // Mark as initialized even on failure
         return;
       }
 
@@ -306,12 +324,13 @@ export function useNarrativeAvatar() {
       }
       
       setCompanions(mappedData);
+      setIsInitialized(true); // Mark as initialized on success
     } catch (err: unknown) {
       clearTimeout(timeoutId);
       
       // Check if this is an abort error (timeout)
       if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('[useNarrativeAvatar] Companions fetch timed out after 15 seconds');
+        console.warn('[useNarrativeAvatar] Companions fetch timed out after 8 seconds');
       } else {
         console.error('Unexpected error fetching companions:', err);
       }
@@ -331,7 +350,13 @@ export function useNarrativeAvatar() {
         } else {
           console.warn('[useNarrativeAvatar] Maximum fetch retries reached for companions');
           localStorage.removeItem('companions_fetch_retry');
+          setIsInitialized(true); // Mark as initialized even on failure
         }
+      }
+    } finally {
+      // Clear retry count on successful completion
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('companions_fetch_retry');
       }
     }
   }, []);
@@ -341,6 +366,21 @@ export function useNarrativeAvatar() {
     fetchCommunityAvatars();
     fetchCompanions();
   }, [fetchChurchAvatars, fetchCommunityAvatars, fetchCompanions]);
+
+  // Global timeout to prevent app from hanging indefinitely
+  useEffect(() => {
+    const globalTimeout = setTimeout(() => {
+      if (!isInitialized) {
+        console.warn('[useNarrativeAvatar] Global timeout reached - forcing initialization with empty data');
+        setChurchAvatars([]);
+        setCommunityAvatars([]);
+        setCompanions([]);
+        setIsInitialized(true);
+      }
+    }, 20000); // 20-second global timeout
+
+    return () => clearTimeout(globalTimeout);
+  }, [isInitialized]);
 
   // Combine both avatar types into a single array
   useEffect(() => {
@@ -529,6 +569,7 @@ export function useNarrativeAvatar() {
     getDefaultCommunityIconUrl,
     isAvatarActive,
     toggleAvatar,
-    getAvatarByType
+    getAvatarByType,
+    isInitialized
   };
 }
