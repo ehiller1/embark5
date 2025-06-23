@@ -10,6 +10,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useEffect } from "react";
 import { createRequiredPrompts } from "./utils/promptUtils";
+import { MainLayout } from "./components/MainLayout";
 
 // Import all the page components
 import Index from "./pages/Index";
@@ -116,7 +117,9 @@ const App = () => {
                   element={
                     <ProtectedRoute>
                       <ErrorBoundary>
-                        <ParishHomePage />
+                        <MainLayout>
+                          <ParishHomePage />
+                        </MainLayout>
                       </ErrorBoundary>
                     </ProtectedRoute>
                   } 
