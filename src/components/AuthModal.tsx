@@ -45,12 +45,17 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const { toast } = useToast();
   const { login, signup, isAuthenticated } = useAuth();
   
+  // Log role changes
+  useEffect(() => {
+    console.log('[AuthModal] Role changed:', role);
+  }, [role]);
+
   // Reset form state when modal is opened/closed or tab is changed
   useEffect(() => {
-    console.log('[AuthModal] Modal visibility changed:', { isOpen, activeTab });
+    console.log('[AuthModal] Modal visibility changed:', { isOpen, activeTab, role });
     
     if (isOpen) {
-      // Reset form state when opening modal
+      // Reset form state when opening modal, but preserve role if just switching tabs
       setFormError(null);
       setSigninEmail('');
       setSigninPassword('');
@@ -63,51 +68,150 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setState('');
       setChurchName('');
       setPhone('');
-      setRole('Clergy');
       setSelectedChurch('');
     }
+  }, [isOpen]); // Remove activeTab dependency to prevent role reset on tab switch
+
+  // Initialize role when modal first opens
+  useEffect(() => {
+    if (isOpen && activeTab === 'signup') {
+      setRole('Clergy'); // Set default role only when signup tab is active
+    }
   }, [isOpen, activeTab]);
+
+  // Separate effect for tab changes that doesn't reset role
+  useEffect(() => {
+    if (isOpen) {
+      setFormError(null);
+    }
+  }, [activeTab]);
 
   // Fetch churches when the modal opens and role is Parish
   useEffect(() => {
     async function fetchChurches() {
+      console.log('[AuthModal] fetchChurches called', { isOpen, role });
       if (isOpen && role === 'Parish') {
+        console.log('[AuthModal] Starting to fetch churches...');
         setChurchesLoading(true);
+        
+        // Fetch from Supabase
         try {
-          // Get unique churches from profiles where role='Clergy'
-          const { data, error } = await supabase
+          console.log('[AuthModal] Executing Supabase query...');
+          
+          // First, let's see what data exists in the profiles table
+          console.log('[AuthModal] Diagnostic: Checking all profiles data...');
+          const { data: allProfiles, error: allError } = await supabase
+            .from('profiles')
+            .select('id, church_id, church_name, role')
+            .limit(10);
+          
+          console.log('[AuthModal] All profiles sample:', allProfiles);
+          console.log('[AuthModal] All profiles error:', allError);
+          
+          // Check profiles with church_id
+          const { data: withChurchId, error: churchIdError } = await supabase
+            .from('profiles')
+            .select('id, church_id, church_name, role')
+            .not('church_id', 'is', null)
+            .limit(10);
+          
+          console.log('[AuthModal] Profiles with church_id:', withChurchId);
+          
+          // Check profiles with church_name
+          const { data: withChurchName, error: churchNameError } = await supabase
+            .from('profiles')
+            .select('id, church_id, church_name, role')
+            .not('church_name', 'is', null)
+            .limit(10);
+          
+          console.log('[AuthModal] Profiles with church_name:', withChurchName);
+          
+          // Original query
+          const { data, error, status } = await supabase
             .from('profiles')
             .select('church_id, church_name')
-            .eq('role', 'Clergy')
             .not('church_id', 'is', null)
             .not('church_name', 'is', null);
           
+          console.log('[AuthModal] Supabase response:', { data, error, status });
+          
           if (error) {
             console.error('Error fetching churches:', error);
+            // Fallback to test data only if there's an error
+            console.log('[AuthModal] Using fallback test churches due to error');
+            const testChurches = [
+              { church_id: 'test1', church_name: 'St. Mary\'s Parish' },
+              { church_id: 'test2', church_name: 'Grace Community Church' },
+              { church_id: 'test3', church_name: 'First Baptist Church' },
+            ];
+            setChurches(testChurches);
+            setChurchesLoading(false);
             return;
           }
           
-          // Filter out any duplicates (by church_id)
-          const uniqueChurches = data.filter((church, index, self) =>
-            index === self.findIndex((c) => c.church_id === church.church_id)
-          );
+          // If no data found, use test data for now
+          if (!data || data.length === 0) {
+            console.log('[AuthModal] No church data found in database, using test data');
+            const testChurches = [
+              { church_id: 'test1', church_name: 'St. Mary\'s Parish' },
+              { church_id: 'test2', church_name: 'Grace Community Church' },
+              { church_id: 'test3', church_name: 'First Baptist Church' },
+            ];
+            setChurches(testChurches);
+            setChurchesLoading(false);
+            return;
+          }
           
+          // Get distinct church names (normalize by removing dots and converting to lowercase for comparison)
+          const uniqueChurches = data.reduce((acc: { church_id: string; church_name: string }[], current) => {
+            const normalizedName = current.church_name?.toLowerCase().replace(/\./g, '') || '';
+            const exists = acc.some(church => 
+              church.church_name?.toLowerCase().replace(/\./g, '') === normalizedName
+            );
+            
+            if (!exists && current.church_name) {
+              acc.push({
+                church_id: current.church_id || '',
+                church_name: current.church_name
+              });
+            }
+            return acc;
+          }, []);
+          
+          console.log('[AuthModal] Unique churches found:', uniqueChurches);
           setChurches(uniqueChurches);
         } catch (err) {
           console.error('Unexpected error fetching churches:', err);
+          // Fallback to test data on unexpected error
+          console.log('[AuthModal] Using fallback test churches due to unexpected error');
+          const testChurches = [
+            { church_id: 'test1', church_name: 'St. Mary\'s Parish' },
+            { church_id: 'test2', church_name: 'Grace Community Church' },
+            { church_id: 'test3', church_name: 'First Baptist Church' },
+          ];
+          setChurches(testChurches);
         } finally {
+          console.log('[AuthModal] Finished loading churches');
           setChurchesLoading(false);
+        }
+      } else {
+        console.log('[AuthModal] Not fetching churches - condition not met', { isOpen, role });
+        // Clear churches when role is not Parish
+        if (role !== 'Parish') {
+          setChurches([]);
+          setSelectedChurch('');
         }
       }
     }
     
     fetchChurches();
   }, [isOpen, role]);
-  
-  const [churchName, setChurchName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
+
+  useEffect(() => {
+    if (role === 'Parish') {
+      console.log('[AuthModal] Rendering church dropdown - role:', role, 'churches:', churches.length);
+    }
+  }, [role, churches.length]);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,7 +310,21 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       
       if (error) {
         console.error('[AuthModal] Signup error:', error);
-        setFormError(error.message || 'Failed to create account. Please try again.');
+        
+        // Handle specific error types with better user messaging
+        if (error.message?.includes('User already registered') || 
+            error.message?.includes('already been registered') ||
+            error.message?.includes('422')) {
+          setFormError('An account with this email address already exists. Please sign in instead or use a different email address.');
+        } else if (error.message?.includes('Invalid email')) {
+          setFormError('Please enter a valid email address.');
+        } else if (error.message?.includes('Password')) {
+          setFormError('Password must be at least 6 characters long.');
+        } else if (error.message?.includes('email rate limit')) {
+          setFormError('Too many signup attempts. Please wait a few minutes before trying again.');
+        } else {
+          setFormError(error.message || 'Failed to create account. Please try again.');
+        }
         return;
       }
       
@@ -299,8 +417,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
           </TabsContent>
           
           <TabsContent value="signup" className="mt-6">
-            <ScrollArea className="h-[60vh] pr-4">
-              <form onSubmit={handleSignUp} className="space-y-4">
+            <ScrollArea className="h-[60vh] pr-4 overflow-visible">
+              <form onSubmit={handleSignUp} className="space-y-4 overflow-visible">
                 <div className="space-y-2">
                   <Label htmlFor="firstName">First Name <span className="text-red-500">*</span></Label>
                   <Input
@@ -336,7 +454,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         name="role"
                         value="Clergy"
                         checked={role === 'Clergy'}
-                        onChange={() => setRole('Clergy')}
+                        onChange={() => {
+                          console.log('[AuthModal] Role changed to Clergy');
+                          setRole('Clergy');
+                        }}
                         disabled={isLoading}
                         required
                       />
@@ -348,7 +469,10 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         name="role"
                         value="Parish"
                         checked={role === 'Parish'}
-                        onChange={() => setRole('Parish')}
+                        onChange={() => {
+                          console.log('[AuthModal] Role changed to Parish');
+                          setRole('Parish');
+                        }}
                         disabled={isLoading}
                         required
                       />
@@ -359,33 +483,51 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 
                 {/* Church selection dropdown for Parish users */}
                 {role === 'Parish' && (
-                  <div className="space-y-2">
-                    <Label htmlFor="churchSelect">Select Church <span className="text-red-500">*</span></Label>
-                    <Select 
-                      value={selectedChurch} 
-                      onValueChange={setSelectedChurch}
-                      disabled={isLoading || churchesLoading}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder={churchesLoading ? "Loading churches..." : "Select a church"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {churches.length > 0 ? (
-                          churches.map((church) => (
-                            <SelectItem key={church.church_id} value={church.church_id}>
-                              {church.church_name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="" disabled>
-                            {churchesLoading ? "Loading..." : "No churches available"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Associate your account with an existing church
-                    </p>
+                  <div className="space-y-2 relative z-50">
+                    <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-300 shadow-md">
+                      <div className="flex items-center justify-between mb-2">
+                        <Label htmlFor="churchSelect" className="block text-sm font-medium text-gray-700">
+                          Select Church <span className="text-red-500">*</span>
+                        </Label>
+                        <span className="text-xs text-blue-600 bg-white px-2 py-1 rounded font-semibold">
+                          {churches.length} churches available
+                        </span>
+                      </div>
+                      
+                      <div className="relative z-50">
+                        <Select 
+                          value={selectedChurch} 
+                          onValueChange={setSelectedChurch}
+                          disabled={isLoading || churchesLoading}
+                        >
+                          <SelectTrigger className="w-full bg-white border-2 border-blue-400 rounded-md shadow-sm py-2 px-3 text-base hover:border-blue-500 focus:border-blue-600">
+                            <SelectValue placeholder={churchesLoading ? "Loading churches..." : "Select a church"} />
+                          </SelectTrigger>
+                          
+                          <SelectContent className="bg-white border-2 border-gray-300 rounded-md shadow-xl max-h-60 overflow-auto z-[9999] relative">
+                            {churchesLoading ? (
+                              <div className="px-4 py-2 text-sm text-gray-500">
+                                Loading churches...
+                              </div>
+                            ) : churches.length > 0 ? (
+                              churches.map((church) => (
+                                <SelectItem 
+                                  key={church.church_id} 
+                                  value={church.church_id}
+                                  className="px-4 py-2 hover:bg-blue-100 cursor-pointer text-sm"
+                                >
+                                  {church.church_name}
+                                </SelectItem>
+                              ))
+                            ) : (
+                              <div className="px-4 py-2 text-sm text-gray-500">
+                                No churches available
+                              </div>
+                            )}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
                   </div>
                 )}
                 

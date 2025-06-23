@@ -50,14 +50,42 @@ export function useChurchProfile() {
 
     try {
       setSaving(true);
-      const { error } = await supabase
+      
+      // First check if a record exists for this church_id
+      const { data: existingRecord, error: checkError } = await supabase
         .from('church_profile')
-        .upsert({
-          ...profileData,
-          church_id: churchId,
-        }, { onConflict: 'church_id' });
-
-      if (error) throw error;
+        .select('id')
+        .eq('church_id', churchId)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('Error checking existing record:', checkError);
+        throw checkError;
+      }
+      
+      let result;
+      if (existingRecord) {
+        // Update existing record
+        console.log('[useChurchProfile] Updating existing record with id:', existingRecord.id);
+        result = await supabase
+          .from('church_profile')
+          .update({
+            ...profileData,
+            church_id: churchId,
+          })
+          .eq('id', existingRecord.id);
+      } else {
+        // Insert new record
+        console.log('[useChurchProfile] Inserting new record for church_id:', churchId);
+        result = await supabase
+          .from('church_profile')
+          .insert({
+            ...profileData,
+            church_id: churchId,
+          });
+      }
+      
+      if (result.error) throw result.error;
       
       // Update the local state with new data
       setProfile(prev => {
