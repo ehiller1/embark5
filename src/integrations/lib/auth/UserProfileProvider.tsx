@@ -78,10 +78,28 @@ export const UserProfileProvider = ({ children }: { children: React.ReactNode })
       return;
     }
     
+    // Safety timeout to prevent infinite loading
+    let timeoutId: ReturnType<typeof setTimeout>;
+    
     // Load profile
     const fetchProfile = async () => {
       // Set loading state
       setState(prev => ({ ...prev, isLoading: true }));
+      
+      // Set a timeout to prevent infinite loading state
+      timeoutId = setTimeout(() => {
+        console.warn('[UserProfile] Profile fetch timeout - forcing loading state to complete');
+        setState(prev => {
+          if (prev.isLoading) {
+            return {
+              ...prev,
+              isLoading: false,
+              error: new Error('Profile fetch timed out')
+            };
+          }
+          return prev;
+        });
+      }, 10000); // 10 second timeout
       
       try {
         console.log('[UserProfile] Fetching profile for user:', user.id);
@@ -93,6 +111,9 @@ export const UserProfileProvider = ({ children }: { children: React.ReactNode })
           .select('*')
           .eq('id', user.id)
           .single();
+        
+        // Clear timeout since we got a response (success or error)
+        clearTimeout(timeoutId);
         
         if (error) {
           console.warn('[UserProfile] Error fetching profile:', error);
@@ -120,6 +141,9 @@ export const UserProfileProvider = ({ children }: { children: React.ReactNode })
         });
       } catch (err) {
         console.error('[UserProfile] Error in profile fetch:', err);
+        // Clear timeout in catch block too
+        clearTimeout(timeoutId);
+        
         setState({
           profile: null,
           isLoading: false,
@@ -140,6 +164,11 @@ export const UserProfileProvider = ({ children }: { children: React.ReactNode })
     
     // Start fetching the profile
     fetchProfile();
+    
+    // Cleanup function to clear timeout when component unmounts
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [user, isAuthenticated]);
   
   // Helper function to create a default profile
