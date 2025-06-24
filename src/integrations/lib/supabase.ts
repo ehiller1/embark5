@@ -10,7 +10,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true,
+    detectSessionInUrl: false, // Disabled to prevent auto-authentication in Vercel deployments
     storageKey: 'embark-auth-token',
   },
   global: {

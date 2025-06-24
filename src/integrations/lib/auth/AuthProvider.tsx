@@ -70,22 +70,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     try {
       console.log(`[AuthProvider] Demo mode: Updating network_connections for user ${userId}`);
-      // Correct approach to update all rows (or rows not matching the current user):
-      // To update all rows to the new userId, regardless of their current user_id:
-      // This is tricky with Supabase client's row-level security (RLS) and update policies.
-      // A direct update of ALL rows might be restricted.
-      // The most straightforward way if RLS allows, is to update where user_id is not null (or some other broad condition)
-      // For the demo, let's assume we want to change any existing user_id to the new one.
-      // Since RLS is disabled for network_connections, we can update all rows without filters
-      const { error: updateError } = await supabase
+      
+      // First, update rows where user_id is null
+      const { error: nullUpdateError } = await supabase
         .from('network_connections')
         .update({ user_id: userId })
-        .select(); // Using select() without filters will update all rows
+        .is('user_id', null);
 
-      if (updateError) {
-        console.error('[AuthProvider] Error updating network_connections for demo:', updateError);
+      if (nullUpdateError) {
+        console.error('[AuthProvider] Error updating null user_id network_connections:', nullUpdateError);
       } else {
-        console.log('[AuthProvider] Demo mode: Successfully updated network_connections.');
+        console.log('[AuthProvider] Demo mode: Successfully updated network_connections with null user_id.');
+      }
+      
+      // Then update non-null user_ids - use an approach that doesn't cause UUID errors
+      // This is a safer approach because it doesn't use invalid UUID syntax in the query
+      try {
+        const { data: existingConnections } = await supabase
+          .from('network_connections')
+          .select('id')
+          .not('user_id', 'is', null)
+          .limit(100); // Limit to prevent excessive updates
+          
+        if (existingConnections && existingConnections.length > 0) {
+          const ids = existingConnections.map(conn => conn.id);
+          
+          const { error: batchUpdateError } = await supabase
+            .from('network_connections')
+            .update({ user_id: userId })
+            .in('id', ids);
+            
+          if (batchUpdateError) {
+            console.error('[AuthProvider] Error batch updating network_connections:', batchUpdateError);
+          } else {
+            console.log(`[AuthProvider] Demo mode: Successfully updated ${ids.length} existing network_connections.`);
+          }
+        }
+      } catch (batchErr) {
+        console.error('[AuthProvider] Exception during batch network_connections update:', batchErr);
       }
     } catch (err) {
       console.error('[AuthProvider] Exception during network_connections update for demo:', err);
