@@ -71,7 +71,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       console.log(`[AuthProvider] Demo mode: Updating network_connections for user ${userId}`);
       
-      // First, update rows where user_id is null
+      // First, check if table exists before attempting operations
+      try {
+        // Simple check query to verify if the table exists
+        const { count, error: countError } = await supabase
+          .from('network_connections')
+          .select('*', { count: 'exact', head: true });
+          
+        if (countError) {
+          // Table likely doesn't exist, silently skip the update
+          console.log('[AuthProvider] network_connections table not available, skipping demo update');
+          return;
+        }
+        
+        console.log(`[AuthProvider] network_connections table exists with ${count} rows`);
+      } catch (checkErr) {
+        // If there's any error checking the table, log and exit
+        console.warn('[AuthProvider] Error checking network_connections table:', checkErr);
+        return;
+      }
+      
+      // Update rows where user_id is null
       const { error: nullUpdateError } = await supabase
         .from('network_connections')
         .update({ user_id: userId })
@@ -83,28 +103,48 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.log('[AuthProvider] Demo mode: Successfully updated network_connections with null user_id.');
       }
       
-      // Then update non-null user_ids - use an approach that doesn't cause UUID errors
-      // This is a safer approach because it doesn't use invalid UUID syntax in the query
+      // Then get all existing connections with a simple select and update them in batches
       try {
-        const { data: existingConnections } = await supabase
+        // Get all IDs first (limit to reasonable batch size)
+        const { data: existingConnections, error: fetchError } = await supabase
           .from('network_connections')
           .select('id')
           .not('user_id', 'is', null)
-          .limit(100); // Limit to prevent excessive updates
+          .not('user_id', 'eq', userId) // Only update rows that don't already have this user ID
+          .limit(100); 
           
+        if (fetchError) {
+          console.error('[AuthProvider] Error fetching network connections:', fetchError);
+          return;
+        }
+        
         if (existingConnections && existingConnections.length > 0) {
           const ids = existingConnections.map(conn => conn.id);
+          console.log(`[AuthProvider] Found ${ids.length} connections to update`);
           
-          const { error: batchUpdateError } = await supabase
-            .from('network_connections')
-            .update({ user_id: userId })
-            .in('id', ids);
+          // Update in smaller batches of 20 to avoid potential issues
+          const batchSize = 20;
+          let successCount = 0;
+          
+          for (let i = 0; i < ids.length; i += batchSize) {
+            const batchIds = ids.slice(i, i + batchSize);
             
-          if (batchUpdateError) {
-            console.error('[AuthProvider] Error batch updating network_connections:', batchUpdateError);
-          } else {
-            console.log(`[AuthProvider] Demo mode: Successfully updated ${ids.length} existing network_connections.`);
+            const { error: batchUpdateError } = await supabase
+              .from('network_connections')
+              .update({ user_id: userId })
+              .in('id', batchIds);
+              
+            if (batchUpdateError) {
+              console.error(`[AuthProvider] Error updating batch ${i/batchSize + 1}:`, batchUpdateError);
+            } else {
+              successCount += batchIds.length;
+              console.log(`[AuthProvider] Updated batch ${i/batchSize + 1} (${batchIds.length} connections)`);
+            }
           }
+          
+          console.log(`[AuthProvider] Demo mode: Successfully updated ${successCount}/${ids.length} existing network_connections.`);
+        } else {
+          console.log('[AuthProvider] No existing connections found that need updating.');
         }
       } catch (batchErr) {
         console.error('[AuthProvider] Exception during batch network_connections update:', batchErr);
