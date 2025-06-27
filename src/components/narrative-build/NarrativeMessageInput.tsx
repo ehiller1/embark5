@@ -14,9 +14,7 @@ interface NarrativeMessageInputProps {
   onKeyDown: (e: React.KeyboardEvent) => void;
   isLoading: boolean;
   showDefineNarrativeButton: boolean;
-  onEditNarrative: () => void;
   handleNavigateToScenario: () => void;
-  handleFinalizeVocation: () => void;
   avatars?: {
     name: string;
     role: string;
@@ -32,9 +30,7 @@ export const NarrativeMessageInput: React.FC<NarrativeMessageInputProps> = ({
   onKeyDown,
   isLoading,
   showDefineNarrativeButton,
-  onEditNarrative,
   handleNavigateToScenario,
-  handleFinalizeVocation,
   avatars = [],
   onDirectMessage
 }) => {

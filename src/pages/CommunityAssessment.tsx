@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
-import { MainLayout } from '@/components/MainLayout';
 import { CommunityAssessmentInterface } from '@/components/CommunityAssessmentInterface';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useAuth } from '@/components/AuthContext';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { AssessmentSidebar } from '@/components/AssessmentSidebar';
 import { useSectionAvatars } from '@/hooks/useSectionAvatars';
@@ -41,7 +40,7 @@ export default function CommunityAssessment() {
   };
   
   const content = (
-    <MainLayout>
+<>
       <div className="mb-4">
         <Breadcrumb>
           <BreadcrumbList>
@@ -95,8 +94,7 @@ export default function CommunityAssessment() {
           </div>
         </div>
       </div>
-    </MainLayout>
-  );
+    </>  );
 
   return (
     <AssessmentSidebar>

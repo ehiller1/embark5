@@ -1,5 +1,3 @@
-
-import React from 'react';
 import { SectionAvatarCard } from './SectionAvatarCard';
 import { CompanionCard } from './CompanionCard';
 import { CompanionsList } from '@/components/CompanionsList';

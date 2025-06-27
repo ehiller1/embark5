@@ -6,47 +6,60 @@ import { supabase } from '@/integrations/lib/supabase';
  * @returns Promise<boolean> True if profile exists, false otherwise
  */
 export const checkChurchProfileExists = async (churchId: string): Promise<boolean> => {
-  console.log('[checkChurchProfileExists] Checking church profile for churchId:', churchId);
+  // Only log in development environment
+  const isDev = process.env.NODE_ENV !== 'production';
+  
+  if (isDev) {
+    console.log('[checkChurchProfileExists] Checking church profile for churchId:', churchId);
+  }
+  
   if (!churchId) {
-    console.log('[checkChurchProfileExists] No churchId provided, returning false');
+    if (isDev) console.log('[checkChurchProfileExists] No churchId provided, returning false');
     return false;
   }
 
   try {
     // Try first approach: check church_profile table
-    console.log('[checkChurchProfileExists] Querying church_profile table...');
+    if (isDev) console.log('[checkChurchProfileExists] Querying church_profile table...');
+    
     const { data: profileData, error: profileError } = await supabase
       .from('church_profile')
       .select('church_id')
       .eq('church_id', churchId)
-      .single();
+      .maybeSingle(); // Use maybeSingle instead of single to avoid errors
 
-    // Log the results of this query
-    console.log('[checkChurchProfileExists] Profile query result:', { data: profileData, error: profileError });
+    if (isDev && profileError && profileError.code !== 'PGRST116') {
+      // Only log actual errors, not expected "not found" errors
+      console.warn('[checkChurchProfileExists] Profile query error:', profileError);
+    }
     
     if (profileData?.church_id) {
-      console.log('[checkChurchProfileExists] Found profile in church_profile table');
+      if (isDev) console.log('[checkChurchProfileExists] Found profile in church_profile table');
       return true;
     }
 
     // If first approach fails, try second approach: check profiles table
-    console.log('[checkChurchProfileExists] Trying alternate profiles table...');
+    if (isDev) console.log('[checkChurchProfileExists] Trying alternate profiles table...');
+    
     const { data: altProfileData, error: altProfileError } = await supabase
       .from('profiles') 
       .select('id, church_name')
       .eq('id', churchId)
-      .single();
+      .maybeSingle(); // Use maybeSingle instead of single to avoid errors
 
-    console.log('[checkChurchProfileExists] Alternate profile query result:', { data: altProfileData, error: altProfileError });
+    if (isDev && altProfileError && altProfileError.code !== 'PGRST116') {
+      // Only log actual errors, not expected "not found" errors
+      console.warn('[checkChurchProfileExists] Alternate profile query error:', altProfileError);
+    }
 
     // Consider profile complete if it has a church_name
     if (altProfileData?.church_name) {
-      console.log('[checkChurchProfileExists] Found profile in profiles table with church_name');
+      if (isDev) console.log('[checkChurchProfileExists] Found profile in profiles table with church_name');
       return true;
     }
     
-    // If both approaches fail, just assume true temporarily for debugging
-    console.log('[checkChurchProfileExists] No profile found in any table, returning false.');
+    // If both approaches fail, return false
+    if (isDev) console.log('[checkChurchProfileExists] No profile found in any table, returning false.');
     return false; // No profile found
   } catch (error) {
     console.error('[checkChurchProfileExists] Exception checking church profile:', error);
@@ -223,7 +236,7 @@ export const CARD_STATE_CONFIG: Record<CardType, {
           .from('resource_library')
           .select('id')
           .eq('church_id', churchId)
-          .eq('type', 'scenario_building')
+          .eq('resource_type', 'scenario_building')
           .limit(1);
         
         if (error) {
@@ -247,7 +260,7 @@ export const CARD_STATE_CONFIG: Record<CardType, {
           .from('resource_library')
           .select('id')
           .eq('church_id', churchId)
-          .eq('type', 'implementation_testing')
+          .eq('resource_type', 'implementation_testing')
           .limit(1);
         
         if (error) {
@@ -271,7 +284,7 @@ export const CARD_STATE_CONFIG: Record<CardType, {
           .from('resource_library')
           .select('id')
           .eq('church_id', churchId)
-          .eq('type', 'discernment_plan')
+          .eq('resource_type', 'discernment_plan')
           .limit(1);
         
         if (error) {
@@ -297,7 +310,7 @@ export const CARD_STATE_CONFIG: Record<CardType, {
           .from('resource_library')
           .select('id')
           .eq('church_id', churchId)
-          .eq('type', 'ministry_insights')
+          .eq('resource_type', 'ministry_insights')
           .limit(1);
 
         if (error) {
@@ -323,7 +336,7 @@ export const CARD_STATE_CONFIG: Record<CardType, {
           .from('resource_library')
           .select('id')
           .eq('church_id', churchId)
-          .eq('type', 'connect_with_churches')
+          .eq('resource_type', 'connect_with_churches')
           .limit(1);
         
         if (error) {

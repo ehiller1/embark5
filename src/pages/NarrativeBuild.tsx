@@ -1,7 +1,6 @@
 // src/pages/NarrativeBuild.tsx
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MainLayout } from '@/components/MainLayout';
 import { supabase } from '@/integrations/lib/supabase'; // Fixed import path for DB access
 import { toast } from '@/hooks/use-toast'; // Added for notifications
 import { v4 as uuidv4 } from 'uuid';
@@ -9,7 +8,7 @@ import { VocationAvatarModal } from '@/components/VocationAvatarModal';
 import { VocationalStatementDialog } from '@/components/VocationalStatementDialog';
 import { UIVocationalStatement as ImportedUIVocationalStatement, AvatarRole, ChurchAvatar, CommunityAvatar } from '@/types/NarrativeTypes';
 // REQUIRED_PROMPT_TYPES import removed, PromptType defined via path
-import { useAuth } from '@/components/AuthContext';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { AvatarProvider, useAvatarContext } from '@/hooks/useAvatarContext';
 import { useNarrativeAvatar } from '@/hooks/useNarrativeAvatar';
 
@@ -50,12 +49,16 @@ const NarrativeBuildContent: React.FC = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const {
-    selectedChurchAvatar,
-    selectedCommunityAvatar,
-    selectedCompanion, // Now using selectedCompanion from useNarrativeAvatar
-    companions, // Uncommented to use in companion selection modal
-    selectCompanion // Uncommented to use in companion selection handler
+    churchAvatar: selectedChurchAvatar,
+    communityAvatar: selectedCommunityAvatar,
+    companions,
+    selectCompanion, // This is the function to select a companion
+    selectedCompanionId, // The ID of the selected companion
   } = useNarrativeAvatar();
+
+  const selectedCompanion = useMemo(() => {
+    return companions.find(c => c.id === selectedCompanionId) || null;
+  }, [companions, selectedCompanionId]);
   const { isLoading: avatarsLoading, /* error: avatarsError, */ missingAvatars } = useAvatarContext(); // avatarsError removed
 
   const [selectedStatements, setSelectedStatements] = useState<UIVocationalStatement[]>([]);
@@ -891,7 +894,7 @@ const NarrativeBuildContent: React.FC = () => {
   ], [generatedChurchStatements, generatedCommunityStatements, generatedCompanionStatements, generatedSystemStatements]);
 
   // Moved handler definitions earlier to avoid 'used before declaration' errors
-  const narrativeInputSubmitWrapper = useCallback(async (eventOrInput: React.FormEvent | string, attachments?: any[]) => {
+  const narrativeInputSubmitWrapper = useCallback(async (eventOrInput: React.FormEvent | string) => {
     let currentInput = '';
     if (typeof eventOrInput === 'string') {
       currentInput = eventOrInput;
@@ -900,11 +903,11 @@ const NarrativeBuildContent: React.FC = () => {
       currentInput = userInput; // Assuming userInput state holds the value from NarrativeInput
     }
 
-    if (!currentInput.trim() && (!attachments || attachments.length === 0)) return;
+    if (!currentInput.trim()) return;
 
-    console.log('narrativeInputSubmitWrapper called with:', currentInput, attachments);
+    console.log('narrativeInputSubmitWrapper called with:', currentInput);
     if (handleUserMessageSubmit) {
-        await handleUserMessageSubmit(currentInput, attachments);
+        await handleUserMessageSubmit(currentInput);
         setUserInput(''); // Clear input after submission
     } else {
         console.warn('handleUserMessageSubmit is not defined, cannot send message.');
@@ -1055,7 +1058,6 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
   }
 
   return (
-    <MainLayout>
       <div className="container mx-auto p-4 md:p-6 space-y-6">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
@@ -1103,9 +1105,7 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
                 onDirectMessage={handleDirectMessage} /* Signature adjusted */
                 showDefineNarrativeButton={false} 
                 avatars={mentionableAvatars}
-                onEditNarrative={() => console.log('Edit Narrative Clicked - Placeholder')}
                 handleNavigateToScenario={() => console.log('Navigate to Scenario Clicked - Placeholder')}
-                handleFinalizeVocation={() => console.log('Finalize Vocation Clicked - Placeholder')}
               />
             </div>
           </CardContent>
@@ -1306,7 +1306,7 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
           companionsList={companions || []}
           onSelectCompanion={(companion) => {
             if (selectCompanion && companion) {
-              selectCompanion(companion);
+              selectCompanion(companion.id);
               setShowCompanionModal(false);
             }
           }}
@@ -1340,7 +1340,6 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
           />
         )}
       </div>
-    </MainLayout>
   );
 };
 

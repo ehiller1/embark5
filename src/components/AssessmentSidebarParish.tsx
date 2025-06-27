@@ -1,5 +1,5 @@
-
-import React, { useState } from 'react';
+import * as React from "react";
+import { useState } from 'react';
 import { useParishCompanion } from '@/hooks/useParishCompanion';
 import { ParishCompanionsList } from './ParishCompanionsList';
 import {
@@ -10,7 +10,6 @@ import {
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { Button } from './ui/button';
-import { supabase } from '@/integrations/lib/supabase';
 import { ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
 
 interface AssessmentSidebarProps {

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/components/AuthContext";
+import { useAuth } from "@/integrations/lib/auth/AuthProvider";
 import { ConversationInterface } from "@/components/ConversationInterface";
 import { Button } from "@/components/ui/button";
 import { HelpCircle } from "lucide-react";
-import { MainLayout } from "@/components/MainLayout";
 import { toast } from "@/hooks/use-toast";
 import { AvatarSidebar } from "@/components/narrative-build/AvatarSidebar";
 import { useSelectedCompanion, useCompanionSubscriber } from "@/hooks/useSelectedCompanion";
@@ -71,7 +70,7 @@ const Conversation = () => {
   const sectionAvatar = INFORMATION_GATHERER;
 
   return (
-    <MainLayout>
+    <>
       <div className="mb-8 px-4 py-6 md:px-6">
         <h1 className="text-xl font-bold tracking-tight text-gray-900 sm:text-5xl md:text-6xl">
           <span className="block xl:inline">Let's start the discernment</span>
@@ -136,7 +135,7 @@ const Conversation = () => {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

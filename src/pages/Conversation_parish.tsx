@@ -1,12 +1,11 @@
 
 import { useState, useEffect } from 'react';
-import { MainLayout } from '@/components/MainLayout';
+
 import { ConversationInterface } from '@/components/ConversationInterface';
 import { DiscernmentPlanViewer } from '@/components/DiscernmentPlanViewer';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { AssessmentSidebar} from '@/components/AssessmentSidebarParish';
 import { useParishCompanion } from '@/hooks/useParishCompanion';
 import { useOpenAI } from '@/hooks/useOpenAI';
 import { supabase } from '@/integrations/lib/supabase';
@@ -99,55 +98,47 @@ export default function Conversation() {
     }
   };
 
-  const content = (
-    <MainLayout>
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <div className="mb-6 flex items-center">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate(-1)}
-            className="flex items-center gap-2 text-journey-pink hover:bg-journey-lightPink/20 hover:text-journey-darkRed transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" /> 
-            Back
-          </Button>
-        </div>
-        
-        <div className="mb-8">
-          <h1 className="text-3xl font-serif font-semibold bg-clip-text text-transparent bg-gradient-journey mb-4">
-            Begin the Conversation
-          </h1>
-          <div className="p-1 bg-gradient-journey-light rounded-xl">
-            <div className="bg-white p-6 rounded-lg">
-              <p className="text-base text-gray-700 leading-relaxed">
-                Reflect on where we are called by God and respond to this plan sharing your hopes, fears and aspirations.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-8">
-          <DiscernmentPlanViewer />
-        </div>
-        
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="h-[500px]">
-            <ConversationInterface 
-              messages={messages}
-              onSendMessage={handleSendMessage}
-              isLoading={isLoading}
-              selectedCompanion={selectedParishCompanion}
-            />
+  return (
+    <div className="max-w-6xl mx-auto px-4 py-6">
+      <div className="mb-6 flex items-center">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 text-journey-pink hover:bg-journey-lightPink/20 hover:text-journey-darkRed transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" /> 
+          Back
+        </Button>
+      </div>
+      
+      <div className="mb-8">
+        <h1 className="text-3xl font-serif font-semibold bg-clip-text text-transparent bg-gradient-journey mb-4">
+          Begin the Conversation
+        </h1>
+        <div className="p-1 bg-gradient-journey-light rounded-xl">
+          <div className="bg-white p-6 rounded-lg">
+            <p className="text-base text-gray-700 leading-relaxed">
+              Reflect on where we are called by God and respond to this plan sharing your hopes, fears and aspirations.
+            </p>
           </div>
         </div>
       </div>
-    </MainLayout>
-  );
 
-  return (
-    <AssessmentSidebar>
-      {content}
-    </AssessmentSidebar>
+      <div className="mb-8">
+        <DiscernmentPlanViewer />
+      </div>
+      
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="h-[500px]">
+          <ConversationInterface 
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            isLoading={isLoading}
+            selectedCompanion={selectedParishCompanion}
+          />
+        </div>
+      </div>
+    </div>
   );
 }

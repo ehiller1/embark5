@@ -1,94 +1,12 @@
-
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, Save, AlertTriangle, BarChart2, PieChart } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useForm } from 'react-hook-form';
 import { useOpenAI } from '@/hooks/useOpenAI';
 import { useToast } from '@/hooks/use-toast';
-import { Input } from '@/components/ui/input';
-import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
-import { useForm } from 'react-hook-form';
-import Tiptap from './Tiptap';
-import { supabase } from '@/integrations/lib/supabase';
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  ChartContainer, 
-  ChartTooltip, 
-  ChartTooltipContent,
-  ChartLegend,
-  ChartLegendContent
-} from '@/components/ui/chart';
-import { 
-  BarChart, 
-  Bar, 
-  PieChart as RechartsPlaceholder,
-  Pie, 
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer
-} from 'recharts';
-
-const STORAGE_KEYS = {
-  ANALYSIS: 'comparative_analysis_content',
-  EDITOR: 'comparative_analysis_editor_content',
-  COMPARISONS: 'comparative_analysis_comparisons',
-  OBSTACLES: 'comparative_analysis_obstacles',
-};
-
-// Statistical data for charts
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
-
-const attendanceData = [
-  { name: 'Your Church', value: 120 },
-  { name: 'Similar Churches', value: 180 },
-];
-
-const growthRateData = [
-  { name: 'Jan', yourChurch: 4.2, similarChurches: 3.1 },
-  { name: 'Feb', yourChurch: 4.5, similarChurches: 3.3 },
-  { name: 'Mar', yourChurch: 4.8, similarChurches: 3.4 },
-  { name: 'Apr', yourChurch: 4.3, similarChurches: 3.6 },
-  { name: 'May', yourChurch: 5.0, similarChurches: 3.8 },
-  { name: 'Jun', yourChurch: 5.5, similarChurches: 3.9 },
-];
-
-const demographicData = [
-  { name: 'Under 18', yourChurch: 15, similarChurches: 22 },
-  { name: '18-35', yourChurch: 25, similarChurches: 18 },
-  { name: '36-50', yourChurch: 30, similarChurches: 25 },
-  { name: '51-65', yourChurch: 20, similarChurches: 20 },
-  { name: 'Over 65', yourChurch: 10, similarChurches: 15 },
-];
-
-const engagementData = [
-  { name: 'Weekly Attendance', yourChurch: 78, similarChurches: 65 },
-  { name: 'Small Groups', yourChurch: 45, similarChurches: 52 },
-  { name: 'Volunteer Rate', yourChurch: 32, similarChurches: 40 },
-  { name: 'Digital Engagement', yourChurch: 58, similarChurches: 48 },
-];
-
-// Chart configuration
-const chartConfig = {
-  growth: {
-    yourChurch: { label: 'Your Church', color: '#0088FE' },
-    similarChurches: { label: 'Similar Churches', color: '#00C49F' },
-  },
-  demographic: {
-    yourChurch: { label: 'Your Church', color: '#0088FE' },
-    similarChurches: { label: 'Similar Churches', color: '#00C49F' },
-  },
-  engagement: {
-    yourChurch: { label: 'Your Church', color: '#0088FE' },
-    similarChurches: { label: 'Similar Churches', color: '#00C49F' },
-  }
-};
+import { Loader2, Save } from 'lucide-react';
 
 interface ComparativeAnalysisModalProps {
   open: boolean;
@@ -96,11 +14,24 @@ interface ComparativeAnalysisModalProps {
   summaryContent: string;
 }
 
+interface AnalysisState {
+  analysis: string;
+  editorContent: string;
+  comparisons: string[];
+  obstacles: string[];
+  loading: boolean;
+  saving: boolean;
+  editing: boolean;
+  error: boolean;
+  title: string;
+  activeTab: 'narrative' | 'statistics';
+}
+
 export function ComparativeAnalysisModal({ open, onClose, summaryContent }: ComparativeAnalysisModalProps) {
   const { generateResponse } = useOpenAI();
   const { toast } = useToast();
 
-  const [state, setState] = useState({
+  const [state, setState] = useState<AnalysisState>({
     analysis: '',
     editorContent: '',
     comparisons: [] as string[],
@@ -124,10 +55,10 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
   const loadData = () => {
     console.log('[ComparativeAnalysisModal] Loading data, checking local storage');
     const stored = {
-      analysis: localStorage.getItem(STORAGE_KEYS.ANALYSIS) || '',
-      editor: localStorage.getItem(STORAGE_KEYS.EDITOR) || '',
-      comparisons: JSON.parse(localStorage.getItem(STORAGE_KEYS.COMPARISONS) || '[]'),
-      obstacles: JSON.parse(localStorage.getItem(STORAGE_KEYS.OBSTACLES) || '[]'),
+      analysis: localStorage.getItem('comparative_analysis_content') || '',
+      editor: localStorage.getItem('comparative_analysis_editor_content') || '',
+      comparisons: JSON.parse(localStorage.getItem('comparative_analysis_comparisons') || '[]'),
+      obstacles: JSON.parse(localStorage.getItem('comparative_analysis_obstacles') || '[]'),
     };
 
     if (stored.analysis) {
@@ -218,10 +149,10 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
       // Store normalized text to replace church name later
       const normalizedText = text.replace(new RegExp(church, 'g'), '[church name]');
       
-      localStorage.setItem(STORAGE_KEYS.ANALYSIS, normalizedText);
-      localStorage.setItem(STORAGE_KEYS.EDITOR, normalizedText);
-      localStorage.setItem(STORAGE_KEYS.COMPARISONS, JSON.stringify(comparisons));
-      localStorage.setItem(STORAGE_KEYS.OBSTACLES, JSON.stringify(obstacles));
+      localStorage.setItem('comparative_analysis_content', normalizedText);
+      localStorage.setItem('comparative_analysis_editor_content', normalizedText);
+      localStorage.setItem('comparative_analysis_comparisons', JSON.stringify(comparisons));
+      localStorage.setItem('comparative_analysis_obstacles', JSON.stringify(obstacles));
       
       setState(prev => ({ 
         ...prev, 
@@ -257,7 +188,7 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
         content: state.editorContent,
       });
       if (error) throw error;
-      localStorage.setItem(STORAGE_KEYS.EDITOR, state.editorContent);
+      localStorage.setItem('comparative_analysis_editor_content', state.editorContent);
       toast({
         title: "Analysis Saved",
         description: "The comparative analysis has been saved successfully.",

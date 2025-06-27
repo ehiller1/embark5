@@ -1,16 +1,29 @@
 /// <reference types="@testing-library/jest-dom" />
 // src/pages/PlanBuild.test.tsx
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PlanBuilder } from './PlanBuild';
-import { AuthContext, AuthContextType } from '@/components/AuthContext';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
+import { supabase } from '@/integrations/lib/supabase';
 // import { ToastProvider } from '@/components/ui/toast/toast-provider'; // Path incorrect, needs verification // Assuming this is how your ToastProvider is set up
 
-// --- Mocks --- 
+import {
+  mockEnhancePlan,
+  mockGeneratePlan,
+  mockNavigate,
+  mockSupabaseSelect,
+  mockSupabaseEq,
+  mockSupabaseIn,
+  mockSupabaseInsert,
+  mockGenerateResponse,
+  mockGetRateLimitStatus,
+  mockCancelAllRequests,
+  mockGetPromptByType,
+  mockToast,
+} from '@/test/mocks';
 
-// Mock react-router-dom
-const mockNavigate = vi.fn();
+// --- Mock Implementations ---
 vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
@@ -19,40 +32,21 @@ vi.mock('react-router-dom', async () => {
   };
 });
 
-// Mock useAuth
-const mockUseAuth = (user = { id: 'test-user-id', email: 'test@example.com' }) => ({
+vi.mock('@/integrations/lib/auth/AuthProvider');
+const mockedUseAuth = useAuth as Mock;
+
+const createMockAuth = (user: {id: string, email: string} | null = { id: 'test-user-id', email: 'test@example.com' }) => ({
   user,
-  session: { user } as any, // Adjust as per your session structure
+  session: user ? { user } as any : null,
   isAuthenticated: !!user,
-  isLoading: false,
+  loading: false,
   login: vi.fn(),
-  logout: vi.fn(),
+  signOut: vi.fn(),
   signup: vi.fn(),
-  sendPasswordResetEmail: vi.fn(),
-  updateUserPassword: vi.fn(),
 });
 
-// Mock Supabase
-const mockSupabaseFrom = vi.fn().mockReturnThis();
-const mockSupabaseSelect = vi.fn().mockReturnThis();
-const mockSupabaseEq = vi.fn().mockReturnThis();
-const mockSupabaseIn = vi.fn().mockResolvedValue({ data: [], error: null });
-const mockSupabaseInsert = vi.fn().mockResolvedValue({ data: [{}], error: null });
+vi.mock('@/integrations/lib/supabase');
 
-vi.mock('@/integrations/lib/supabase', () => ({
-  supabase: {
-    from: mockSupabaseFrom,
-    // Mock other Supabase client methods if PlanBuilder uses them directly
-    // For now, focusing on what's in the provided PlanBuilder code
-    // select, eq, in are chained, so 'from' needs to return an object that has them
-    // This simplified mock might need expansion based on actual usage patterns
-  },
-}));
-
-// Mock useOpenAI
-const mockGenerateResponse = vi.fn();
-const mockGetRateLimitStatus = vi.fn().mockReturnValue({ limited: false, waitTime: 0 });
-const mockCancelAllRequests = vi.fn();
 vi.mock('@/hooks/useOpenAI', () => ({
   useOpenAI: () => ({
     generateResponse: mockGenerateResponse,
@@ -61,16 +55,12 @@ vi.mock('@/hooks/useOpenAI', () => ({
   }),
 }));
 
-// Mock usePrompts
-const mockGetPromptByType = vi.fn();
 vi.mock('@/hooks/usePrompts', () => ({
   usePrompts: () => ({
     getPromptByType: mockGetPromptByType,
   }),
 }));
 
-// Mock useToast
-const mockToast = vi.fn();
 vi.mock('@/hooks/use-toast', () => ({
   useToast: () => ({
     toast: mockToast,
@@ -98,18 +88,17 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 // --- Helper to render with providers --- 
-const renderWithProviders = (ui: React.ReactElement, { authValue = mockUseAuth(), route = '/plan_build' } = {}) => {
+const renderWithProviders = (
+  ui: React.ReactElement,
+  { route = '/plan_build' } = {}
+) => {
   return render(
-    <AuthContext.Provider value={authValue as unknown as AuthContextType}>
-      {/* <ToastProvider> Ensure your app's ToastProvider is here </ToastProvider> */}
-        <MemoryRouter initialEntries={[route]}>
-          <Routes>
-            <Route path="/plan_build" element={ui} />
-            <Route path="/community_research" element={<div>Community Research Page</div>} />
-          </Routes>
-        </MemoryRouter>
-      {/* </ToastProvider> */}
-    </AuthContext.Provider>
+    <MemoryRouter initialEntries={[route]}>
+      <Routes>
+        <Route path="/plan_build" element={ui} />
+        <Route path="/community_research" element={<div>Community Research Page</div>} />
+      </Routes>
+    </MemoryRouter>
   );
 };
 
@@ -122,34 +111,25 @@ describe('PlanBuilder Component', () => {
     // Clear localStorage mock
     localStorageMock.clear();
 
+    // Set up default mock implementations
+    mockedUseAuth.mockReturnValue(createMockAuth());
+
     // Reset Supabase mock implementations for chained calls
-    // These mocks are defined globally (e.g., const mockSupabaseSelect = vi.fn();)
-    // and their chained behavior is set up here for each test.
-    mockSupabaseFrom.mockReturnValue({ 
+    (supabase.from as Mock).mockReturnValue({
       select: mockSupabaseSelect,
       insert: mockSupabaseInsert,
-    } as any);
-    mockSupabaseSelect.mockReturnValue({ 
+    });
+    mockSupabaseSelect.mockReturnValue({
       eq: mockSupabaseEq,
       in: mockSupabaseIn,
-      // Add other chained methods if used, e.g., order, limit
-    } as any);
-    mockSupabaseEq.mockReturnValue({ 
-      in: mockSupabaseIn, 
-      // Add other chained methods if used, e.g., single, maybeSingle
-      // If .eq() can be terminal (i.e., directly awaited):
-      then: (callback: any) => callback({ data: null, error: null }) // Default empty response
-    } as any);
-    mockSupabaseIn.mockResolvedValue({ data: [], error: null }); // Default empty successful response for .in()
-    mockSupabaseInsert.mockResolvedValue({ data: [{}], error: null }); // Default successful insert
+    });
+    mockSupabaseEq.mockReturnValue({
+      in: mockSupabaseIn,
+    });
+    mockSupabaseIn.mockResolvedValue({ data: [], error: null });
+    mockSupabaseInsert.mockResolvedValue({ data: [{}], error: null });
 
     // Reset other mocks
-    mockUseAuth.mockReturnValue({
-      user: { id: 'test-user-id', email: 'test@example.com' },
-      isAuthenticated: true,
-      session: { access_token: 'test-access-token', user: { id: 'test-user-id' } } as any,
-      // Add other auth context values/functions if your component uses them
-    });
     mockGeneratePlan.mockResolvedValue('Generated plan content.');
     mockEnhancePlan.mockResolvedValue('Enhanced plan content.');
     mockGetPromptByType.mockResolvedValue({ 

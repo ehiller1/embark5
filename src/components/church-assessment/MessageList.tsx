@@ -1,4 +1,3 @@
-
 import React, { useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,10 +15,13 @@ interface Message {
 
 interface MessageListProps {
   messages: Message[];
-  loading: boolean;
   displayAvatar: any;
   selectedCompanion: any;
   onScroll: () => void;
+  messagesEndRef: React.RefObject<HTMLDivElement>;
+  scrollAreaRef: React.RefObject<HTMLDivElement>;
+  autoScroll: boolean;
+  setAutoScroll: (value: boolean) => void;
 }
 
 // Function to format message content - makes text in quotes BOLD and UPPERCASE
@@ -47,7 +49,6 @@ const formatMessageContent = (content: string): React.ReactNode => {
 
 export function MessageList({ 
   messages, 
-  loading, 
   displayAvatar, 
   selectedCompanion, 
   onScroll 

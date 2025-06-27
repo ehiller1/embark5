@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/lib/supabase";
 import { Loader2, CheckCircle } from "lucide-react";
 import { useNarrativeAvatar, Companion } from '@/hooks/useNarrativeAvatar';
 import { toast } from "@/hooks/use-toast";
@@ -10,7 +10,7 @@ import { cn } from "@/integrations/lib/utils";
 export function CompanionsList() { // Changed from CompanionList to CompanionsList to match original intent
   const { 
     companions, 
-    selectedCompanion, 
+    selectedCompanionId, 
     fetchCompanions, 
     selectCompanion 
   } = useNarrativeAvatar();
@@ -66,7 +66,7 @@ export function CompanionsList() { // Changed from CompanionList to CompanionsLi
   }, [companions, updatingImages, fetchCompanions]);
 
   const handleCompanionClick = (companion: Companion) => {
-    selectCompanion(companion);
+    selectCompanion(companion.id);
     toast({
       title: "Companion Selected",
       description: `${companion.name} is now your active companion.`,
@@ -95,7 +95,7 @@ export function CompanionsList() { // Changed from CompanionList to CompanionsLi
               const initials = companion.name 
                 ? companion.name.charAt(0).toUpperCase() 
                 : "C";
-              const isSelected = selectedCompanion?.id === companion.id;
+              const isSelected = selectedCompanionId === companion.id;
               return (
                 <div 
                   key={companion.id}

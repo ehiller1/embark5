@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AppLogo } from './navigation/AppLogo';
 import { MobileNavigation } from './navigation/MobileNavigation';
 import { UserMenu } from './navigation/UserMenu';
-import { useUserRole } from '@/hooks/useUserRole';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { ChatSupportIcon } from './ChatSupportIcon';
 import { Clock } from 'lucide-react'; // Add this at the top with other icon imports
@@ -20,13 +20,36 @@ import { Home, BookOpen, MessageCircle, Map, Clipboard, FileText, ChevronDown, U
 
 export function Header() {
   const navigate = useNavigate();
-  // Get user role from useUserRole and logout from useAuth
-  const { role: userRole } = useUserRole();
+  // Get user role from useUserProfile and logout from useAuth
+  const { profile } = useUserProfile();
   const { signOut } = useAuth();
+  const userRole = profile?.role ?? null;
   
-  const handleLogout = () => {
-    signOut();
-    navigate("/");
+  const handleLogout = async () => {
+    console.log('[Header] Starting logout process');
+    try {
+      // Execute sign out and wait for it to complete
+      await signOut();
+      
+      // Brief delay to ensure auth state properly updates
+      console.log('[Header] Sign out completed, redirecting to landing page');
+      
+      // Force navigation to homepage
+      navigate('/');
+      
+      // Optionally, refresh the page to ensure clean state
+      setTimeout(() => {
+        console.log('[Header] Verifying navigation after logout');
+        if (window.location.pathname !== '/') {
+          console.log('[Header] Navigation may not have completed, forcing page reload');
+          window.location.href = '/';
+        }
+      }, 300);
+    } catch (err) {
+      console.error('[Header] Error during logout:', err);
+      // Force navigation even if there was an error
+      navigate('/');
+    }
   };
 
   const handleNavigation = (path: string) => {

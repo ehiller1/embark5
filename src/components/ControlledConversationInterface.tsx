@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useRef } from 'react';
 import { Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -30,7 +31,7 @@ export const ControlledConversationInterface: React.FC<{
     setInputValue('');
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 

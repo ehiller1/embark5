@@ -1,5 +1,5 @@
-
-import React, { useEffect, useRef, useMemo } from 'react';
+import * as React from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { MessageSquare, FileEdit } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import type { ScenarioItem } from '@/types/NarrativeTypes';
-import type { RoundtableMessage } from '@/lib/roundtableUtils';
+import type { RoundtableMessage } from '@/integrations/lib/roundtableUtils';
 
 export interface ScenarioConversationProps {
   /** The chat history to display */

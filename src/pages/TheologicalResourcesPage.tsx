@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { MainLayout } from '@/components/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -10,7 +10,22 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ExternalLink, Search, BookOpen } from 'lucide-react';
 
-const resources = [
+interface Resource {
+  id: number;
+  title: string;
+  category: string;
+  author: string;
+  description: string;
+  content: string;
+  link: string;
+}
+
+interface CategoryPreviewProps {
+  category: string;
+  onResourceClick: (resource: Resource) => void;
+}
+
+const resources: Resource[] = [
   {
     id: 1,
     title: "Embracing Change: A Theological Framework",
@@ -69,7 +84,7 @@ const resources = [
 
 const categories = [...new Set(resources.map(resource => resource.category))];
 
-const CategoryPreview = ({ category, onResourceClick }) => {
+const CategoryPreview = ({ category, onResourceClick }: CategoryPreviewProps) => {
   // Get resources for this category
   const categoryResources = resources.filter(r => r.category === category);
   // Display at most 2 items per category
@@ -125,7 +140,7 @@ const CategoryPreview = ({ category, onResourceClick }) => {
 
 const TheologicalResourcesPage = () => {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedResource, setSelectedResource] = useState(null);
+  const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [currentTab, setCurrentTab] = useState("all");
   
   const filteredResources = resources.filter(resource => 
@@ -135,7 +150,7 @@ const TheologicalResourcesPage = () => {
     resource.author.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const handleTabChange = (value) => {
+  const handleTabChange = (value: string) => {
     setCurrentTab(value);
   };
 

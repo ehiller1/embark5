@@ -1,6 +1,6 @@
 // src/lib/roundtableUtils.ts
 
-import { supabase } from '@/lib/supabase';
+import { supabase } from './supabase';
 
 export interface RoundtableMessage {
   id: string;

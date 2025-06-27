@@ -1,4 +1,5 @@
-import React, { KeyboardEvent } from 'react';
+import * as React from 'react';
+import { KeyboardEvent } from 'react';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { SendIcon, Loader2 } from "lucide-react";

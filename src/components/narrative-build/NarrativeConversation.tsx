@@ -3,8 +3,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Check } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { NarrativeMessage, AvatarRole } from '@/types/NarrativeTypes';
+import { cn } from '@/integrations/lib/utils';
+import { NarrativeMessage } from '@/types/NarrativeTypes';
 
 interface NarrativeConversationProps {
   messages: NarrativeMessage[];

@@ -1,98 +1,32 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/lib/supabase';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 
-export interface UserProfile {
+// The UserProfile type is now primarily managed by UserProfileProvider, 
+// but we can define a composite type here for the hook's return value.
+export interface User {
   id: string;
-  email: string | null;
-  role?: string;
-  church_id?: string;
+  email: string | undefined;
+  role: string | null;
+  [key: string]: any; // Allow other profile properties
 }
 
 export const useUser = () => {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
+  const { user: authUser, loading: authLoading, isAuthenticated } = useAuth();
+  const { profile, isLoading: profileLoading, error: profileError } = useUserProfile();
 
-  const updateUserWithProfile = async (sessionUser: any) => {
-    try {
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('role, church_id')
-        .eq('id', sessionUser.id)
-        .single();
-
-      if (profileError) {
-        console.error('Error fetching user profile:', profileError);
-        // Return basic user data if profile fetch fails
-        return {
-          id: sessionUser.id,
-          email: sessionUser.email || null,
-        };
+  // Combine auth user and profile data into a single user object
+  const user: User | null = isAuthenticated && authUser && profile
+    ? {
+        id: authUser.id,
+        email: authUser.email,
+        ...profile, // Spread the rest of the profile properties
       }
+    : null;
 
-      // Only include role and church_id if they exist
-      return {
-        id: sessionUser.id,
-        email: sessionUser.email || null,
-        ...(profile?.role && { role: profile.role }),
-        ...(profile?.church_id && { church_id: profile.church_id }),
-      };
-    } catch (err) {
-      console.error('Error in updateUserWithProfile:', err);
-      // Return basic user data if any error occurs
-      return {
-        id: sessionUser.id,
-        email: sessionUser.email || null,
-      };
-    }
-  };
+  // The overall loading state is true if either auth or profile is loading
+  const loading = authLoading || profileLoading;
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        setLoading(true);
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-        if (sessionError) {
-          throw sessionError;
-        }
-
-        if (session?.user) {
-          const userData = await updateUserWithProfile(session.user);
-          setUser(userData);
-        } else {
-          setUser(null);
-        }
-      } catch (err) {
-        console.error('Error in useUser:', err);
-        setError(err as Error);
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Initial fetch
-    fetchUser();
-
-    // Set up auth state change listener
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_, session) => {
-        if (session?.user) {
-          const userData = await updateUserWithProfile(session.user);
-          setUser(userData);
-        } else {
-          setUser(null);
-        }
-      }
-    );
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, []);
-
-  return { user, loading, error };
+  return { user, loading, error: profileError, isAuthenticated };
 };
 
 export default useUser;

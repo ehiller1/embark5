@@ -8,7 +8,7 @@ import {
   NavigationMenuTrigger,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
-import { cn } from '@/lib/utils';
+import { cn } from '@/integrations/lib/utils';
 import { Home, BookOpen, MessageCircle, Map, FileText, Clipboard, Share2, Users } from 'lucide-react';
 import { useNavigationItems } from './NavItems';
 

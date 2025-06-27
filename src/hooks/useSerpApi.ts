@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/lib/supabase";
 import { toast } from '@/hooks/use-toast';
 import { SearchResult } from '@/types/research'; // Import canonical SearchResult
 

@@ -1,10 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useUserRole } from './useUserRole';
+// Import supabase from the main client file
+import { supabase } from '@/integrations/lib/supabase';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { useToast } from './use-toast';
-import { Database } from '@/types/supabase'; // Assuming @ is src
+import { Database } from '@/types/supabase';
 
+// Type for the church_profile row
 type ChurchProfileRow = Database['public']['Tables']['church_profile']['Row'];
+
+type SaveResult<T = any> = {
+  success: boolean;
+  error?: string;
+  data?: T;
+};
 
 export function useChurchProfile() {
   const [profile, setProfile] = useState<ChurchProfileRow | null>(null);
@@ -12,243 +20,456 @@ export function useChurchProfile() {
   const [error, setError] = useState<string | null>(null);
   const [churchId, setChurchId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const { user } = useUserRole();
+  const { user } = useAuth();
   const { toast } = useToast();
 
+  // Fetch an existing church_profile by church_id
   const fetchChurchProfile = useCallback(async (id: string) => {
-    console.log(`%c[useChurchProfile] Step 2: Fetching church_profile for church_id: ${id}`, 'color: #FFA500;');
+    console.log(`[useChurchProfile] Fetching church_profile for church_id: ${id}`);
     try {
-      const { data, error, status } = await supabase
+      const { data, error: fetchError, status } = await supabase
         .from('church_profile')
         .select('*')
         .eq('church_id', id)
         .maybeSingle();
 
-      if (error) {
-        console.log(`%c[useChurchProfile] Supabase error while fetching church_profile. Status: ${status}`, 'color: red; font-weight: bold;', error);
-        if (error.code !== 'PGRST116') { // PGRST116 means no rows found, which is okay.
-          throw error;
-        }
-        console.log('%c[useChurchProfile] No profile found for this church, which is a normal case for new churches.', 'color: orange;');
-        return null;
+      if (fetchError) {
+        console.error(`[useChurchProfile] Error fetching church_profile (status ${status}):`, fetchError);
+        throw fetchError;
       }
-      console.log('%c[useChurchProfile] Step 3: Successfully fetched church_profile data.', 'color: green; font-weight: bold;', data);
+
+      console.log('[useChurchProfile] Fetched church_profile:', data);
       return data;
     } catch (err) {
-      console.log('%c[useChurchProfile] CRITICAL: An unexpected error occurred during fetchChurchProfile.', 'color: red; font-weight: bold;', err);
-      setError(err instanceof Error ? err.message : 'A critical error occurred');
+      console.error('[useChurchProfile] Unexpected error in fetchChurchProfile:', err);
+      setError(err instanceof Error ? err.message : 'Error fetching profile');
       return null;
     }
   }, []);
 
-  // Function to save church profile data
-  const saveChurchProfile = useCallback(async (profileData: Partial<ChurchProfileRow>) => {
+  // Helper function to check if storage bucket exists
+  const ensureBucketExists = useCallback(async (bucketName: string) => {
+    try {
+      // Just check if we can list files in the bucket
+      const { error } = await supabase.storage
+        .from(bucketName)
+        .list();
+      
+      // If we get a 404, the bucket doesn't exist
+      if (error && error.message.includes('not found')) {
+        console.error(`[useChurchProfile] Bucket '${bucketName}' does not exist`);
+        throw new Error(`Storage bucket '${bucketName}' does not exist. Please create it in the Supabase dashboard.`);
+      }
+      
+      // If we get any other error, throw it
+      if (error) {
+        console.error('[useChurchProfile] Error accessing bucket:', error);
+        throw new Error(`Failed to access storage bucket: ${error.message}`);
+      }
+      
+      console.log(`[useChurchProfile] Successfully accessed bucket '${bucketName}'`);
+      return true;
+    } catch (error) {
+      console.error('[useChurchProfile] Error checking bucket access:', error);
+      throw new Error(`Storage access error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, []);
+
+  // Save or create a church_profile
+  const saveChurchProfile = useCallback(async (profileData: Partial<ChurchProfileRow>): Promise<SaveResult> => {
     if (!churchId) {
-      setError('Church ID is missing. Cannot save profile.');
-      return { success: false, error: 'Church ID is missing' };
+      console.error('[useChurchProfile] Church ID is required to save profile');
+      return { 
+        success: false, 
+        error: 'Church ID is required',
+        data: undefined
+      };
     }
 
+    setError(null);
+    setSaving(true);
+    
     try {
-      setSaving(true);
-      
-      // First check if a record exists for this church_id
-      const { data: existingRecord, error: checkError } = await supabase
+      // First check if the profile exists
+      const { data: existingProfile, error: fetchError } = await supabase
         .from('church_profile')
-        .select('id')
+        .select('*')
         .eq('church_id', churchId)
         .maybeSingle();
-      
-      if (checkError) {
-        console.error('Error checking existing record:', checkError);
-        throw checkError;
-      }
-      
-      let result;
-      if (existingRecord) {
-        // Update existing record
-        console.log('[useChurchProfile] Updating existing record with id:', existingRecord.id);
-        result = await supabase
-          .from('church_profile')
-          .update({
-            ...profileData,
-            church_id: churchId,
-          })
-          .eq('id', existingRecord.id);
-      } else {
-        // Insert new record
-        console.log('[useChurchProfile] Inserting new record for church_id:', churchId);
-        result = await supabase
-          .from('church_profile')
-          .insert({
-            ...profileData,
-            church_id: churchId,
-          });
-      }
-      
-      if (result.error) throw result.error;
-      
-      // Update the local state with new data
-      setProfile(prev => {
-        const newProfileData = { church_id: churchId, ...profileData } as ChurchProfileRow;
-        return prev ? { ...prev, ...newProfileData } : newProfileData;
-      });
-      
-      toast({ 
-        title: "Success", 
-        description: "Profile data saved successfully."
-      });
-      
-      return { success: true };
-    } catch (error) {
-      console.error('Error saving church profile:', error);
-      setError(error instanceof Error ? error.message : 'Failed to save church profile data');
-      
-      toast({ 
-        title: "Error", 
-        description: error instanceof Error ? error.message : 'An unknown error occurred', 
-        variant: "destructive" 
-      });
-      
-      return { success: false, error };
-    } finally {
-      setSaving(false);
-    }
-  }, [churchId, toast]);
 
-  // Upload file to church_data table
-  const uploadChurchData = useCallback(async (fileType: 'email_list_upload' | 'parochial_report_upload', file: File) => {
-    if (!churchId) {
-      setError('Church ID is missing. Cannot upload file.');
-      return { success: false, error: 'Church ID is missing' };
-    }
+      if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        throw fetchError;
+      }
 
-    try {
-      setSaving(true);
+      // Prepare the data to save
+      const dataToSave = {
+        ...profileData,
+        church_id: churchId,
+        // Don't include created_at for updates
+        ...(existingProfile ? {} : { created_at: new Date().toISOString() })
+      };
+
+      // Remove undefined values
+      (Object.keys(dataToSave) as Array<keyof typeof dataToSave>).forEach(key => {
+        if (dataToSave[key] === undefined) {
+          delete dataToSave[key];
+        }
+      });
+
       let result;
 
-      if (fileType === 'email_list_upload') {
-        // For email lists, we store the text content directly
-        const emailTextContent = await file.text();
-        const { error } = await supabase
-          .from('church_data')
-          .insert({
-            church_id: churchId,
-            data_type: fileType,
-            text_data: emailTextContent,
-            file_name: file.name,
-            mime_type: file.type
-          });
+      if (existingProfile?.id) {
+        // Update existing profile using the numeric id
+        const { data, error } = await supabase
+          .from('church_profile')
+          .update(dataToSave)
+          .eq('id', existingProfile.id)
+          .select();
           
         if (error) throw error;
-        result = { success: true };
+        result = data;
       } else {
-        // For documents like parochial reports, upload to storage
-        const fileName = `${churchId}_${Date.now()}_${file.name}`;
-        const filePath = `parochial_reports/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('church_document_uploads')
-          .upload(filePath, file);
+        // Insert new profile
+        const { data, error } = await supabase
+          .from('church_profile')
+          .insert([dataToSave])
+          .select();
           
-        if (uploadError) throw uploadError;
-
-        // Record the upload in church_data table
-        const { error: dbError } = await supabase
-          .from('church_data')
-          .insert({
-            church_id: churchId,
-            data_type: fileType,
-            file_path: filePath,
-            file_name: file.name,
-            mime_type: file.type,
-          });
-          
-        if (dbError) throw dbError;
-        result = { success: true };
+        if (error) throw error;
+        result = data;
       }
 
-      toast({ 
-        title: "Success", 
-        description: fileType === 'email_list_upload' ? "Email list uploaded." : "Parochial report uploaded."
-      });
-      
-      return result;
+      // Update local state with the full row
+      if (result && result[0]) {
+        setProfile(result[0]);
+      }
+
+      toast({ title: 'Success', description: 'Church profile saved successfully.' });
+      return { 
+        success: true, 
+        data: result[0],
+        error: undefined
+      };
     } catch (error) {
-      console.error(`Error uploading ${fileType}:`, error);
-      setError(error instanceof Error ? error.message : `Failed to upload ${fileType}`);
-      
-      toast({ 
-        title: "Error", 
-        description: error instanceof Error ? error.message : 'An unknown error occurred', 
-        variant: "destructive" 
-      });
-      
-      return { success: false, error };
+      const msg = error instanceof Error ? error.message : 'Failed to save church profile';
+      console.error('[useChurchProfile] Error saving church profile:', error);
+      setError(msg);
+      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      return { 
+        success: false, 
+        error: msg,
+        data: undefined 
+      } as SaveResult<ChurchProfileRow>;
     } finally {
       setSaving(false);
     }
   }, [churchId, toast]);
 
+  // Upload file to church_data table and storage
+  const uploadChurchData = useCallback(
+    async (fileType: 'email_list_upload' | 'parochial_report_upload', file: File) => {
+      try {
+        // Ensure we have a valid session before proceeding
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !session) {
+          console.error('[useChurchProfile] No active session:', sessionError);
+          throw new Error('Your session has expired. Please sign in again.');
+        }
+        
+        console.log('[useChurchProfile] Active session found, user ID:', session.user.id);
+        console.log('[useChurchProfile] Starting file upload for type:', fileType);
+        
+        if (!churchId) {
+          const errorMsg = 'Church ID is required for file uploads';
+          console.error('[useChurchProfile]', errorMsg);
+          toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
+          return { success: false, error: errorMsg };
+        }
+        
+        // Ensure the storage bucket exists
+        try {
+          await ensureBucketExists('church-document-uploads');
+        } catch (error) {
+          const errorMsg = 'Failed to initialize storage. Please try again later.';
+          console.error('[useChurchProfile]', errorMsg, error);
+          toast({ title: 'Storage Error', description: errorMsg, variant: 'destructive' });
+          return { success: false, error: errorMsg };
+        }
+      
+        // Get the user ID from the session
+        const userId = session.user.id;
+      
+        // File validation
+        const maxSizeMB = 10;
+        const maxSize = maxSizeMB * 1024 * 1024; // 10MB in bytes
+        
+        if (file.size > maxSize) {
+          const errorMsg = `File size (${(file.size / (1024 * 1024)).toFixed(2)}MB) exceeds the ${maxSizeMB}MB limit`;
+          console.error('[useChurchProfile]', errorMsg);
+          toast({ 
+            title: 'File Too Large', 
+            description: `Please upload a file smaller than ${maxSizeMB}MB`,
+            variant: 'destructive' 
+          });
+          return { success: false, error: errorMsg };
+        }
+      
+        // Check file type
+        const allowedTypes = [
+          'application/pdf',
+          'text/csv',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        ];
+        
+        if (!allowedTypes.includes(file.type)) {
+          const errorMsg = `Unsupported file type: ${file.type || 'unknown'}`;
+          console.error('[useChurchProfile]', errorMsg);
+          toast({ 
+            title: 'Unsupported File Type', 
+            description: 'Please upload a PDF or Excel file',
+            variant: 'destructive' 
+          });
+          return { success: false, error: errorMsg };
+        }
+      
+        // Sanitize file name (single implementation)
+        const sanitizedFileName = file.name
+          .normalize('NFD') // Normalize to decomposed form
+          .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+          .replace(/[^\w\d.-]/g, '_') // Replace special chars with underscore
+          .replace(/_{2,}/g, '_') // Replace multiple underscores with single
+          .toLowerCase();
+        
+        // Create a unique file path with user ID and timestamp
+        let filePath = `${userId}/${churchId}_${Date.now()}_${sanitizedFileName}`;
+      
+        // Check for existing files for this church
+        const { data: existingFiles, error: listError } = await supabase.storage
+          .from('church-document-uploads')
+          .list(userId, {
+            search: `${churchId}_`
+          });
+
+        if (listError) {
+          console.error('[useChurchProfile] Error checking for existing files:', listError);
+          throw new Error('Failed to check for existing files. Please try again.');
+        }
+
+        // If there are existing files, remove them
+        if (existingFiles && existingFiles.length > 0) {
+          console.log(`[useChurchProfile] Found ${existingFiles.length} existing files for church ${churchId}, removing...`);
+          const filesToRemove = existingFiles.map(f => `${userId}/${f.name}`);
+          const { error: removeError } = await supabase.storage
+            .from('church-document-uploads')
+            .remove(filesToRemove);
+            
+          if (removeError) {
+            console.error('[useChurchProfile] Error removing existing files:', removeError);
+            // Continue with upload anyway, the new file will have a different name
+          } else {
+            console.log('[useChurchProfile] Removed existing files');
+          }
+        }
+      
+        // Upload the file with retry logic
+        let uploadAttempts = 0;
+        const maxAttempts = 2;
+        let uploadError = null;
+        let uploadData = null;
+        
+        while (uploadAttempts < maxAttempts && !uploadData) {
+          try {
+            uploadAttempts++;
+            console.log(`[useChurchProfile] Upload attempt ${uploadAttempts}/${maxAttempts} for ${filePath}`);
+            
+            const { data, error } = await supabase.storage
+              .from('church-document-uploads')
+              .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type,
+              });
+              
+            if (error) throw error;
+            
+            uploadData = data;
+            uploadError = null;
+          } catch (error) {
+            uploadError = error;
+            console.error(`[useChurchProfile] Upload attempt ${uploadAttempts} failed:`, error);
+            
+            // If it's a duplicate file error, try with a new filename
+            if (uploadAttempts < maxAttempts && error instanceof Error && error.message.includes('already exists')) {
+              filePath = `${userId}/${churchId}_${Date.now()}_${uploadAttempts}_${sanitizedFileName}`;
+              console.log(`[useChurchProfile] Retrying with new filename: ${filePath}`);
+            }
+          }
+        }
+        
+        // If we still have an error after all attempts, throw it
+        if (uploadError) {
+          if (uploadError instanceof Error) {
+            throw uploadError;
+          }
+          const errorMessage = typeof uploadError === 'object' && uploadError !== null && 'message' in uploadError 
+            ? String(uploadError.message) 
+            : 'Unknown upload error';
+          throw new Error(errorMessage);
+        }
+      
+        // Get the public URL for the uploaded file
+        const { data: { publicUrl } } = supabase.storage
+          .from('church-document-uploads')
+          .getPublicUrl(filePath);
+          
+        console.log('[useChurchProfile] File uploaded successfully:', {
+          path: filePath,
+          publicUrl,
+          type: fileType,
+          size: file.size
+        });
+        
+        // Per user request, all document uploads will be stored in the `church_data` table
+        // with a `type` field indicating the document type.
+        const dataTypeMap: { [key: string]: string } = {
+          'email_list_upload': 'email list',
+          'parochial_report_upload': 'parochial report'
+        };
+        const dataType = dataTypeMap[fileType] || fileType;
+
+        const { error: insertError } = await supabase.from('church_data').insert({
+          church_id: churchId,
+          data_type: dataType,
+          file_path: publicUrl,
+          file_name: file.name,
+        });
+
+        const updateError = insertError;
+        let updatedProfile: ChurchProfileRow | null = null;
+
+        // After insert, fetch the latest profile to ensure UI consistency.
+        if (!updateError) {
+          const { data, error } = await supabase.from('church_profile').select('*').eq('church_id', churchId).single();
+          updatedProfile = data;
+          if (error) {
+            // Log the error but don't fail the entire upload if only the profile refresh fails
+            console.error('[useChurchProfile] Failed to refresh profile after upload:', error);
+          }
+        }
+        
+        if (updateError) {
+          console.error('[useChurchProfile] Error updating profile with file reference:', updateError);
+          // Try to clean up the uploaded file if update fails
+          try {
+            await supabase.storage
+              .from('church-document-uploads')
+              .remove([filePath]);
+          } catch (cleanupError) {
+            console.error('[useChurchProfile] Error cleaning up file after update error:', cleanupError);
+          }
+          throw new Error('Failed to update profile with file reference');
+        }
+        
+        // Update local state with the new profile data
+        if (updatedProfile) {
+          setProfile(updatedProfile);
+        }
+        
+        toast({
+          title: 'Success',
+          description: `${fileType === 'email_list_upload' ? 'Mailing list' : 'Parochial report'} uploaded successfully`,
+        });
+        
+        return { 
+          success: true, 
+          data: {
+            path: filePath,
+            url: publicUrl,
+            type: fileType,
+            size: file.size
+          } 
+        };
+      } catch (error) {
+        const errorMessage = error instanceof Error 
+          ? error.message 
+          : `Failed to upload ${fileType}. Please try again.`;
+        
+        console.error(`[useChurchProfile] Error in uploadChurchData (${fileType}):`, {
+          error,
+          timestamp: new Date().toISOString(),
+          userId: user?.id,
+          churchId,
+          fileType
+        });
+        
+        toast({
+          title: 'Upload Failed',
+          description: errorMessage,
+          variant: 'destructive',
+        });
+        
+        return { 
+          success: false, 
+          error: errorMessage,
+          data: undefined 
+        };
+      }
+    },
+    [churchId, toast, user?.id]
+  );
+
+  // Load profile when user changes
   useEffect(() => {
     const loadProfile = async () => {
+      if (!user?.id) return;
+      
       setLoading(true);
-      setError(null);
-      console.log('%c[useChurchProfile] Step 1: Starting profile load...', 'color: blue; font-weight: bold;');
-
-      if (!user?.id) {
-        console.log('%c[useChurchProfile] ABORT: User not available yet.', 'color: orange;');
-        setLoading(false);
-        return;
-      }
-
       try {
-        const { data: profileData, error: profileError } = await supabase
+        // Get the church_id from the user's profile
+        const { data: userProfile, error: profileError } = await supabase
           .from('profiles')
           .select('church_id')
           .eq('id', user.id)
           .single();
-
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.log('%c[useChurchProfile] CRITICAL: Error fetching user profile.', 'color: red; font-weight: bold;', profileError);
-          throw profileError;
+          
+        if (profileError) throw profileError;
+        if (!userProfile?.church_id) {
+          console.log('[useChurchProfile] No church_id found for user');
+          setLoading(false);
+          return;
         }
-
-        // Handle cases: profile exists with church_id, profile exists without church_id, profile doesn't exist (PGRST116), or other null data scenarios.
-        if (profileData && profileData.church_id) {
-          const churchIdFromProfile = profileData.church_id;
-          setChurchId(churchIdFromProfile);
-          const churchData = await fetchChurchProfile(churchIdFromProfile);
-          setProfile(churchData as ChurchProfileRow | null);
+        
+        // Set the church ID and fetch the church profile
+        setChurchId(userProfile.church_id);
+        const profileData = await fetchChurchProfile(userProfile.church_id);
+        
+        if (profileData) {
+          setProfile(profileData);
         } else {
-          if (profileError?.code === 'PGRST116') {
-            console.log('%c[useChurchProfile] User profile does not exist (PGRST116). church_id not found.', 'color: orange;');
-          } else if (!profileData) {
-            console.log('%c[useChurchProfile] User profile data is null (and not PGRST116 error). church_id not found.', 'color: orange;');
-          } else { // profileData exists but profileData.church_id is null, undefined, or empty
-            console.log('%c[useChurchProfile] User profile exists but no church_id found on it.', 'color: orange;');
-          }
-          setProfile(null);
-          setChurchId(null);
+          console.log('[useChurchProfile] No church profile found, will create one on save');
         }
       } catch (err) {
-        console.log('%c[useChurchProfile] CRITICAL: An error occurred in the main loadProfile effect.', 'color: red; font-weight: bold;', err);
-        setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+        console.error('[useChurchProfile] Error loading profile:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load profile');
       } finally {
         setLoading(false);
-        console.log('%c[useChurchProfile] Finished profile load.', 'color: blue; font-weight: bold;');
       }
     };
-
+    
     loadProfile();
-  }, [user?.id, fetchChurchProfile]);
+  }, [user?.id]);
 
-  return { 
+  return {
     profile,
-    churchId, 
-    loading, 
-    saving,
+    churchId,
+    loading,
     error,
+    saving,
     saveChurchProfile,
-    uploadChurchData
+    uploadChurchData: uploadChurchData as (fileType: 'email_list_upload' | 'parochial_report_upload', file: File) => Promise<SaveResult<{ filePath: string; publicUrl: string }>>,
+    fetchChurchProfile: fetchChurchProfile as (id: string) => Promise<ChurchProfileRow | null>,
   };
-}
+};
+
+export default useChurchProfile;

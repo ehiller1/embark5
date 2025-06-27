@@ -1,5 +1,3 @@
-
-import React, { useState } from "react";
 import { RoundtableConversation } from "./RoundtableConversation";
 import { RoundtableInput } from "./RoundtableInput";
 import { useRoundtableMessaging } from "./useRoundtableMessaging";
@@ -27,7 +25,9 @@ export function RoundtableContainer() {
       <RoundtableConversation messages={roundtableMessages} />
       <RoundtableInput 
         onSend={handleSendMessage} 
-        isSending={isProcessing} 
+        isSending={isProcessing}
+        value={currentMessage}
+        onChange={setCurrentMessage}
       />
     </div>
   );

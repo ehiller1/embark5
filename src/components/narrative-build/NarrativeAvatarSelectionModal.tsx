@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { ChurchAvatar, CommunityAvatar, useNarrativeAvatar } from '@/hooks/useNarrativeAvatar';
+import { ChurchAvatar, CommunityAvatar } from '@/hooks/useNarrativeAvatar';
 import { useSelectedCompanion, useCompanionSubscriber } from '@/hooks/useSelectedCompanion';
 import { toast } from '@/hooks/use-toast';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';

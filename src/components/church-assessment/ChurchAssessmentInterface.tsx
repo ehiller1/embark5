@@ -1,28 +1,23 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ChevronRight, ArrowRight, Save } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { ChevronRight, ArrowRight } from "lucide-react";
 import { useSelectedCompanion } from "@/hooks/useSelectedCompanion";
 import { useSectionAvatars } from "@/hooks/useSectionAvatars";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
-import { toast } from "@/hooks/use-toast";
 import { useChurchAssessmentMessages } from '@/hooks/useChurchAssessmentMessages';
 
-const STORAGE_KEY = 'church_assessment_messages';
 const CHURCH_NAME_KEY = 'church_name';
 
 export function ChurchAssessmentInterface({ onNext }: { onNext: () => void }) {
-  const navigate = useNavigate();
   const { selectedCompanion } = useSelectedCompanion();
   const { getAvatarForPage } = useSectionAvatars();
   const [input, setInput] = useState("");
-  const [churchName, setChurchName] = useState(() => localStorage.getItem(CHURCH_NAME_KEY) || "");
-  const [location, setLocation] = useState(() => localStorage.getItem('user_location') || "");
+  const [churchName] = useState(() => localStorage.getItem(CHURCH_NAME_KEY) || "");
+  const [location] = useState(() => localStorage.getItem('user_location') || "");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
@@ -34,7 +29,6 @@ export function ChurchAssessmentInterface({ onNext }: { onNext: () => void }) {
     messages,
     isLoading,
     sendMessage,
-    saveMessages,
     generateInitialMessage
   } = useChurchAssessmentMessages(churchName, location, selectedCompanion, informationGathererAvatar);
 
@@ -82,16 +76,6 @@ export function ChurchAssessmentInterface({ onNext }: { onNext: () => void }) {
   };
 
   const handleNext = () => {
-    // if (!churchName.trim()) {
-    //   toast({
-    //     title: "Church Name Required",
-    //     description: "Please enter your church name before proceeding.",
-    //     variant: "destructive"
-    //   });
-    //   return;
-    // }
-    // localStorage.setItem(CHURCH_NAME_KEY, churchName.trim());
-    // saveMessages();
     onNext();
   };
 

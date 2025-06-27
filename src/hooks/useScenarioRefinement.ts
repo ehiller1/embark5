@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/lib/supabase";
 import { ScenarioItem, RefinedScenario } from "@/types/NarrativeTypes";
 import { useOpenAI } from "@/hooks/useOpenAI";
 import { toast } from "@/hooks/use-toast";

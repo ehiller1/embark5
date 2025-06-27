@@ -2,11 +2,6 @@
 import { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 
-type Message = {
-  content: string;
-  sender: 'user' | 'assistant';
-};
-
 export const useTestContext = () => {
   const location = useLocation();
   const isTestPage = location.pathname === '/test' || location.pathname === '/openai_test_plan';

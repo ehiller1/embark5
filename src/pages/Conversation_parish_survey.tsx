@@ -5,7 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ControlledConversationInterface } from '@/components/ControlledConversationInterface';
-import { MainLayout } from '@/components/MainLayout';
+
 import { supabase } from '@/integrations/lib/supabase';
 import { ArrowLeft } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -427,7 +427,6 @@ export default function ConversationParishSurvey(): JSX.Element {
   }, []);
 
   return (
-    <MainLayout>
       <div className="max-w-6xl mx-auto px-4 py-6">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)}>
           <ArrowLeft className="h-4 w-4" /> Back
@@ -510,7 +509,6 @@ export default function ConversationParishSurvey(): JSX.Element {
           )}
         </div>
       </div>
-    </MainLayout>
   );
 }
 

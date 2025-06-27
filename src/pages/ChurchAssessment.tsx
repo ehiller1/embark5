@@ -1,11 +1,10 @@
-
 import React, { useEffect, useState } from 'react';
 import { MainLayout } from '@/components/MainLayout';
 import { ChurchAssessmentInterface } from '@/components/church-assessment/ChurchAssessmentInterface';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { useAuth } from '@/components/AuthContext';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { AssessmentSidebar } from '@/components/AssessmentSidebar';
 import { useSectionAvatars } from '@/hooks/useSectionAvatars';

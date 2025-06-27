@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { NetworkConnection } from '@/types/NetworkTypes';
-import { supabase } from '@/integrations/supabase/client';
-import { useUserRole } from '@/hooks/useUserRole';
+import { supabase } from '@/integrations/lib/supabase';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { toast } from '@/hooks/use-toast';
 import { generateSampleNetworkData, cleanupDuplicateNetworkData } from '@/utils/networkDataService';
 
@@ -9,7 +9,7 @@ export function useNetworkConnections() {
   const [networkData, setNetworkData] = useState<NetworkConnection | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUserRole();
+  const { user } = useAuth();
 
   useEffect(() => {
     async function fetchNetworkConnections() {

@@ -1,7 +1,7 @@
 
 import { useState, useRef } from "react";
 // Removed unused toast import
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/lib/supabase";
 
 interface GenerateOptions {
   messages: Array<{

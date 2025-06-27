@@ -1,6 +1,5 @@
-
 // src/components/AssessmentSidebarContent.tsx
-import React from 'react';
+import * as React from "react";
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { ResearchCategories } from '@/components/research/ResearchCategories';
 import { useSectionAvatars } from '@/hooks/useSectionAvatars';

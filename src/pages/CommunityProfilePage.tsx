@@ -1,13 +1,12 @@
 import React, { useState, useEffect, ChangeEvent } from 'react';
-import { MainLayout } from '@/components/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { useUserRole } from '@/hooks/useUserRole';
-import { useChurchProfile } from '@/hooks/useChurchProfile';
-import { supabase } from '@/integrations/supabase/client';
 
-import { UploadCloud, Link, CheckCircle, AlertCircle, Database, Loader2, Info, Lightbulb, Users, Save } from 'lucide-react';
+import { useChurchProfile } from '@/hooks/useChurchProfile';
+import { supabase } from '@/integrations/lib/supabase';
+
+import { UploadCloud, Link, CheckCircle, AlertCircle, Database, Loader2, /* Info, */ Lightbulb, Users, Save } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,8 +18,11 @@ import { ReactElement } from 'react';
 
 const CommunityProfilePage = (): ReactElement => {
   const { toast } = useToast();
-  useUserRole();
-  const { profile, churchId, loading: profileLoading, saving, error: profileError, saveChurchProfile, uploadChurchData } = useChurchProfile();
+
+  const { profile, churchId, loading: profileLoading, error: profileError, saveChurchProfile, uploadChurchData } = useChurchProfile();
+  
+  // Local state for tracking save operation
+  const [saving, setSaving] = useState(false);
 
   const [accomplishDescription, setAccomplishDescription] = useState('');
   const [communityDescription, setCommunityDescription] = useState('');
@@ -49,16 +51,12 @@ const CommunityProfilePage = (): ReactElement => {
   // Type assertion to work around missing table types in Supabase
   const supabaseAny = supabase as any;
   
-  // Display error message if profile error occurs
+  // Log profile errors to console instead of showing toast
   useEffect(() => {
     if (profileError) {
-      toast({
-        title: 'Error',
-        description: `Failed to load church profile: ${profileError}`,
-        variant: 'destructive',
-      });
+      console.error(`Failed to load church profile: ${profileError}`);
     }
-  }, [profileError, toast]);
+  }, [profileError]);
 
   // Update form state when profile data loads
   useEffect(() => {
@@ -99,19 +97,88 @@ const CommunityProfilePage = (): ReactElement => {
 
   const handleFileChange = (setFileState: React.Dispatch<React.SetStateAction<File | null>>) => 
     (event: ChangeEvent<HTMLInputElement>) => {
+      console.log('[CommunityProfilePage] File input changed');
       if (event.target.files && event.target.files.length > 0) {
-        setFileState(event.target.files[0]);
+        const file = event.target.files[0];
+        console.log('[CommunityProfilePage] File selected:', {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          lastModified: new Date(file.lastModified).toISOString()
+        });
+        setFileState(file);
+      } else {
+        console.log('[CommunityProfilePage] No file selected or file input was cleared');
+        setFileState(null);
       }
-  };
+    };
 
   const handleSave = async () => {
+    console.log('[CommunityProfilePage] Save button clicked');
+    setSaving(true);
+    
     if (!churchId) {
-      toast({ title: "Error", description: "Church ID is missing. Cannot save. Please ensure your user profile is correctly associated with a church.", variant: "destructive" });
+      const errorMsg = "Church ID is missing. Cannot save. Please ensure your user profile is correctly associated with a church.";
+      console.error('[CommunityProfilePage]', errorMsg);
+      toast({ 
+        title: "Error", 
+        description: errorMsg, 
+        variant: "destructive" 
+      });
+      setSaving(false);
       return;
     }
 
     try {
+      console.log('[CommunityProfilePage] Starting to save profile data...');
+      
+      // First handle file uploads if any
+      const uploadPromises = [];
+      
+      if (emailListFile) {
+        console.log('[CommunityProfilePage] Queueing email list file for upload:', emailListFile.name);
+        uploadPromises.push(
+          uploadChurchData('email_list_upload', emailListFile)
+            .then(result => {
+              console.log('[CommunityProfilePage] Email list upload result:', result);
+              if (result.success) {
+                setEmailListFile(null);
+                toast({
+                  title: 'Success',
+                  description: 'Email list uploaded successfully',
+                  variant: 'default'
+                });
+              } else {
+                throw new Error(result.error || 'Failed to upload email list');
+              }
+              return result;
+            })
+        );
+      }
+
+      if (parochialReportFile) {
+        console.log('[CommunityProfilePage] Queueing parochial report for upload:', parochialReportFile.name);
+        uploadPromises.push(
+          uploadChurchData('parochial_report_upload', parochialReportFile)
+            .then(result => {
+              console.log('[CommunityProfilePage] Parochial report upload result:', result);
+              if (result.success) {
+                setParochialReportFile(null);
+                toast({
+                  title: 'Success',
+                  description: 'Parochial report uploaded successfully',
+                  variant: 'default'
+                });
+              } else {
+                throw new Error(result.error || 'Failed to upload parochial report');
+              }
+              return result;
+            })
+        );
+      }
+
       // Save profile data
+      console.log('[CommunityProfilePage] Saving profile data...');
       const profileResult = await saveChurchProfile({
         church_id: churchId,
         community_description: communityDescription,
@@ -121,34 +188,60 @@ const CommunityProfilePage = (): ReactElement => {
         number_of_pledging_members: pledgingMembers ? parseInt(pledgingMembers) : null,
       });
 
+      console.log('[CommunityProfilePage] Profile save result:', profileResult);
+
       if (profileResult.success) {
+        console.log('[CommunityProfilePage] Profile saved successfully, clearing local storage...');
         // Clear localStorage for this church after successful save to DB
-        localStorage.removeItem(`cp_accomplish_${churchId}`);
-        localStorage.removeItem(`cp_community_${churchId}`);
-        localStorage.removeItem(`cp_dream_${churchId}`);
-        localStorage.removeItem(`cp_activeMembers_${churchId}`);
-        localStorage.removeItem(`cp_pledgingMembers_${churchId}`);
+        const keysToRemove = [
+          `cp_accomplish_${churchId}`,
+          `cp_community_${churchId}`,
+          `cp_dream_${churchId}`,
+          `cp_activeMembers_${churchId}`,
+          `cp_pledgingMembers_${churchId}`
+        ];
+        
+        keysToRemove.forEach(key => {
+          localStorage.removeItem(key);
+          console.log(`[CommunityProfilePage] Removed from localStorage: ${key}`);
+        });
+      } else if (profileResult.error) {
+        throw new Error(profileResult.error);
       }
 
-      // Upload email list if available
-      if (emailListFile) {
-        const emailResult = await uploadChurchData('email_list_upload', emailListFile);
-        if (emailResult.success) {
-          setEmailListFile(null); // Clear file input state
-        }
+      // Wait for all uploads to complete
+      if (uploadPromises.length > 0) {
+        console.log(`[CommunityProfilePage] Waiting for ${uploadPromises.length} file upload(s) to complete...`);
+        await Promise.all(uploadPromises);
+      } else {
+        console.log('[CommunityProfilePage] No file uploads to process');
       }
 
-      // Upload parochial report if available
-      if (parochialReportFile) {
-        const reportResult = await uploadChurchData('parochial_report_upload', parochialReportFile);
-        if (reportResult.success) {
-          setParochialReportFile(null); // Clear file input state
-        }
-      }
+      console.log('[CommunityProfilePage] All operations completed successfully');
+      toast({ 
+        title: "Success", 
+        description: "Profile and documents saved successfully",
+        variant: "default" 
+      });
 
     } catch (error) {
-      console.error('Error saving profile or uploading documents:', error);
-      toast({ title: "Error", description: error instanceof Error ? error.message : 'An unknown error occurred', variant: "destructive" });
+      const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+      console.error('[CommunityProfilePage] Error in handleSave:', {
+        error,
+        message: errorMessage,
+        stack: error instanceof Error ? error.stack : undefined,
+        churchId,
+        hasEmailListFile: !!emailListFile,
+        hasParochialReportFile: !!parochialReportFile
+      });
+      
+      toast({ 
+        title: "Error", 
+        description: errorMessage, 
+        variant: "destructive" 
+      });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -286,7 +379,7 @@ const CommunityProfilePage = (): ReactElement => {
   };
 
   return (
-    <MainLayout>
+
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-10 pb-6 border-b border-gray-200">
           <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl gradient-text">
@@ -304,22 +397,6 @@ const CommunityProfilePage = (): ReactElement => {
           )}
         </header>
         
-        {!churchId && (
-          <Card className="mb-8 border-yellow-400 bg-yellow-50">
-            <CardHeader>
-              <CardTitle className="flex items-center text-yellow-700">
-                <Info className="mr-3 h-6 w-6" /> Important Notice
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-yellow-700">
-                We couldn't retrieve a Church ID for your profile. This is needed to save your information.
-                Please ensure your user account is correctly associated with a church in the system. 
-                If this issue persists, please contact support.
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
         <div className="space-y-10 max-w-3xl mx-auto">
           <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
@@ -471,7 +548,7 @@ const CommunityProfilePage = (): ReactElement => {
           <div className="flex justify-end pt-6">
             <Button 
               onClick={handleSave} 
-              disabled={saving || !churchId} 
+              disabled={saving}
               size="lg" 
               className="text-lg px-8 py-6 bg-gradient-journey hover:opacity-90 transition-opacity duration-300 shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
             >
@@ -642,7 +719,7 @@ const CommunityProfilePage = (): ReactElement => {
         </DialogContent>
       </Dialog>
       </div>
-    </MainLayout>
+
   );
 };
 

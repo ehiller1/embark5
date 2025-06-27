@@ -97,10 +97,6 @@ export const InvestmentModal = ({ ministry, isOpen, onClose }: InvestmentModalPr
     onClose();
   };
 
-  const handleTermsChange = (checked: boolean | "indeterminate") => {
-    setAgreedToTerms(checked === true);
-  };
-
   const renderStep = () => {
     switch (step) {
       case 1:

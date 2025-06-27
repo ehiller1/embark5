@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { useSectionAvatars } from '@/hooks/useSectionAvatars';
 import { testPromptRetrieval } from '@/utils/scenarioPrompts';
@@ -13,10 +13,7 @@ const STORAGE_KEY = 'church_assessment_messages';
 export function ChurchAssessmentContent() {
   const navigate = useNavigate();
   const { selectedCompanion } = useSelectedCompanion();
-  const [initialMessageLoaded, setInitialMessageLoaded] = useState(false);
   const { getAvatarForPage } = useSectionAvatars();
-  const [isSupabaseConnected, setIsSupabaseConnected] = useState(false);
-  const [isPromptRetrievalWorking, setIsPromptRetrievalWorking] = useState(false);
   
   // Always get conversation avatar as fallback if specific one isn't available
   const churchAssessmentAvatar = getAvatarForPage('church_assessment');
@@ -41,7 +38,6 @@ export function ChurchAssessmentContent() {
     // Update refresh key when companion changes to force reload
     if (selectedCompanion) {
       setRefreshKey(Date.now());
-      setInitialMessageLoaded(false);
     }
   }, [selectedCompanion?.UUID]);
   
@@ -56,7 +52,7 @@ export function ChurchAssessmentContent() {
         const startTime = performance.now();
         
         // Get all prompts to verify database access
-        const { data: allPrompts, error: allPromptsError } = await supabase
+        const { error: allPromptsError } = await supabase
           .from('prompts')
           .select('count');
           
@@ -72,7 +68,6 @@ export function ChurchAssessmentContent() {
           });
         } else {
           console.log('[ChurchAssessmentContent] Supabase database connection successful');
-          setIsSupabaseConnected(true);
         }
       } catch (error) {
         console.error('[ChurchAssessmentContent] Error in direct database test:', error);
@@ -88,19 +83,21 @@ export function ChurchAssessmentContent() {
     testDirectDatabase();
     
     // Then run the utility function
-    const startTime = performance.now();
-    testPromptRetrieval().then(() => {
-      const endTime = performance.now();
-      console.log(`[ChurchAssessmentContent] Prompt retrieval test successful in ${(endTime - startTime).toFixed(2)}ms`);
-      setIsPromptRetrievalWorking(true);
-    }).catch(err => {
-      console.error('[ChurchAssessmentContent] Error testing prompt retrieval:', err);
-      toast({
-        title: "Prompt Retrieval Error",
-        description: "Unable to retrieve prompts. This may affect message generation.",
-        variant: "destructive"
-      });
-    });
+    const testPrompts = async () => {
+      try {
+        const prompts = await testPromptRetrieval();
+        console.log('[ChurchAssessmentContent] Retrieved prompts:', prompts);
+      } catch (err) {
+        console.error('[ChurchAssessmentContent] Error testing prompt retrieval:', err);
+        toast({
+          title: "Prompt Retrieval Error",
+          description: "Unable to retrieve prompts. This may affect message generation.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    testPrompts();
   }, []);
 
   // Test OpenAI connection

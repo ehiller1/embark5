@@ -1,7 +1,8 @@
 
 import { ReactNode, useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useUserRole } from '@/hooks/useUserRole';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { Loader2 } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -14,7 +15,7 @@ interface ProtectedRouteProps {
 
 export function ProtectedRoute({
   children,
-  allowedRoles = ['Clergy', 'Parish'],
+  allowedRoles,
   redirectPath = '/',
   unauthorizedPath = '/unauthorized',
   loadingComponent = (
@@ -24,81 +25,43 @@ export function ProtectedRoute({
     </div>
   ),
 }: ProtectedRouteProps) {
-  // Use our new combined hook that leverages both AuthProvider and UserProfileProvider
-  const { 
-    user, 
-    role, 
-    isLoading, 
-    error, 
-    isAuthenticated 
-  } = useUserRole();
+    const { loading: authLoading, isAuthenticated } = useAuth();
+  const { profile, isLoading: profileLoading } = useUserProfile();
+
+  const isLoading = authLoading || profileLoading;
+  const role = profile?.role;
   const location = useLocation();
 
-  // Log authentication state for debugging
   useEffect(() => {
     console.log(`%c[ProtectedRoute] State Update for ${location.pathname}`, 'color: blue; font-weight: bold;', {
       isLoading,
       isAuthenticated,
-      user: user ? { id: user.id, email: user.email } : null,
       role,
       allowedRoles,
-      error: error?.message,
+      timestamp: new Date().toISOString(),
     });
-  }, [isLoading, isAuthenticated, user, role, location.pathname, error, allowedRoles]);
+  }, [isLoading, isAuthenticated, role, location.pathname, allowedRoles]);
 
-  // Show loading state
+  // Primary loading state check
   if (isLoading) {
     return <>{loadingComponent}</>;
   }
 
-  // User not authenticated
-  if (!isAuthenticated || !user) {
+  // If not authenticated, redirect to the specified path
+  if (!isAuthenticated) {
     console.log(`%c[ProtectedRoute] NOT AUTHENTICATED for ${location.pathname}. Redirecting to ${redirectPath}`, 'color: red; font-weight: bold;');
     return <Navigate to={redirectPath} state={{ from: location }} replace />;
   }
 
-  // If we're still loading but past initial load, show a minimal loader
-  if (isLoading) {
-    return (
-      <div className="absolute inset-0 flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-journey-purple" />
-      </div>
-    );
-  }
-
-  // Handle errors but try to continue if we have a user
-  if (error && !role) {
-    console.error('[ProtectedRoute] Error:', error);
-    // If we have a user but role fetch failed, try to continue with a default role
-    if (user) {
-      console.warn('[ProtectedRoute] Continuing with default role due to error');
-      const fallbackRole = allowedRoles[0];
-      if (fallbackRole) {
-        return children ? <>{children}</> : <Outlet />;
-      }
-    }
-    return <Navigate to={redirectPath} state={{ from: location }} replace />;
-  }
-
-  const userRole = role;
-  if (!userRole) {
-    console.log(`%c[ProtectedRoute] ROLE NOT FOUND for ${location.pathname}.`, 'color: red; font-weight: bold;');
-    const fallbackRole = allowedRoles[0];
-    if (fallbackRole) {
-      console.warn('[ProtectedRoute] Continuing with default role due to error');
-    } else {
-      console.error('[ProtectedRoute] No role available and no fallback role. Redirecting to unauthorized.');
-      return <Navigate to={unauthorizedPath} state={{ from: location }} replace />;
+  // If authenticated and role restrictions are specified, check for role-based access
+  if (allowedRoles && allowedRoles.length > 0) {
+    if (!role || !allowedRoles.includes(role)) {
+      console.log(`%c[ProtectedRoute] UNAUTHORIZED for ${location.pathname}. Role '${role}' not in allowed roles: [${allowedRoles.join(', ')}]`, 'color: orange; font-weight: bold;');
+      return <Navigate to={unauthorizedPath} replace />;
     }
   }
 
-  // Check if user's role is allowed
-  if (userRole && allowedRoles && !allowedRoles.includes(userRole)) {
-    console.log(`%c[ProtectedRoute] ROLE MISMATCH for ${location.pathname}. User role: '${userRole}', Allowed roles: [${allowedRoles.join(', ')}]. Redirecting to unauthorized.`, 'color: red; font-weight: bold;');
-    return <Navigate to={unauthorizedPath} state={{ from: location }} replace />;
-  }
-
-  // User is authenticated and has an allowed role
+  // If authenticated and (no roles are required OR the user has the required role)
+  console.log(`%c[ProtectedRoute] AUTHORIZED for ${location.pathname}. Role '${role}' is permitted.`, 'color: green; font-weight: bold;');
   return children ? <>{children}</> : <Outlet />;
 }
-

@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/lib/supabase';
 import { ImplementationCard, CardCategory } from '@/types/ImplementationTypes';
 import { X, UserRound, Users } from 'lucide-react';
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext, ReactNode } from 'react';
 import { supabase } from '../integrations/lib/supabase';
 
 export interface ChurchAvatar {
@@ -82,7 +82,56 @@ type CompanionItem = {
   companion_type?: string;
 };
 
+
+// Create the context
+const NarrativeAvatarContext = createContext<NarrativeAvatarContextType | undefined>(undefined);
+
+// Define the context type
+interface NarrativeAvatarContextType {
+  avatars: NarrativeAvatar[];
+  churchAvatars: ChurchAvatar[];
+  communityAvatars: CommunityAvatar[];
+  companions: Companion[];
+  churchAvatar: ChurchAvatar | null;
+  communityAvatar: CommunityAvatar | null;
+  completedTasks: CompletedTasks;
+  setCompletedTasks: React.Dispatch<React.SetStateAction<CompletedTasks>>;
+  selectCommunityAvatar: (avatar: CommunityAvatar | null) => void;
+  selectChurchAvatar: (avatar: ChurchAvatar | null) => void;
+  selectCompanion: (companionId: string | null) => void;
+  saveChurchAvatar: (avatarData: Partial<ChurchAvatar>) => Promise<any>;
+  saveCommunityAvatar: (avatarData: Partial<CommunityAvatar>) => Promise<any>;
+  clearSelectedAvatars: () => void;
+  markTaskComplete: (task: keyof CompletedTasks) => void;
+  unlockTask: (task: keyof CompletedTasks) => void;
+  selectedCompanionId: string | null;
+  setSelectedCompanionId: React.Dispatch<React.SetStateAction<string | null>>;
+  getDefaultChurchIconUrl: () => string;
+  getDefaultCommunityIconUrl: () => string;
+  isAvatarActive: (id: string, role: string) => boolean;
+  toggleAvatar: (avatar: NarrativeAvatar) => void;
+  getAvatarByType: (role: string, id: string) => NarrativeAvatar | undefined;
+  isInitialized: boolean;
+}
+
+// Provider component
+export function NarrativeAvatarProvider({ children }: { children: ReactNode }) {
+  const narrativeAvatar = useNarrativeAvatarInternal();
+
+  return React.createElement(NarrativeAvatarContext.Provider, { value: narrativeAvatar }, children);
+}
+
+// Hook to be used by components
 export function useNarrativeAvatar() {
+  const context = useContext(NarrativeAvatarContext);
+  if (context === undefined) {
+    throw new Error('useNarrativeAvatar must be used within a NarrativeAvatarProvider');
+  }
+  return context;
+}
+
+// Internal hook containing the original logic
+function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
   const [churchAvatars, setChurchAvatars] = useState<ChurchAvatar[]>([]);
   const [communityAvatars, setCommunityAvatars] = useState<CommunityAvatar[]>([]);
   const [companions, setCompanions] = useState<Companion[]>([]);
@@ -126,27 +175,67 @@ export function useNarrativeAvatar() {
   }, []);
 
   const fetchChurchAvatars = useCallback(async () => {
+    // First check if we have local storage data - use as fallback immediately
+    try {
+      const cachedData = localStorage.getItem('church_avatars_cache');
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        console.log('[useNarrativeAvatar] Using cached church avatars:', parsedData.length);
+        setChurchAvatars(parsedData);
+      }
+    } catch (err) {
+      console.warn('[useNarrativeAvatar] Error reading cached church avatars:', err);
+    }
+    
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 8000); // Reduced to 8-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 5000); // Reduced to 5-second timeout
     
     try {
-      // Only select the fields we need, limit to 50 results to avoid huge payload
+      // First, check if table exists before attempting operations
+      try {
+        // Simple check query to verify if the table exists
+        const { count, error: countError } = await supabase
+          .from('church_avatars')
+          .select('*', { count: 'exact', head: true })
+          .limit(1)
+          .abortSignal(abortController.signal);
+          
+        if (countError) {
+          // Table likely doesn't exist, use empty data
+          console.log('[useNarrativeAvatar] church_avatars table not available, using empty data');
+          setChurchAvatars([]);
+          setIsInitialized(true);
+          return;
+        }
+        
+        // Only log in development to reduce console noise
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[useNarrativeAvatar] church_avatars table exists with approximately ${count} rows`);
+        }
+      } catch (checkErr) {
+        // If there's any error checking the table, continue with main query but log the error
+        console.warn('[useNarrativeAvatar] Error checking church_avatars table:', checkErr);
+      }
+      
+      // Only select the fields we need, limit to 20 results to improve query speed
       const { data, error } = await supabase
         .from('church_avatars')
         .select('id, avatar_name, image_url, avatar_point_of_view, avatar_structured_data, created_at') 
         .order('created_at', { ascending: true })
-        .limit(50)
-        .abortSignal(abortController.signal); // Properly handle abort
+        .limit(20) // Reduced limit for faster response
+        .abortSignal(abortController.signal);
       
       // Clear the timeout as we got a response
       clearTimeout(timeoutId);
 
       if (error) {
-        console.error('Error fetching church avatars:', error);
-        // Set empty array to prevent UI from waiting indefinitely
-        setChurchAvatars([]);
-        setIsInitialized(true); // Mark as initialized even on failure
+        // Silently ignore abort errors as they are expected on unmount or timeout
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching church avatars:', error);
+        }
+        // We already set avatars from cache, so just mark as initialized
+        setIsInitialized(true);
         return;
       }
       
@@ -161,10 +250,16 @@ export function useNarrativeAvatar() {
         avatar_structured_data: item.avatar_structured_data
       })) || [];
       
-      // Only log in development to reduce console noise in production
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[useNarrativeAvatar] fetchChurchAvatars - Fetched', mappedData.length, 'avatars');
+      // Cache the data for future use
+      if (mappedData.length > 0) {
+        try {
+          localStorage.setItem('church_avatars_cache', JSON.stringify(mappedData));
+        } catch (cacheError) {
+          console.warn('[useNarrativeAvatar] Error caching church avatars:', cacheError);
+        }
       }
+      
+      // Logging removed to reduce console noise
       
       setChurchAvatars(mappedData);
       setIsInitialized(true); // Mark as initialized on success
@@ -173,59 +268,81 @@ export function useNarrativeAvatar() {
       
       // Check if this is an abort error (timeout)
       if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('[useNarrativeAvatar] Church avatars fetch timed out after 8 seconds');
+        console.warn('[useNarrativeAvatar] Church avatars fetch timed out after 5 seconds');
       } else {
         console.error('Unexpected error fetching church avatars:', err);
       }
       
-      // Always set empty state on error so UI doesn't wait forever
-      setChurchAvatars([]);
+      // Always ensure we're initialized even on error
+      setIsInitialized(true);
       
-      // Add retry logic with exponential backoff
-      if (typeof window !== 'undefined') {
-        const retryCount = Number(localStorage.getItem('church_avatars_fetch_retry') || '0');
-        if (retryCount < 3) {
-          localStorage.setItem('church_avatars_fetch_retry', String(retryCount + 1));
-          // Exponential backoff: 3s, 6s, 12s
-          const backoffTime = 3000 * Math.pow(2, retryCount);
-          console.log(`[useNarrativeAvatar] Scheduling church avatars retry #${retryCount + 1} in ${backoffTime/1000}s`);
-          setTimeout(fetchChurchAvatars, backoffTime);
-        } else {
-          console.warn('[useNarrativeAvatar] Maximum fetch retries reached for church avatars');
-          localStorage.removeItem('church_avatars_fetch_retry');
-          setIsInitialized(true); // Mark as initialized even on failure
-        }
-      }
-    } finally {
-      // Clear retry count on successful completion
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('church_avatars_fetch_retry');
-      }
+      // No more retries - they're causing too many long-running requests
+      // We already loaded from cache at the beginning if available
     }
   }, []);
 
   const fetchCommunityAvatars = useCallback(async () => {
+    // First check if we have local storage data - use as fallback immediately
+    try {
+      const cachedData = localStorage.getItem('community_avatars_cache');
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        console.log('[useNarrativeAvatar] Using cached community avatars:', parsedData.length);
+        setCommunityAvatars(parsedData);
+      }
+    } catch (err) {
+      console.warn('[useNarrativeAvatar] Error reading cached community avatars:', err);
+    }
+    
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 8000); // Reduced to 8-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 5000); // Reduced to 5-second timeout
     
     try {
-      // Only select the fields we need, limit to 50 results to avoid huge payload
+      // First, check if table exists before attempting operations
+      try {
+        // Simple check query to verify if the table exists
+        const { count, error: countError } = await supabase
+          .from('community_avatars')
+          .select('*', { count: 'exact', head: true })
+          .limit(1)
+          .abortSignal(abortController.signal);
+          
+        if (countError) {
+          // Table likely doesn't exist, use empty data
+          console.log('[useNarrativeAvatar] community_avatars table not available, using empty data');
+          setCommunityAvatars([]);
+          setIsInitialized(true);
+          return;
+        }
+        
+        // Only log in development to reduce console noise
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[useNarrativeAvatar] community_avatars table exists with approximately ${count} rows`);
+        }
+      } catch (checkErr) {
+        // If there's any error checking the table, continue with main query but log the error
+        console.warn('[useNarrativeAvatar] Error checking community_avatars table:', checkErr);
+      }
+      
+      // Only select the fields we need, limit to 20 results to improve query speed
       const { data, error } = await supabase
         .from('community_avatars')
         .select('id, avatar_name, image_url, avatar_point_of_view, avatar_structured_data, created_at') 
         .order('created_at', { ascending: true })
-        .limit(50)
-        .abortSignal(abortController.signal); // Properly handle abort
+        .limit(20) // Reduced limit for faster response
+        .abortSignal(abortController.signal);
       
       // Clear the timeout as we got a response
       clearTimeout(timeoutId);
 
       if (error) {
-        console.error('Error fetching community avatars:', error);
-        // Set empty array to prevent UI from waiting indefinitely
-        setCommunityAvatars([]);
-        setIsInitialized(true); // Mark as initialized even on failure
+        // Silently ignore abort errors as they are expected on unmount or timeout
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching community avatars:', error);
+        }
+        // We already set avatars from cache, so just mark as initialized
+        setIsInitialized(true);
         return;
       }
       
@@ -240,9 +357,19 @@ export function useNarrativeAvatar() {
         avatar_structured_data: item.avatar_structured_data
       })) || [];
       
+      // Cache the data for future use
+      if (mappedData.length > 0) {
+        try {
+          localStorage.setItem('community_avatars_cache', JSON.stringify(mappedData));
+        } catch (cacheError) {
+          console.warn('[useNarrativeAvatar] Error caching community avatars:', cacheError);
+        }
+      }
+      
       // Only log in development to reduce console noise in production
       if (process.env.NODE_ENV !== 'production') {
-        console.log('[useNarrativeAvatar] fetchCommunityAvatars - Fetched', mappedData.length, 'avatars');
+        console.log('[useNarrativeAvatar] fetchCommunityAvatars - Mapped data being set:', 
+          mappedData.length > 0 ? `${mappedData.length} items` : 'empty array');
       }
       
       setCommunityAvatars(mappedData);
@@ -252,58 +379,83 @@ export function useNarrativeAvatar() {
       
       // Check if this is an abort error (timeout)
       if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('[useNarrativeAvatar] Community avatars fetch timed out after 8 seconds');
+        console.warn('[useNarrativeAvatar] Community avatars fetch timed out after 5 seconds');
       } else {
         console.error('Unexpected error fetching community avatars:', err);
       }
       
-      // Always set empty state on error so UI doesn't wait forever
-      setCommunityAvatars([]);
+      // Always ensure we're initialized even on error
+      setIsInitialized(true);
       
-      // Add retry logic with exponential backoff
-      if (typeof window !== 'undefined') {
-        const retryCount = Number(localStorage.getItem('community_avatars_fetch_retry') || '0');
-        if (retryCount < 3) {
-          localStorage.setItem('community_avatars_fetch_retry', String(retryCount + 1));
-          // Exponential backoff: 3s, 6s, 12s
-          const backoffTime = 3000 * Math.pow(2, retryCount);
-          console.log(`[useNarrativeAvatar] Scheduling community avatars retry #${retryCount + 1} in ${backoffTime/1000}s`);
-          setTimeout(fetchCommunityAvatars, backoffTime);
-        } else {
-          console.warn('[useNarrativeAvatar] Maximum fetch retries reached for community avatars');
-          localStorage.removeItem('community_avatars_fetch_retry');
-          setIsInitialized(true); // Mark as initialized even on failure
-        }
-      }
-    } finally {
-      // Clear retry count on successful completion
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('community_avatars_fetch_retry');
-      }
+      // No more retries - they're causing too many long-running requests
+      // We already loaded from cache at the beginning if available
     }
   }, []);
-
+  
   const fetchCompanions = useCallback(async () => {
+    // First check if we have local storage data - use as fallback immediately
+    try {
+      const cachedData = localStorage.getItem('companions_cache');
+      if (cachedData) {
+        const parsedData = JSON.parse(cachedData);
+        // Only log in development to reduce console noise
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('[useNarrativeAvatar] Using cached companions:', parsedData.length);
+        }
+        setCompanions(parsedData);
+      }
+    } catch (err) {
+      console.warn('[useNarrativeAvatar] Error reading cached companions:', err);
+    }
+    
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 8000); // Reduced to 8-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 5000); // Reduced to 5-second timeout
     
     try {
-      // Only select the fields we need, limit to 50 results to avoid huge payload
+      // First, check if table exists before attempting operations
+      try {
+        // Simple check query to verify if the table exists
+        const { count, error: countError } = await supabase
+          .from('Companion')
+          .select('*', { count: 'exact', head: true })
+          .limit(1)
+          .abortSignal(abortController.signal);
+          
+        if (countError) {
+          // Table likely doesn't exist, use empty data
+          console.log('[useNarrativeAvatar] Companion table not available, using empty data');
+          setCompanions([]);
+          setIsInitialized(true);
+          return;
+        }
+        
+        // Only log in development to reduce console noise
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`[useNarrativeAvatar] Companion table exists with approximately ${count} rows`);
+        }
+      } catch (checkErr) {
+        // If there's any error checking the table, continue with main query but log the error
+        console.warn('[useNarrativeAvatar] Error checking Companion table:', checkErr);
+      }
+      
+      // Only select the fields we need, limit to 20 results to improve query speed
       const { data, error } = await supabase
         .from('Companion')
         .select('UUID, companion, avatar_url, traits, speech_pattern, knowledge_domains, companion_type') 
-        .limit(50)
-        .abortSignal(abortController.signal); // Properly handle abort
+        .limit(20) // Reduced limit for faster response
+        .abortSignal(abortController.signal);
       
       // Clear the timeout as we got a response
       clearTimeout(timeoutId);
 
       if (error) {
-        console.error('Error fetching companions:', error);
-        // Set empty array to prevent UI from waiting indefinitely
-        setCompanions([]);
-        setIsInitialized(true); // Mark as initialized even on failure
+        // Silently ignore abort errors as they are expected on unmount or timeout
+        if (error.name !== 'AbortError') {
+          console.error('Error fetching companions:', error);
+        }
+        // We already set companions from cache, so just mark as initialized
+        setIsInitialized(true);
         return;
       }
 
@@ -318,10 +470,16 @@ export function useNarrativeAvatar() {
         companion_type: item.companion_type || ''
       })) || [];
       
-      // Only log in development to reduce console noise in production
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[useNarrativeAvatar] fetchCompanions - Fetched', mappedData.length, 'companions');
+      // Cache the data for future use
+      if (mappedData.length > 0) {
+        try {
+          localStorage.setItem('companions_cache', JSON.stringify(mappedData));
+        } catch (cacheError) {
+          console.warn('[useNarrativeAvatar] Error caching companions:', cacheError);
+        }
       }
+      
+      // Logging removed to reduce console noise
       
       setCompanions(mappedData);
       setIsInitialized(true); // Mark as initialized on success
@@ -330,34 +488,16 @@ export function useNarrativeAvatar() {
       
       // Check if this is an abort error (timeout)
       if (err instanceof Error && err.name === 'AbortError') {
-        console.warn('[useNarrativeAvatar] Companions fetch timed out after 8 seconds');
+        console.warn('[useNarrativeAvatar] Companions fetch timed out after 5 seconds');
       } else {
         console.error('Unexpected error fetching companions:', err);
       }
       
-      // Always set empty state on error so UI doesn't wait forever
-      setCompanions([]);
+      // Always ensure we're initialized even on error
+      setIsInitialized(true);
       
-      // Add retry logic with exponential backoff
-      if (typeof window !== 'undefined') {
-        const retryCount = Number(localStorage.getItem('companions_fetch_retry') || '0');
-        if (retryCount < 3) {
-          localStorage.setItem('companions_fetch_retry', String(retryCount + 1));
-          // Exponential backoff: 3s, 6s, 12s
-          const backoffTime = 3000 * Math.pow(2, retryCount);
-          console.log(`[useNarrativeAvatar] Scheduling companions retry #${retryCount + 1} in ${backoffTime/1000}s`);
-          setTimeout(fetchCompanions, backoffTime);
-        } else {
-          console.warn('[useNarrativeAvatar] Maximum fetch retries reached for companions');
-          localStorage.removeItem('companions_fetch_retry');
-          setIsInitialized(true); // Mark as initialized even on failure
-        }
-      }
-    } finally {
-      // Clear retry count on successful completion
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('companions_fetch_retry');
-      }
+      // No more retries - they're causing too many long-running requests
+      // We already loaded from cache at the beginning if available
     }
   }, []);
 
@@ -552,9 +692,6 @@ export function useNarrativeAvatar() {
     communityAvatar,
     completedTasks,
     setCompletedTasks,
-    fetchChurchAvatars,
-    fetchCommunityAvatars,
-    fetchCompanions,
     selectCommunityAvatar,
     selectChurchAvatar, 
     selectCompanion,

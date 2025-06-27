@@ -1,5 +1,3 @@
-
-import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Archetype } from '@/hooks/useArchetypes';
 import { Check } from 'lucide-react';

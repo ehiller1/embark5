@@ -1,4 +1,4 @@
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/lib/supabase';
 
 // Cache for prompts
 // Define PromptType from the array of required prompt types
@@ -42,7 +42,9 @@ export const REQUIRED_PROMPT_TYPES = [
   'no_scenario_discernment',
   'vocational_statement_synthesis', // Added for AI synthesis of vocational statements
   'vocational_statement_synthesized_multiple', // Added for AI synthesis of multiple vocational statements
-  'missional_avatar' // Added for generating vocation-based missional avatars
+  'missional_avatar', // Added for generating vocation-based missional avatars
+  'viability', // Added for viability assessment messages
+  'community_avatar_generation' // Added for community avatar generation
 ] as const;
 
 // Check if required prompts exist

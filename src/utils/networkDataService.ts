@@ -1,5 +1,5 @@
 
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/lib/supabase';
 import { NetworkConnection, ConnectionData } from '@/types/NetworkTypes';
 import { toast } from '@/hooks/use-toast';
 

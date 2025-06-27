@@ -1,5 +1,3 @@
-
-import React from "react";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { avatarConfig } from "@/utils/avatarConfig";

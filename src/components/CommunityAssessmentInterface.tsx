@@ -5,7 +5,6 @@ import { useSectionAvatars } from '@/hooks/useSectionAvatars';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { MessageInput } from './community-assessment/MessageInput';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { renderMessageContent } from '@/utils/messageUtils';
 

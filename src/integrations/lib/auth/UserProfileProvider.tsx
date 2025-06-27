@@ -1,371 +1,243 @@
-import { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import React, { createContext, useContext, useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from './AuthProvider';
+import { User } from '@supabase/supabase-js';
 
-// Define the UserProfile type
+// -- Types
 export interface UserProfile {
   id: string;
   role: string | null;
   name?: string;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
   church_name?: string;
   phone?: string;
   church_id?: string;
   created_at?: string;
   updated_at?: string;
-  [key: string]: any; // Allow for additional fields
+  [key: string]: any;
 }
 
-// Define the UserProfileState interface
 export interface UserProfileState {
   profile: UserProfile | null;
   isLoading: boolean;
   error: Error | null;
+  hasProfile: boolean;
+  profileFetchAttempted: boolean;
 }
 
-// Define the UserProfileContext interface
 export interface UserProfileContextType extends UserProfileState {
-  refreshProfile: () => Promise<void>;
-  updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>;
-  role: string | null; // Derived from profile
-  isClergy: boolean; // Derived from role
+  refreshProfile: () => Promise<{ success: boolean; error?: string }>;
+  updateProfile: (updates: Partial<UserProfile>) => Promise<{ data: UserProfile | null; error: Error | null }>;
+  role: string | null;
+  isClergy: boolean;
+  hasProfile: boolean;
+  profileFetchAttempted: boolean;
 }
 
-// Create the context
+// -- Context
 const UserProfileContext = createContext<UserProfileContextType>({
   profile: null,
   isLoading: false,
   error: null,
-  refreshProfile: async () => {},
-  updateProfile: async () => ({ error: null }),
+  hasProfile: false,
+  profileFetchAttempted: false,
+  refreshProfile: async () => ({ success: false, error: 'Context not initialized' }),
+  updateProfile: async () => ({ data: null, error: null }),
   role: null,
-  isClergy: false
+  isClergy: false,
 });
 
-export const UserProfileProvider = ({ children }: { children: React.ReactNode }) => {
-  // Get auth state from AuthProvider
-  const { user, isAuthenticated } = useAuth();
-  
-  const [state, setState] = useState<UserProfileState>({
+// Named function component for better Fast Refresh compatibility
+export function UserProfileProvider({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const isMounted = useRef(true);
+
+  const [profileState, setProfileState] = useState<UserProfileState>({
     profile: null,
     isLoading: false,
-    error: null
+    error: null,
+    hasProfile: false,
+    profileFetchAttempted: false,
   });
 
-  const { toast } = useToast();
-
-  // Derived state
-  const role = useMemo(() => state.profile?.role || null, [state.profile]);
-  const isClergy = useMemo(() => role === 'Clergy' || role === 'Admin', [role]);
-  
-  // Fetch user profile when authenticated user changes
+  // Cleanup on unmount
   useEffect(() => {
-    // Log current state for debugging
-    console.log('[UserProfile] Auth state changed:', { 
-      isAuthenticated, 
-      hasUser: !!user,
-      userId: user?.id,
-      email: user?.email
-    });
-    
-    // Skip if not authenticated or no user
-    if (!isAuthenticated || !user) {
-      setState({
-        profile: null,
-        isLoading: false,
-        error: null
-      });
-      return;
-    }
-    
-    // Safety timeout to prevent infinite loading
-    let timeoutId: ReturnType<typeof setTimeout>;
-    
-    // Load profile
-    const fetchProfile = async () => {
-      // Set loading state
-      setState(prev => ({ ...prev, isLoading: true }));
-      
-      // Set a timeout to prevent infinite loading state
-      timeoutId = setTimeout(() => {
-        console.warn('[UserProfile] Profile fetch timeout - forcing loading state to complete');
-        setState(prev => {
-          if (prev.isLoading) {
-            return {
-              ...prev,
-              isLoading: false,
-              error: new Error('Profile fetch timed out')
-            };
-          }
-          return prev;
-        });
-      }, 10000); // 10 second timeout
-      
-      try {
-        console.log('[UserProfile] Fetching profile for user:', user.id);
-        
-        
-        // Attempt to get the user's profile
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-        
-        // Clear timeout since we got a response (success or error)
-        clearTimeout(timeoutId);
-        
-        if (error) {
-          console.warn('[UserProfile] Error fetching profile:', error);
-          
-          // If profile doesn't exist, create a default one
-          if (error.code === 'PGRST116') { // Record not found error code
-            console.log('[UserProfile] Profile not found, creating default profile');
-            return await createDefaultProfile(user.id);
-          }
-          
-          // Otherwise, handle as a normal error
-          throw new Error(error.message);
-        }
-        
-        console.log('[UserProfile] Profile loaded successfully:', { 
-          role: data.role,
-          name: data.name || '(not set)',
-          id: data.id
-        });
-        
-        setState({
-          profile: data as UserProfile,
-          isLoading: false,
-          error: null
-        });
-      } catch (err) {
-        console.error('[UserProfile] Error in profile fetch:', err);
-        // Clear timeout in catch block too
-        clearTimeout(timeoutId);
-        
-        setState({
-          profile: null,
-          isLoading: false,
-          error: err instanceof Error ? err : new Error('Unknown error fetching profile')
-        });
-        
-        // Only show the toast if the user is still on the page
-        // and if the error isn't just a profile not found error
-        if (!(err instanceof Error && err.message.includes('not found'))) {
-          toast({
-            title: 'Profile Error',
-            description: 'Failed to load your profile data',
-            variant: 'destructive'
-          });
-        }
-      }
-    };
-    
-    // Start fetching the profile
-    fetchProfile();
-    
-    // Cleanup function to clear timeout when component unmounts
+    isMounted.current = true;
     return () => {
-      clearTimeout(timeoutId);
+      isMounted.current = false;
     };
-  }, [user, isAuthenticated]);
-  
-  // Helper function to create a default profile
-  const createDefaultProfile = async (userId: string) => {
-    try {
-      
-      
-      // Create a default profile with the Clergy role
-      const defaultProfile: Partial<UserProfile> = {
-        id: userId,
-        role: 'Clergy', // Default role
-        name: '',
-        church_name: '',
-        phone: '',
-        church_id: undefined
-      };
-      
-      const { data, error } = await supabase
-        .from('profiles')
-        .upsert(defaultProfile)
-        .select()
-        .single();
-      
-      if (error) {
-        console.error('[UserProfile] Failed to create default profile:', error);
-        throw new Error(error.message);
-      }
-      
-      console.log('[UserProfile] Default profile created successfully');
-      setState({
-        profile: data as UserProfile,
-        isLoading: false,
-        error: null
-      });
-    } catch (err) {
-      console.error('[UserProfile] Error creating default profile:', err);
-      
-      // Return a fallback profile even if DB insert fails
-      const fallbackProfile: UserProfile = {
-        id: userId,
-        role: 'Clergy',
-        name: '',
-        church_name: '',
-        phone: '',
-        church_id: undefined
-      };
-      
-      setState({
-        profile: fallbackProfile,
-        isLoading: false,
-        error: err instanceof Error ? err : new Error('Failed to create profile')
-      });
-      
-      toast({
-        title: 'Profile Warning',
-        description: 'Using temporary profile due to database error',
-        variant: 'destructive'
-      });
+  }, []);
+
+  const createDefaultProfile = useCallback(async (user: User) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[UserProfileProvider] [${timestamp}] No profile found for ${user.id}. Creating default.`);
+
+    const profileData = {
+      id: user.id,
+      email: user.email,
+      role: user.user_metadata?.role || 'Clergy',
+      first_name: user.user_metadata?.firstName || user.user_metadata?.first_name || '',
+      last_name: user.user_metadata?.lastName || user.user_metadata?.last_name || '',
+      church_name: user.user_metadata?.churchName || user.user_metadata?.church_name || '',
+      church_id: user.user_metadata?.church_id || '',
+      created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert(profileData)
+      .select()
+      .single();
+
+    if (error) {
+      console.error(`[UserProfileProvider] [${timestamp}] Error creating default profile:`, error);
+      throw new Error(error.message);
     }
-  };
-  
-  // Refresh the user profile manually
-  const refreshProfile = async () => {
-    if (!user) {
-      console.warn('[UserProfile] Cannot refresh profile - no authenticated user');
-      return;
-    }
-    
-    setState(prev => ({ ...prev, isLoading: true }));
-    
+
+    console.log(`[UserProfileProvider] [${timestamp}] Default profile created successfully.`);
+    return data as UserProfile;
+  }, []);
+
+  const fetchProfile = useCallback(async (user: User) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[UserProfileProvider] [${timestamp}] Fetching profile for user: ${user.id}`);
+
+    setProfileState(prev => ({ ...prev, isLoading: true, error: null, profileFetchAttempted: true }));
+
+    console.log(`[UserProfileProvider] [${timestamp}] Preparing to query Supabase for profile.`);
     try {
-      console.log('[UserProfile] Refreshing profile for user:', user.id);
-      
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
       
-      if (error) {
-        throw new Error(error.message);
+      console.log(`[UserProfileProvider] [${timestamp}] Supabase query completed. Error: ${error ? JSON.stringify(error) : 'null'}. Data received: ${!!data}`);
+
+      let finalProfile: UserProfile | null = data;
+
+      if (error && error.code !== 'PGRST116') { // PGRST116 = 'single row not found'
+        console.error(`[UserProfileProvider] [${timestamp}] Error fetching profile:`, error);
+        throw error;
       }
-      
-      console.log('[UserProfile] Profile refreshed successfully');
-      setState({
-        profile: data as UserProfile,
-        isLoading: false,
-        error: null
-      });
+
+      if (!data) {
+        finalProfile = await createDefaultProfile(user);
+      }
+
+      if (isMounted.current) {
+        console.log(`[UserProfileProvider] [${timestamp}] Profile loaded successfully.`);
+        setProfileState({
+          profile: finalProfile,
+          isLoading: false,
+          error: null,
+          hasProfile: true,
+          profileFetchAttempted: true,
+        });
+      }
     } catch (err) {
-      console.error('[UserProfile] Error refreshing profile:', err);
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: err instanceof Error ? err : new Error('Unknown error refreshing profile')
-      }));
+      if (isMounted.current) {
+        const e = err instanceof Error ? err : new Error('Unknown error fetching profile');
+        console.error(`[UserProfileProvider] [${timestamp}] Failed to fetch or create profile:`, e);
+        setProfileState({
+          profile: null,
+          isLoading: false,
+          error: e,
+          hasProfile: false,
+          profileFetchAttempted: true,
+        });
+        toast({ title: 'Profile Error', description: 'Failed to load your profile.', variant: 'destructive' });
+      }
     }
-  };
-  
-  // Update the user profile
-  const updateProfile = async (updates: Partial<UserProfile>) => {
-    if (!user || !state.profile) {
-      console.error('[UserProfile] Cannot update profile - no user or profile');
-      return { error: new Error('Cannot update profile - not authenticated') };
+  }, [createDefaultProfile, toast]);
+
+  const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
+    if (!user?.id) {
+      const error = new Error('Cannot update profile - no user authenticated');
+      console.error(`[UserProfileProvider] ${error.message}`);
+      return { data: null, error };
     }
-    
-    setState(prev => ({ ...prev, isLoading: true }));
-    
+
+    setProfileState(prev => ({ ...prev, isLoading: true }));
+
     try {
-      console.log('[UserProfile] Updating profile for user:', user.id);
-      
-      
-      // Add updated_at timestamp
-      const profileUpdates = { ...updates };
-      
       const { data, error } = await supabase
         .from('profiles')
-        .update(profileUpdates)
+        .update({ ...updates, updated_at: new Date().toISOString() })
         .eq('id', user.id)
         .select()
         .single();
-      
-      if (error) {
-        throw new Error(error.message);
+
+      if (error) throw error;
+
+      if (isMounted.current) {
+        setProfileState(prev => ({ ...prev, profile: data as UserProfile, isLoading: false, error: null }));
+        toast({ title: 'Profile Updated', description: 'Your profile has been updated.' });
       }
-      
-      console.log('[UserProfile] Profile updated successfully');
-      setState({
-        profile: data as UserProfile,
-        isLoading: false,
-        error: null
-      });
-      
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been updated successfully'
-      });
-      
-      return { error: null };
+      return { data: data as UserProfile, error: null };
     } catch (err) {
-      console.error('[UserProfile] Error updating profile:', err);
-      
-      setState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: err instanceof Error ? err : new Error('Unknown error updating profile')
-      }));
-      
-      toast({
-        title: 'Update Failed',
-        description: err instanceof Error ? err.message : 'Failed to update profile',
-        variant: 'destructive'
-      });
-      
-      return { 
-        error: err instanceof Error ? err : new Error('Failed to update profile')
-      };
+      const e = err instanceof Error ? err : new Error('Failed to update profile');
+      if (isMounted.current) {
+        setProfileState(prev => ({ ...prev, isLoading: false, error: e }));
+        toast({ title: 'Update Failed', description: e.message, variant: 'destructive' });
+      }
+      return { data: null, error: e };
     }
-  };
-  
-  // Log state changes in development
-  if (process.env.NODE_ENV === 'development') {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useEffect(() => {
-      console.log('[UserProfile] State update:', { 
-        hasProfile: !!state.profile, 
-        role,
-        isClergy,
-        isLoading: state.isLoading,
-        hasError: !!state.error
+  }, [user, toast]);
+
+  const refreshProfile = useCallback(async () => {
+    if (!user) return { success: false, error: 'No authenticated user' };
+    await fetchProfile(user);
+    return { success: true };
+  }, [user, fetchProfile]);
+
+  const resetProfileState = useCallback(() => {
+    if (isMounted.current) {
+      setProfileState({
+        profile: null,
+        isLoading: false,
+        error: null,
+        hasProfile: false,
+        profileFetchAttempted: false,
       });
-    }, [state.profile, role, isClergy, state.isLoading, state.error]);
-  }
-  
+    }
+  }, []);
+
+  useEffect(() => {
+    // Fetch profile only if we have a user and haven't tried fetching yet.
+    if (user && !profileState.profileFetchAttempted) {
+      fetchProfile(user);
+    } 
+    // Reset profile state if user logs out.
+    else if (!user && profileState.profile) {
+      resetProfileState();
+    }
+  }, [user, profileState.profileFetchAttempted, profileState.profile, fetchProfile, resetProfileState]);
+
+  const contextValue = useMemo<UserProfileContextType>(() => ({
+    ...profileState,
+    refreshProfile,
+    updateProfile,
+    role: profileState.profile?.role || null,
+    isClergy: profileState.profile?.role === 'Clergy',
+  }), [profileState, refreshProfile, updateProfile]);
+
   return (
-    <UserProfileContext.Provider
-      value={{
-        ...state,
-        refreshProfile,
-        updateProfile,
-        role,
-        isClergy
-      }}
-    >
+    <UserProfileContext.Provider value={contextValue}>
       {children}
     </UserProfileContext.Provider>
   );
-};
+}
 
-// Custom hook to use the user profile context
+// -- Hook with named function for better Fast Refresh compatibility
 export const useUserProfile = () => {
   const context = useContext(UserProfileContext);
-  
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useUserProfile must be used within a UserProfileProvider');
   }
-  
   return context;
 };

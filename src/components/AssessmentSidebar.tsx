@@ -1,17 +1,14 @@
-
-import React, { useState } from 'react';
-import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
+import * as React from "react";
+import { useState } from 'react';
 import { CompanionsList } from './CompanionsList';
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarProvider,
 } from '@/components/ui/sidebar';
 import { Button } from './ui/button';
-import { supabase } from '@/integrations/lib/supabase';
 import { ChevronLeft, ChevronRight, RefreshCcw } from 'lucide-react';
 
 interface AssessmentSidebarProps {
@@ -20,7 +17,6 @@ interface AssessmentSidebarProps {
 
 export function AssessmentSidebar({ children }: AssessmentSidebarProps) {
   const [open, setOpen] = useState(false);
-  const { selectedCompanion } = useSelectedCompanion();
   
   return (
     <SidebarProvider defaultOpen={false} open={open} onOpenChange={setOpen}>

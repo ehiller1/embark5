@@ -1,23 +1,52 @@
-
 import { useRef, useCallback, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-// Remove old auth import and rely solely on the useUserRole hook
-import { useUserRole } from '@/hooks/useUserRole';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { Loader2 } from 'lucide-react';
+import { devUtils } from '@/utils/devUtils';
+import { supabase } from "@/integrations/lib/supabase";
 
 interface UserMenuProps {
   onLogout: () => void;
 }
 
 export const UserMenu = ({ onLogout }: UserMenuProps) => {
-  // Use only the new useUserRole hook which combines auth and profile state
-  const { isAuthenticated, user, profile, isLoading } = useUserRole();
+  // Use the new auth and user profile hooks
+  const { isAuthenticated, user, loading: authLoading } = useAuth();
+  const { profile, isLoading: isProfileLoading } = useUserProfile();
+
+  // Combine loading states
+  const isLoading = authLoading || isProfileLoading;
   
-  // Memoize the onLogout handler to prevent unnecessary re-renders
+  // Memoize the handlers to prevent unnecessary re-renders
+  // IMPORTANT: All hooks must be called in the same order on every render
+  // so we define both callbacks unconditionally, regardless of env
   const handleLogout = useCallback(() => {
     console.log('[UserMenu] Logout clicked');
     onLogout();
   }, [onLogout]);
+  
+  const handleForceLogout = useCallback(() => {
+    console.log('[UserMenu] Force logout requested');
+    devUtils.forceLogout();
+  }, []);
+  
+  const handleFixSession = useCallback(async () => {
+    console.log('[UserMenu] Fix session requested');
+    try {
+      // Refresh the session
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error) {
+        console.error('[UserMenu] Error refreshing session:', error);
+      } else {
+        console.log('[UserMenu] Session refreshed successfully:', data.session ? 'Valid session' : 'No session');
+        // Force a page reload to update all components
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('[UserMenu] Exception when refreshing session:', err);
+    }
+  }, []);
   
   // Debug logging - only log when values change
   const prevStateRef = useRef<{
@@ -71,13 +100,8 @@ export const UserMenu = ({ onLogout }: UserMenuProps) => {
                  user.email?.split('@')[0] || 
                  'User';
   
-  console.log('[UserMenu] User name resolved:', { 
-    fromProfile: profile?.name,
-    fromUserMetadata: user.user_metadata?.name || user.user_metadata?.full_name,
-    fromEmail: user.email?.split('@')[0],
-    finalName: userName
-  });
-  
+  // Logging removed to reduce console noise
+
   return (
     <div className="hidden md:flex items-center gap-4">
       <span className="text-sm text-muted-foreground">
@@ -91,6 +115,28 @@ export const UserMenu = ({ onLogout }: UserMenuProps) => {
       >
         Sign Out
       </Button>
+      
+      {/* Development-only buttons */}
+      {process.env.NODE_ENV === 'development' && (
+        <>
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={handleForceLogout}
+            className="ml-2 text-xs"
+          >
+            DEV: Force Logout
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleFixSession}
+            className="ml-2 text-xs bg-amber-100 border-amber-300 hover:bg-amber-200 hover:border-amber-400"
+          >
+            DEV: Fix Session
+          </Button>
+        </>
+      )}
     </div>
   );
 };

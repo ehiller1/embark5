@@ -9,7 +9,7 @@ import {
 } from "@/types/NarrativeTypes";
 import { storageUtils } from "@/utils/storage";
 import { useSelectedScenarios } from "./useSelectedScenarios";
-import { supabase } from "@/integrations/supabase/client"; // Fixed Supabase import path
+import { supabase } from "@/integrations/lib/supabase"; // Fixed Supabase import path
 import { v4 as uuidv4 } from 'uuid'; // Added uuid import
 // import { useUser } from '@/hooks/useUser'; // Example: if you have a user hook
 

@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "@/components/AuthContext";
-import { MainLayout } from "@/components/MainLayout";
+import { useAuth } from "@/integrations/lib/auth/AuthProvider";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -60,7 +60,7 @@ const Analysis = () => {
   if (!isAuthenticated || !user) return null;
 
   return (
-    <MainLayout>
+    <>
       <div className="pt-20 px-6 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-2">Is now the right time?</h1>
         <p className="text-muted-foreground mb-6">
@@ -112,7 +112,7 @@ const Analysis = () => {
           </div>
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

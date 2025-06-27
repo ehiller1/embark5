@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
+// Import both hooks from the compatibility wrapper
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { Link } from 'react-router-dom';
-import { MainLayout } from '@/components/MainLayout';
+
 import { useCardStates } from '@/hooks/useCardStates';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
@@ -193,7 +194,7 @@ const ClergyHomePage = () => {
   console.log('[ClergyHomePage] Component rendering');
   
   // Get auth state
-    const { user, session, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading } = useAuth();
   const isAuthenticated = !!session;
   // Get profile state
   const { profile, isLoading: profileLoading } = useUserProfile();
@@ -340,19 +341,17 @@ const ClergyHomePage = () => {
   if (error) {
     console.error('[ClergyHomePage] Rendering error state:', error);
     return (
-      <MainLayout>
-        <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
-          <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
-          <p className="mb-6">We're having trouble loading your dashboard. Please try refreshing the page.</p>
-          <Button onClick={() => window.location.reload()} variant="outline">
-            Refresh Page
-          </Button>
-          <div className="mt-4 p-4 bg-red-50 rounded text-sm text-left max-w-md">
-            <p className="font-semibold">Error details:</p>
-            <p className="text-red-700">{error.message}</p>
-          </div>
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
+        <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
+        <p className="mb-6">We're having trouble loading your dashboard. Please try refreshing the page.</p>
+        <Button onClick={() => window.location.reload()} variant="outline">
+          Refresh Page
+        </Button>
+        <div className="mt-4 p-4 bg-red-50 rounded text-sm text-left max-w-md">
+          <p className="font-semibold">Error details:</p>
+          <p className="text-red-700">{error.message}</p>
         </div>
-      </MainLayout>
+      </div>
     );
   }
 
@@ -360,36 +359,35 @@ const ClergyHomePage = () => {
   if (isLoading) {
     console.log('[ClergyHomePage] Rendering loading state');
     return (
-      <MainLayout>
-        <div className="flex items-center justify-center min-h-screen">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-          <div className="ml-4">Loading your dashboard...</div>
-        </div>
-      </MainLayout>
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <div className="ml-4">Loading your dashboard...</div>
+      </div>
     );
   }
   
   if (!user) {
     console.log('[ClergyHomePage] No authenticated user, showing sign-in prompt');
     return (
-      <MainLayout>
-        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-          <h1 className="text-2xl font-bold mb-4">Please sign in to continue</h1>
-          <p className="mb-6">You need to be signed in to access the clergy dashboard.</p>
-          <Button asChild>
-            <Link to="/signin">Sign In</Link>
-          </Button>
-        </div>
-      </MainLayout>
+      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+        <h1 className="text-2xl font-bold mb-4">Please sign in to continue</h1>
+        <p className="mb-6">You need to be signed in to access the clergy dashboard.</p>
+        <Button asChild>
+          <Link to="/signin">Sign In</Link>
+        </Button>
+      </div>
     );
   }
   
   console.log('[ClergyHomePage] Rendering main content', { userName, userRole, cardStates });
 
   console.log('[ClergyHomePage] Rendering JSX');
+
+  const totalSteps = Object.values(cardStates).length;
+  const completedSteps = Object.values(cardStates).filter(Boolean).length;
+  const progressValue = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
   return (
-    <MainLayout data-testid="clergy-home-layout">
-      <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8" data-testid="clergy-home-layout">
         {/* Welcome Header */}
         <div className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight">
@@ -403,10 +401,7 @@ const ClergyHomePage = () => {
             {Object.values(cardStates).filter(Boolean).length} of {Object.values(cardStates).length} steps completed
           </span>
         </div>
-        <Progress 
-          value={(Object.values(cardStates).filter(Boolean).length / Object.values(cardStates).length) * 100} 
-          className="h-2" 
-        />
+        <Progress value={progressValue} className="h-2" />
 
         <div className="space-y-8">
           {/* Phase 1: Understanding Your Church */}
@@ -845,8 +840,7 @@ const ClergyHomePage = () => {
             </div>
           </section>
         </div>
-      </div>
-    </MainLayout>
+    </div>
   );
 };
 

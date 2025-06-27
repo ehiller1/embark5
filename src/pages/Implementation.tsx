@@ -83,7 +83,7 @@ const renderDiscernmentPlan = (content: string): React.ReactNode => {
     return <div className="whitespace-pre-wrap">{content}</div>;
   }
 };
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/lib/supabase';
 
 interface ConversationTab {
   id: string;

@@ -76,11 +76,8 @@ export const AvatarMessaging = ({
   };
   
   const { 
-    activeAvatars, 
     toggleAvatar, 
-    isAvatarActive,
-    generateMessagesForActiveAvatars,
-    avatarData
+    isAvatarActive
   } = useActiveAvatars({ onGenerateMessages: handleGeneratedMessages });
   
   const handleChurchAvatarToggle = (avatarId: string) => {
@@ -137,7 +134,10 @@ export const AvatarMessaging = ({
               Respond to this message: "${userInput}".
               Respond in a brief, thoughtful way that reflects your specific character and perspective.`;
             
-            const response = await generateResponse(prompt);
+            const response = await generateResponse({
+              messages: [{ role: 'user', content: prompt }],
+              temperature: 0.7
+            });
             
             if (response && response.text) {
               const avatarMessage: Message = {

@@ -1,9 +1,9 @@
-import React, { memo, useCallback } from 'react';
+import { memo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Loader2 } from 'lucide-react';
 import { useSelectedCompanion, useCompanionSubscriber, Companion } from '@/hooks/useSelectedCompanion';
-import { cn } from '@/lib/utils';
+import { cn } from '@/integrations/lib/utils';
 
 interface CompanionSelectorProps {
   open?: boolean;

@@ -107,7 +107,7 @@ export type AvatarPerspective = 'all' | 'church' | 'community' | 'companion';
 /**
  * All allowed avatar roles in conversation
  */
-export type AvatarRole = 'church' | 'community' | 'companion' | 'system' | 'user' | 'synthesized';
+export type AvatarRole = 'church' | 'community' | 'companion' | 'system' | 'user' | 'synthesized' | 'participant';
 
 /** Message type used in scenario messaging */
 export interface Message {

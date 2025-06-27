@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { supabase } from '@/integrations/lib/supabase';
 import { getMessagesForConversation, addMessageToConversation, StoredMessage } from '@/utils/conversationStorage';
 
 import { useOpenAI } from '@/hooks/useOpenAI';

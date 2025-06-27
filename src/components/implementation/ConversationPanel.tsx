@@ -1,13 +1,11 @@
-
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useMultiAgentConversation, MultiAgentMessage } from '@/hooks/useMultiAgentConversation';
 import { Loader2, Send } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
 import { ImplementationCard } from '@/types/ImplementationTypes';
 
 // Helper function to get initials from a name
@@ -26,26 +24,18 @@ const getInitials = (name: string | undefined): string => {
 
 interface ConversationPanelProps {
     conversationId: string;
-    participantCardObjects: ImplementationCard[]; // Changed from cardIds and allCards
-    title: string;
+    participantCardObjects: ImplementationCard[]; 
 }
 
-export function ConversationPanel({ conversationId, participantCardObjects, title }: ConversationPanelProps) {
+export function ConversationPanel({ conversationId, participantCardObjects }: ConversationPanelProps) {
     const [message, setMessage] = useState('');
     const scrollAreaRef = useRef<HTMLDivElement>(null);
-    // const { cards } = useImplementationCards(); // Removed internal call
     
     const { messages: rawMessages, isLoading, sendMessageToAgents, participantCards: rawParticipantCards } = useMultiAgentConversation(conversationId, participantCardObjects);
 
     const messages = Array.isArray(rawMessages) ? rawMessages : [];
     const participantCards = Array.isArray(rawParticipantCards) ? rawParticipantCards : [];
 
-    // selectedCards are now directly participantCardObjects, or derived from the hook's return
-    const selectedCards = participantCards; // Use the participantCards from the hook, which are the definitive ones for this conversation
-
-    // participantCards are now directly available from useMultiAgentConversation
-    // We'll use cards (allCards from useImplementationCards) to find agent details by msg.agentCardId
-    
     // Auto scroll to bottom when messages change
     useEffect(() => {
         if (scrollAreaRef.current) {
@@ -70,7 +60,6 @@ export function ConversationPanel({ conversationId, participantCardObjects, titl
 
     return (
         <Card className="h-full border flex flex-col">
-            {/* CardHeader removed as per request */}
             <CardContent className="p-0 flex flex-col flex-grow min-h-0">
                 <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                     <div className="space-y-4">
@@ -97,7 +86,7 @@ export function ConversationPanel({ conversationId, participantCardObjects, titl
                                                 <AvatarFallback>
                                                     {getInitials(agentCard?.name)}
                                                 </AvatarFallback>
-                                                <AvatarImage src={agentCard?.avatarUrl || "/placeholder.svg"} /> {/* Assuming avatarUrl might exist on card */}
+                                                <AvatarImage src="/placeholder.svg" /> 
                                             </>
                                         )}
                                     </Avatar>

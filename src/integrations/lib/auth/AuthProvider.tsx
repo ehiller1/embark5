@@ -1,8 +1,10 @@
-import { createContext, useState, useEffect, useContext, ReactNode } from 'react';
-import { supabase } from '@/integrations/lib/supabase';
-import { Session, User, AuthError } from '@supabase/supabase-js';
 
-// Define the shape of the user data for signup
+
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import { Session, User, AuthError } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/lib/supabase';
+
+
 interface SignUpUserData {
   firstName: string;
   lastName: string;
@@ -16,198 +18,205 @@ interface SignUpUserData {
   church_id?: string;
 }
 
-// Define the shape of the Auth context
-interface AuthContextType {
+export interface AuthContextType {
   session: Session | null;
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, pass: string) => Promise<{ session: Session | null; user: User | null; error: AuthError | null; }>;
-  signup: (email: string, pass: string, userData: SignUpUserData) => Promise<{ session: Session | null; user: User | null; error: AuthError | Error | null; }>;
+  login: (email: string, pass: string) => Promise<{ session: Session | null; user: User | null; error: AuthError | null }>;
+  signup: (email: string, pass: string, userData: SignUpUserData) => Promise<{ session: Session | null; user: User | null; error: AuthError | Error | null }>;
   signOut: () => Promise<void>;
 }
 
-// Create the Auth context with a default undefined value
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Create the AuthProvider component
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+// Named function component for better Fast Refresh compatibility
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const initAttemptRef = useRef(0);
+  const maxInitAttempts = 3;
 
   useEffect(() => {
-    // Get the initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const timestamp = new Date().toISOString();
+    console.log(`[AuthProvider] [${timestamp}] Initializing auth`);
+    
+    // Check for existing session in localStorage to help with debugging
+    try {
+      const localStorageKeys = Object.keys(localStorage);
+      const supabaseKeys = localStorageKeys.filter(key => key.includes('supabase'));
+      console.log(`[AuthProvider] [${timestamp}] Found ${supabaseKeys.length} Supabase-related localStorage keys:`, supabaseKeys);
+    } catch (e) {
+      console.warn(`[AuthProvider] [${timestamp}] Unable to check localStorage:`, e);
+    }
+    
+    const initialize = async () => {
+      const initTimestamp = new Date().toISOString();
+      initAttemptRef.current += 1;
+      
+      try {
+        console.log(`[AuthProvider] [${initTimestamp}] Getting initial session (attempt ${initAttemptRef.current}/${maxInitAttempts})`);
+        
+        // Get initial session with timeout to prevent hanging
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Session fetch timed out after 10 seconds')), 10000);
+        });
+        
+        // Race the session fetch against a timeout
+        const { data, error } = await Promise.race([sessionPromise, timeoutPromise]) as {
+          data: { session: Session | null };
+          error: Error | null;
+        };
+        
+        if (error) {
+          console.error(`[AuthProvider] [${initTimestamp}] Error getting initial session:`, error.message);
+          throw error;
+        }
+        
+        console.log(`[AuthProvider] [${initTimestamp}] Initial session loaded:`, { 
+          hasSession: !!data.session, 
+          userId: data.session?.user?.id,
+          userEmail: data.session?.user?.email,
+          expiresAt: data.session?.expires_at
+        });
+        
+        setSession(data.session);
+        setUser(data.session?.user ?? null);
+      } catch (err) {
+        console.error(`[AuthProvider] [${initTimestamp}] Error during auth initialization:`, err);
+        
+        // Retry logic for initialization
+        if (initAttemptRef.current < maxInitAttempts) {
+          const retryDelay = 1000 * Math.pow(2, initAttemptRef.current - 1);
+          console.log(`[AuthProvider] [${initTimestamp}] Will retry initialization in ${retryDelay}ms (attempt ${initAttemptRef.current + 1}/${maxInitAttempts})`);
+          
+          setTimeout(initialize, retryDelay);
+          return; // Don't set isLoading to false yet
+        }
+      } finally {
+        if (initAttemptRef.current >= maxInitAttempts || session) {
+          console.log(`[AuthProvider] [${initTimestamp}] Initialization complete after ${initAttemptRef.current} attempt(s)`);
+          setLoading(false);
+        }
+      }
+    };
+
+    initialize();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('[AuthProvider] Auth state changed:', { event: _event, userId: session?.user?.id });
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
     });
 
-    // Listen for changes in auth state
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
-
-        if (session?.user?.id) {
-          // For demo purposes, update all network_connections to this user's ID
-          await updateNetworkConnectionsForDemo(session.user.id);
-        }
-      }
-    );
-
-    // Cleanup the listener on component unmount
     return () => {
-      authListener?.subscription.unsubscribe();
+      console.log('[AuthProvider] Cleaning up auth listener');
+      listener.subscription.unsubscribe();
     };
   }, []);
 
-  // For demo: Update all network_connections to the current user's ID
-  const updateNetworkConnectionsForDemo = async (userId: string) => {
-    if (!userId) return;
-
+  const login = useCallback(async (email: string, pass: string) => {
+    console.log('[AuthProvider] Login attempt with email:', email);
     try {
-      console.log(`[AuthProvider] Demo mode: Updating network_connections for user ${userId}`);
-      
-      // First, check if table exists before attempting operations
-      try {
-        // Simple check query to verify if the table exists
-        const { count, error: countError } = await supabase
-          .from('network_connections')
-          .select('*', { count: 'exact', head: true });
-          
-        if (countError) {
-          // Table likely doesn't exist, silently skip the update
-          console.log('[AuthProvider] network_connections table not available, skipping demo update');
-          return;
-        }
-        
-        console.log(`[AuthProvider] network_connections table exists with ${count} rows`);
-      } catch (checkErr) {
-        // If there's any error checking the table, log and exit
-        console.warn('[AuthProvider] Error checking network_connections table:', checkErr);
-        return;
-      }
-      
-      // Update rows where user_id is null
-      const { error: nullUpdateError } = await supabase
-        .from('network_connections')
-        .update({ user_id: userId })
-        .is('user_id', null);
+      const loginPromise = supabase.auth.signInWithPassword({ email, password: pass });
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Login timed out after 10 seconds')), 10000);
+      });
 
-      if (nullUpdateError) {
-        console.error('[AuthProvider] Error updating null user_id network_connections:', nullUpdateError);
-      } else {
-        console.log('[AuthProvider] Demo mode: Successfully updated network_connections with null user_id.');
+      const { data, error } = await Promise.race([loginPromise, timeoutPromise]) as { 
+        data: { session: Session | null; user: User | null; }; 
+        error: AuthError | null; 
+      };
+
+      if (error) {
+        console.error('[AuthProvider] Login error:', error.message);
+        return { session: null, user: null, error };
       }
       
-      // Then get all existing connections with a simple select and update them in batches
-      try {
-        // Get all IDs first (limit to reasonable batch size)
-        const { data: existingConnections, error: fetchError } = await supabase
-          .from('network_connections')
-          .select('id')
-          .not('user_id', 'is', null)
-          .not('user_id', 'eq', userId) // Only update rows that don't already have this user ID
-          .limit(100); 
-          
-        if (fetchError) {
-          console.error('[AuthProvider] Error fetching network connections:', fetchError);
-          return;
-        }
-        
-        if (existingConnections && existingConnections.length > 0) {
-          const ids = existingConnections.map(conn => conn.id);
-          console.log(`[AuthProvider] Found ${ids.length} connections to update`);
-          
-          // Update in smaller batches of 20 to avoid potential issues
-          const batchSize = 20;
-          let successCount = 0;
-          
-          for (let i = 0; i < ids.length; i += batchSize) {
-            const batchIds = ids.slice(i, i + batchSize);
-            
-            const { error: batchUpdateError } = await supabase
-              .from('network_connections')
-              .update({ user_id: userId })
-              .in('id', batchIds);
-              
-            if (batchUpdateError) {
-              console.error(`[AuthProvider] Error updating batch ${i/batchSize + 1}:`, batchUpdateError);
-            } else {
-              successCount += batchIds.length;
-              console.log(`[AuthProvider] Updated batch ${i/batchSize + 1} (${batchIds.length} connections)`);
-            }
-          }
-          
-          console.log(`[AuthProvider] Demo mode: Successfully updated ${successCount}/${ids.length} existing network_connections.`);
-        } else {
-          console.log('[AuthProvider] No existing connections found that need updating.');
-        }
-      } catch (batchErr) {
-        console.error('[AuthProvider] Exception during batch network_connections update:', batchErr);
-      }
+      console.log('[AuthProvider] Login successful, user:', data.user?.id);
+      // Proactively set the session to avoid race conditions with the listener
+      setSession(data.session);
+      setUser(data.user ?? null);
+
+      return { session: data.session, user: data.user, error: null };
     } catch (err) {
-      console.error('[AuthProvider] Exception during network_connections update for demo:', err);
+      console.error('[AuthProvider] Unexpected login error:', err);
+      const error = err instanceof Error ? new AuthError(err.message) : new AuthError('Unknown login error');
+      return { session: null, user: null, error };
     }
-  };
+  }, []);
 
-  // Function to sign in the user
-  const login = async (email: string, pass: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass });
-    return { session: data.session, user: data.user, error };
-  };
-
-  // Function to sign up the user
-  const signup = async (email: string, pass: string, userData: SignUpUserData) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password: pass,
-      options: {
-        data: {
-          first_name: userData.firstName,
-          last_name: userData.lastName,
-          church_name: userData.churchName,
-          address: userData.address,
-          city: userData.city,
-          state: userData.state,
-          phone: userData.phone,
-          role: userData.role,
-          church_id: userData.church_id ?? null,
+  const signup = useCallback(async (email: string, pass: string, userData: SignUpUserData) => {
+    console.log('[AuthProvider] Signup attempt with email:', email, 'role:', userData.role);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password: pass,
+        options: {
+          data: {
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            church_name: userData.churchName,
+            address: userData.address,
+            city: userData.city,
+            state: userData.state,
+            phone: userData.phone,
+            role: userData.role,
+            church_id: userData.church_id ?? null,
+            created_at: new Date().toISOString(),
+          },
         },
-      },
-    });
+      });
+      
+      if (error) {
+        console.error('[AuthProvider] Signup error:', error.message);
+        return { session: null, user: null, error };
+      }
+      
+      console.log('[AuthProvider] Signup successful, user:', data.user?.id, 'email confirmation needed:', !data.session);
+      return { session: data.session, user: data.user, error: null };
+    } catch (err) {
+      console.error('[AuthProvider] Unexpected signup error:', err);
+      const error = err instanceof Error ? err : new Error('Unknown signup error');
+      return { session: null, user: null, error: error as AuthError };
+    }
+  }, []);
 
-    return { session: data.session, user: data.user, error };
-  };
-
-  // Function to sign out the user
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
+  const signOut = useCallback(async () => {
+    console.log('[AuthProvider] Sign out requested');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('[AuthProvider] Error during sign out:', error.message);
+        throw error;
+      }
+      console.log('[AuthProvider] Sign out successful');
+      // Auth state change listener will handle updating the state
+    } catch (err) {
+      console.error('[AuthProvider] Unexpected error during sign out:', err);
+      // Force reset the state in case the listener doesn't trigger
+      setSession(null);
+      setUser(null);
+    }
+  }, []);
 
   const isAuthenticated = !!user;
 
-  const value = {
-    session,
-    user,
-    loading,
-    isAuthenticated,
-    login,
-    signup,
-    signOut,
-  };
+  return (
+    <AuthContext.Provider value={{ session, user, loading, isAuthenticated, login, signup, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-// Custom hook to use the Auth context
-export const useAuth = () => {
+export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
-};
+}
+

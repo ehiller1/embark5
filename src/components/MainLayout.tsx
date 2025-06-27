@@ -1,15 +1,11 @@
 import React, { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Outlet } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { VocationAvatarModal } from '@/components/VocationAvatarModal';
 
-type MainLayoutProps = {
-  children: React.ReactNode;
-};
-
-export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
+export const MainLayout: React.FC = () => {
   const [isNarrativeModalOpen, setIsNarrativeModalOpen] = useState(false);
   const location = useLocation();
 
@@ -39,11 +35,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
           <div className="absolute -bottom-20 -left-20 w-40 h-40 rounded-full bg-journey-red/5 blur-2xl -z-10" />
 
           <ErrorBoundary>
-            {children || (
-              <div className="p-4 text-center">
-                No content available for this page.
-              </div>
-            )}
+            <Outlet />
           </ErrorBoundary>
         </div>
       </main>

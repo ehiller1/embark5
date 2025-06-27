@@ -1,22 +1,20 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useNarrativeAvatar } from '@/hooks/useNarrativeAvatar';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import NarrativeBuild from '@/pages/NarrativeBuild';
-import { toast } from '@/hooks/use-toast';
 import { NarrativeAvatarSelectionModal } from '@/components/narrative-build/NarrativeAvatarSelectionModal';
 import { NarrativeConfirmationModal } from '@/components/narrative-build/NarrativeConfirmationModal';
 
 const NarrativeBuildChecker = () => {
   const navigate = useNavigate();
-  const { selectedChurchAvatar, selectedCommunityAvatar, fetchChurchAvatars, fetchCommunityAvatars, selectChurchAvatar, selectCommunityAvatar } = useNarrativeAvatar();
+  const { churchAvatar, communityAvatar, fetchChurchAvatars, fetchCommunityAvatars, selectChurchAvatar, selectCommunityAvatar } = useNarrativeAvatar();
   const { selectedCompanion } = useSelectedCompanion();
   
   const [showAvatarSelectionModal, setShowAvatarSelectionModal] = useState(false);
   const [showConfirmationModal, setShowConfirmationModal] = useState(false);
   const [initialCheckDone, setInitialCheckDone] = useState(false);
-  const [errorState, setErrorState] = useState<string | null>(null);
+  const [errorState] = useState<string | null>(null);
   const [navigatedToBuilder, setNavigatedToBuilder] = useState(false);
   const [avatarsComplete, setAvatarsComplete] = useState(false);
   

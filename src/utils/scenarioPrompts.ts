@@ -1,5 +1,4 @@
-
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/lib/supabase';
 /**
  * Retrieves a prompt of the specified type from the database
  * No longer uses fallback prompts - will return an error if database retrieval fails

@@ -1,13 +1,13 @@
 
 import React, { useState } from 'react';
-import { MainLayout } from '@/components/MainLayout';
+
 import { NetworkVisualization } from '@/components/NetworkVisualization';
 import { NetworkDetailsPanel } from '@/components/NetworkDetailsPanel';
 import { useNetworkConnections } from '@/hooks/useNetworkConnections';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useUserRole } from '@/hooks/useUserRole';
+import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { Navigate } from 'react-router-dom';
 import { ErrorState } from '@/components/ErrorState';
 import { NetworkNode } from '@/types/NetworkTypes';
@@ -17,7 +17,7 @@ const Connect = () => {
   const { networkData, isLoading, error } = useNetworkConnections();
   const [selectedNode, setSelectedNode] = useState<NetworkNode | null>(null);
   const [activeTab, setActiveTab] = useState<'all' | 'church' | 'community' | 'plan'>('all');
-  const { isAuthenticated } = useUserRole();
+  const { isAuthenticated } = useAuth();
   
   // Log authentication status and network data availability
   console.log('[Connect] Authentication status:', isAuthenticated);
@@ -39,7 +39,6 @@ const Connect = () => {
   };
   
   return (
-    <MainLayout>
       <div className="container mx-auto py-6">
         <div className="flex flex-col space-y-4">
           <div>
@@ -111,7 +110,6 @@ const Connect = () => {
           )}
         </div>
       </div>
-    </MainLayout>
   );
 };
 

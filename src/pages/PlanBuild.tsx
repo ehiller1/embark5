@@ -21,7 +21,7 @@ import {
   MessageItem,
   Companion,
 } from '@/types/NarrativeTypes';
-import { useAuth } from '@/components/AuthContext'; // Assuming you have an AuthContext to get user
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 
 interface PlanBuilderProps {
   open?: boolean;
