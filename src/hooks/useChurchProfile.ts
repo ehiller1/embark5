@@ -47,6 +47,40 @@ export function useChurchProfile() {
     }
   }, []);
 
+  // Effect to fetch profile when user is available and has a church_id
+  useEffect(() => {
+    const loadProfile = async () => {
+      // We need the user object to find the church_id
+      if (user && user.user_metadata?.church_id) {
+        const id = user.user_metadata.church_id as string;
+        console.log(`[useChurchProfile] useEffect triggered. Found church_id: ${id}`);
+        setChurchId(id);
+        setLoading(true);
+        setError(null); // Reset error on new fetch
+
+        try {
+          const data = await fetchChurchProfile(id);
+          setProfile(data); // This can be null if no profile exists, which is correct
+        } catch (e) {
+          // Error is already set inside fetchChurchProfile, but we can log it again here if needed
+          console.error('[useChurchProfile] Error during profile load in useEffect:', e);
+        } finally {
+          setLoading(false);
+          console.log('[useChurchProfile] Finished profile load.');
+        }
+      } else if (user) {
+        // User is loaded but doesn't have a church_id. This is a valid state.
+        setLoading(false);
+        console.log('[useChurchProfile] User is authenticated, but no church_id found in user_metadata.');
+      } else {
+        // No user session, not loading anything.
+        setLoading(false);
+      }
+    };
+
+    loadProfile();
+  }, [user, fetchChurchProfile]);
+
   // Helper function to check if storage bucket exists
   const ensureBucketExists = useCallback(async (bucketName: string) => {
     try {
@@ -77,27 +111,29 @@ export function useChurchProfile() {
 
   // Save or create a church_profile
   const saveChurchProfile = useCallback(async (profileData: Partial<ChurchProfileRow>): Promise<SaveResult> => {
+    setSaving(true);
+    setError(null);
+
     if (!churchId) {
-      console.error('[useChurchProfile] Church ID is required to save profile');
-      return { 
-        success: false, 
-        error: 'Church ID is required',
-        data: undefined
-      };
+      toast({ title: 'Error', description: 'Church ID is missing.', variant: 'destructive' });
+      setSaving(false);
+      return { success: false, error: 'Church ID is missing.' };
     }
 
-    setError(null);
-    setSaving(true);
-    
     try {
-      // First check if the profile exists
+      console.log(`[saveChurchProfile] Initiating save for church_id: ${churchId}`);
+      
+      // Check if a profile for this church_id already exists
       const { data: existingProfile, error: fetchError } = await supabase
         .from('church_profile')
-        .select('*')
+        .select('id')
         .eq('church_id', churchId)
         .maybeSingle();
 
+      console.log('[saveChurchProfile] Checked for existing profile. Found:', existingProfile);
+
       if (fetchError && fetchError.code !== 'PGRST116') { // PGRST116 = no rows returned
+        console.error('[saveChurchProfile] Error fetching existing profile:', fetchError);
         throw fetchError;
       }
 
@@ -105,7 +141,6 @@ export function useChurchProfile() {
       const dataToSave = {
         ...profileData,
         church_id: churchId,
-        // Don't include created_at for updates
         ...(existingProfile ? {} : { created_at: new Date().toISOString() })
       };
 
@@ -116,27 +151,37 @@ export function useChurchProfile() {
         }
       });
 
+      console.log('[saveChurchProfile] Data prepared for saving:', dataToSave);
+
       let result;
 
       if (existingProfile?.id) {
-        // Update existing profile using the numeric id
+        console.log(`[saveChurchProfile] Existing profile found (id: ${existingProfile.id}). Performing an UPDATE.`);
         const { data, error } = await supabase
           .from('church_profile')
           .update(dataToSave)
           .eq('id', existingProfile.id)
           .select();
           
-        if (error) throw error;
+        if (error) {
+          console.error('[saveChurchProfile] UPDATE failed:', error);
+          throw error;
+        }
         result = data;
+        console.log('[saveChurchProfile] UPDATE successful.');
       } else {
-        // Insert new profile
+        console.log('[saveChurchProfile] No existing profile found. Performing an INSERT.');
         const { data, error } = await supabase
           .from('church_profile')
           .insert([dataToSave])
           .select();
           
-        if (error) throw error;
+        if (error) {
+          console.error('[saveChurchProfile] INSERT failed:', error);
+          throw error;
+        }
         result = data;
+        console.log('[saveChurchProfile] INSERT successful.');
       }
 
       // Update local state with the full row
@@ -152,14 +197,14 @@ export function useChurchProfile() {
       };
     } catch (error) {
       const msg = error instanceof Error ? error.message : 'Failed to save church profile';
-      console.error('[useChurchProfile] Error saving church profile:', error);
+      console.error('[saveChurchProfile] Error saving church profile:', error);
       setError(msg);
       toast({ title: 'Error', description: msg, variant: 'destructive' });
       return { 
         success: false, 
         error: msg,
-        data: undefined 
-      } as SaveResult<ChurchProfileRow>;
+        data: undefined
+      };
     } finally {
       setSaving(false);
     }

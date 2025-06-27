@@ -1,0 +1,534 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/lib/supabase';
+
+export interface ChurchAvatar {
+  id: string;
+  name: string;
+  role: string;
+  avatar_url?: string;
+  image_url?: string;
+  description?: string;
+  avatar_name: string;
+  avatar_point_of_view: string;
+  avatar_structured_data?: string;
+}
+
+export interface CommunityAvatar {
+  id: string;
+  name: string;
+  role: string;
+  avatar_url?: string;
+  image_url?: string;
+  description?: string;
+  avatar_name: string;
+  avatar_point_of_view: string;
+  avatar_structured_data?: string;
+}
+
+export interface Companion {
+  id: string; 
+  name: string; 
+  avatar_url?: string;
+  traits?: string;
+  speech_pattern?: string;
+  knowledge_domains?: string;
+  companion_type?: string;
+  role: 'companion';
+}
+
+export interface NarrativeAvatar {
+  id: string;
+  name: string;
+  role: string;
+  avatar_name?: string;
+  avatar_point_of_view?: string;
+  avatar_structured_data?: string;
+  image_url?: string;
+  avatar_url?: string;
+  selected?: boolean;
+}
+
+interface CompletedTasks {
+  church: boolean;
+  community: boolean;
+}
+
+// Database item types for proper type safety when mapping
+type ChurchAvatarItem = {
+  id: string;
+  avatar_name?: string;
+  image_url?: string;
+  avatar_point_of_view?: string;
+  avatar_structured_data?: string;
+  created_at?: string;
+};
+
+type CommunityAvatarItem = {
+  id: string;
+  avatar_name?: string;
+  image_url?: string;
+  avatar_point_of_view?: string;
+  avatar_structured_data?: string;
+  created_at?: string;
+};
+
+type CompanionItem = {
+  UUID: string;
+  companion?: string;
+  avatar_url?: string;
+  traits?: string;
+  speech_pattern?: string;
+  knowledge_domains?: string;
+  companion_type?: string;
+};
+
+export function useNarrativeAvatar() {
+  const [churchAvatars, setChurchAvatars] = useState<ChurchAvatar[]>([]);
+  const [communityAvatars, setCommunityAvatars] = useState<CommunityAvatar[]>([]);
+  const [companions, setCompanions] = useState<Companion[]>([]);
+  const [churchAvatar, setSelectedChurchAvatar] = useState<ChurchAvatar | null>(null);
+  const [communityAvatar, setSelectedCommunityAvatar] = useState<CommunityAvatar | null>(null);
+  const [selectedCompanionId, setSelectedCompanionId] = useState<string | null>(null);
+  const [allAvatars, setAllAvatars] = useState<NarrativeAvatar[]>([]);
+  const [completedTasks, setCompletedTasks] = useState<CompletedTasks>({
+    church: false,
+    community: false
+  });
+
+  useEffect(() => {
+    // Try to load selected avatars from localStorage on initial render
+    try {
+      const savedChurchAvatar = localStorage.getItem('selected_church_avatar');
+      const savedCommunityAvatar = localStorage.getItem('selected_community_avatar');
+      const savedCompanionId = localStorage.getItem('selected_companion_id');
+      const savedTasks = localStorage.getItem('completed_tasks');
+      
+      if (savedChurchAvatar) {
+        setSelectedChurchAvatar(JSON.parse(savedChurchAvatar));
+      }
+      
+      if (savedCommunityAvatar) {
+        setSelectedCommunityAvatar(JSON.parse(savedCommunityAvatar));
+      }
+      
+      if (savedCompanionId) {
+        setSelectedCompanionId(savedCompanionId);
+      }
+      
+      if (savedTasks) {
+        setCompletedTasks(JSON.parse(savedTasks));
+      }
+    } catch (err) {
+      console.error('Error loading saved avatars from localStorage:', err);
+      // Ignore localStorage errors, just use empty state
+    }
+  }, []);
+
+  const fetchChurchAvatars = useCallback(async () => {
+    // Create abort controller for proper timeout handling
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 15000); // 15-second timeout
+    
+    try {
+      // Only select the fields we need, limit to 50 results to avoid huge payload
+      const { data, error } = await supabase
+        .from('church_avatars')
+        .select('id, avatar_name, image_url, avatar_point_of_view, avatar_structured_data, created_at') 
+        .order('created_at', { ascending: true })
+        .limit(50)
+        .abortSignal(abortController.signal); // Properly handle abort
+      
+      // Clear the timeout as we got a response
+      clearTimeout(timeoutId);
+
+      if (error) {
+        console.error('Error fetching church avatars:', error);
+        // Set empty array to prevent UI from waiting indefinitely
+        setChurchAvatars([]);
+        return;
+      }
+      
+      const mappedData = data?.map((item: ChurchAvatarItem) => ({
+        id: item.id,
+        name: item.avatar_name || '',
+        role: 'church',
+        image_url: item.image_url || '',
+        description: item.avatar_point_of_view || '',
+        avatar_name: item.avatar_name || '',
+        avatar_point_of_view: item.avatar_point_of_view || '',
+        avatar_structured_data: item.avatar_structured_data
+      })) || [];
+      
+      // Only log in development to reduce console noise in production
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[useNarrativeAvatar] fetchChurchAvatars - Fetched', mappedData.length, 'avatars');
+      }
+      
+      setChurchAvatars(mappedData);
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      
+      // Check if this is an abort error (timeout)
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.warn('[useNarrativeAvatar] Church avatars fetch timed out after 15 seconds');
+      } else {
+        console.error('Unexpected error fetching church avatars:', err);
+      }
+      
+      // Always set empty state on error so UI doesn't wait forever
+      setChurchAvatars([]);
+      
+      // Add retry logic with exponential backoff
+      if (typeof window !== 'undefined') {
+        const retryCount = Number(localStorage.getItem('church_avatars_fetch_retry') || '0');
+        if (retryCount < 3) {
+          localStorage.setItem('church_avatars_fetch_retry', String(retryCount + 1));
+          // Exponential backoff: 3s, 6s, 12s
+          const backoffTime = 3000 * Math.pow(2, retryCount);
+          console.log(`[useNarrativeAvatar] Scheduling church avatars retry #${retryCount + 1} in ${backoffTime/1000}s`);
+          setTimeout(fetchChurchAvatars, backoffTime);
+        } else {
+          console.warn('[useNarrativeAvatar] Maximum fetch retries reached for church avatars');
+          localStorage.removeItem('church_avatars_fetch_retry');
+        }
+      }
+    }
+  }, []);
+
+  const fetchCommunityAvatars = useCallback(async () => {
+    // Create abort controller for proper timeout handling
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 15000); // 15-second timeout
+    
+    try {
+      // Only select the fields we need, limit to 50 results to avoid huge payload
+      const { data, error } = await supabase
+        .from('community_avatars')
+        .select('id, avatar_name, image_url, avatar_point_of_view, avatar_structured_data, created_at') 
+        .order('created_at', { ascending: true })
+        .limit(50)
+        .abortSignal(abortController.signal); // Properly handle abort
+      
+      // Clear the timeout as we got a response
+      clearTimeout(timeoutId);
+
+      if (error) {
+        console.error('Error fetching community avatars:', error);
+        // Set empty array to prevent UI from waiting indefinitely
+        setCommunityAvatars([]);
+        return;
+      }
+      
+      const mappedData = data?.map((item: CommunityAvatarItem) => ({
+        id: item.id,
+        name: item.avatar_name || '',
+        role: 'community',
+        image_url: item.image_url || '',
+        description: item.avatar_point_of_view || '',
+        avatar_name: item.avatar_name || '',
+        avatar_point_of_view: item.avatar_point_of_view || '',
+        avatar_structured_data: item.avatar_structured_data
+      })) || [];
+      
+      // Only log in development to reduce console noise in production
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[useNarrativeAvatar] fetchCommunityAvatars - Fetched', mappedData.length, 'avatars');
+      }
+      
+      setCommunityAvatars(mappedData);
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      
+      // Check if this is an abort error (timeout)
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.warn('[useNarrativeAvatar] Community avatars fetch timed out after 15 seconds');
+      } else {
+        console.error('Unexpected error fetching community avatars:', err);
+      }
+      
+      // Always set empty state on error so UI doesn't wait forever
+      setCommunityAvatars([]);
+      
+      // Add retry logic with exponential backoff
+      if (typeof window !== 'undefined') {
+        const retryCount = Number(localStorage.getItem('community_avatars_fetch_retry') || '0');
+        if (retryCount < 3) {
+          localStorage.setItem('community_avatars_fetch_retry', String(retryCount + 1));
+          // Exponential backoff: 3s, 6s, 12s
+          const backoffTime = 3000 * Math.pow(2, retryCount);
+          console.log(`[useNarrativeAvatar] Scheduling community avatars retry #${retryCount + 1} in ${backoffTime/1000}s`);
+          setTimeout(fetchCommunityAvatars, backoffTime);
+        } else {
+          console.warn('[useNarrativeAvatar] Maximum fetch retries reached for community avatars');
+          localStorage.removeItem('community_avatars_fetch_retry');
+        }
+      }
+    }
+  }, []);
+
+  const fetchCompanions = useCallback(async () => {
+    // Create abort controller for proper timeout handling
+    const abortController = new AbortController();
+    const timeoutId = setTimeout(() => abortController.abort(), 15000); // 15-second timeout
+    
+    try {
+      // Only select the fields we need, limit to 50 results to avoid huge payload
+      const { data, error } = await supabase
+        .from('Companion')
+        .select('UUID, companion, avatar_url, traits, speech_pattern, knowledge_domains, companion_type') 
+        .limit(50)
+        .abortSignal(abortController.signal); // Properly handle abort
+      
+      // Clear the timeout as we got a response
+      clearTimeout(timeoutId);
+
+      if (error) {
+        console.error('Error fetching companions:', error);
+        // Set empty array to prevent UI from waiting indefinitely
+        setCompanions([]);
+        return;
+      }
+
+      const mappedData = data?.map((item: CompanionItem) => ({
+        id: item.UUID || '', // Ensure ID is not null
+        name: item.companion || '', // Use companion field for name
+        role: 'companion' as const,
+        avatar_url: item.avatar_url || '',
+        traits: item.traits || '',
+        speech_pattern: item.speech_pattern || '',
+        knowledge_domains: item.knowledge_domains || '',
+        companion_type: item.companion_type || ''
+      })) || [];
+      
+      // Only log in development to reduce console noise in production
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[useNarrativeAvatar] fetchCompanions - Fetched', mappedData.length, 'companions');
+      }
+      
+      setCompanions(mappedData);
+    } catch (err: unknown) {
+      clearTimeout(timeoutId);
+      
+      // Check if this is an abort error (timeout)
+      if (err instanceof Error && err.name === 'AbortError') {
+        console.warn('[useNarrativeAvatar] Companions fetch timed out after 15 seconds');
+      } else {
+        console.error('Unexpected error fetching companions:', err);
+      }
+      
+      // Always set empty state on error so UI doesn't wait forever
+      setCompanions([]);
+      
+      // Add retry logic with exponential backoff
+      if (typeof window !== 'undefined') {
+        const retryCount = Number(localStorage.getItem('companions_fetch_retry') || '0');
+        if (retryCount < 3) {
+          localStorage.setItem('companions_fetch_retry', String(retryCount + 1));
+          // Exponential backoff: 3s, 6s, 12s
+          const backoffTime = 3000 * Math.pow(2, retryCount);
+          console.log(`[useNarrativeAvatar] Scheduling companions retry #${retryCount + 1} in ${backoffTime/1000}s`);
+          setTimeout(fetchCompanions, backoffTime);
+        } else {
+          console.warn('[useNarrativeAvatar] Maximum fetch retries reached for companions');
+          localStorage.removeItem('companions_fetch_retry');
+        }
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchChurchAvatars();
+    fetchCommunityAvatars();
+    fetchCompanions();
+  }, [fetchChurchAvatars, fetchCommunityAvatars, fetchCompanions]);
+
+  // Combine both avatar types into a single array
+  useEffect(() => {
+    const combinedAvatars: NarrativeAvatar[] = [
+      ...churchAvatars.map(avatar => ({
+        ...avatar,
+        selected: churchAvatar?.id === avatar.id
+      })),
+      ...communityAvatars.map(avatar => ({
+        ...avatar,
+        selected: communityAvatar?.id === avatar.id
+      }))
+    ];
+    
+    setAllAvatars(combinedAvatars);
+  }, [churchAvatars, communityAvatars, churchAvatar, communityAvatar]);
+
+  // Helper to check if avatar is active
+  const isAvatarActive = useCallback((id: string, role: string): boolean => {
+    if (role === 'church' && churchAvatar?.id === id) {
+      return true;
+    }
+    if (role === 'community' && communityAvatar?.id === id) {
+      return true;
+    }
+    return false;
+  }, [churchAvatar, communityAvatar]);
+
+  // Helper to toggle avatar active state
+  const toggleAvatar = useCallback((avatar: NarrativeAvatar) => {
+    if (avatar.role === 'church') {
+      selectChurchAvatar(churchAvatar?.id === avatar.id ? null : avatar as ChurchAvatar);
+    }
+    else if (avatar.role === 'community') {
+      selectCommunityAvatar(communityAvatar?.id === avatar.id ? null : avatar as CommunityAvatar);
+    }
+  }, [churchAvatar, communityAvatar]);
+
+  // Helper to find avatar by type and ID
+  const getAvatarByType = useCallback((role: string, id: string): NarrativeAvatar | undefined => {
+    if (role === 'church') {
+      return churchAvatars.find(avatar => avatar.id === id);
+    }
+    if (role === 'community') {
+      return communityAvatars.find(avatar => avatar.id === id);
+    }
+    return undefined;
+  }, [churchAvatars, communityAvatars]);
+
+  // Helper for default church avatar icon URL
+  const getDefaultChurchIconUrl = useCallback(() => {
+    return '/icons/church-icon.svg';
+  }, []);
+
+  // Helper for default community avatar icon URL
+  const getDefaultCommunityIconUrl = useCallback(() => {
+    return '/icons/community-icon.svg'; 
+  }, []);
+
+  const selectChurchAvatar = useCallback((avatar: ChurchAvatar | null) => {
+    console.log('[useNarrativeAvatar] selectChurchAvatar CALLED. Avatar:', avatar, 'Current completedTasks in closure:', completedTasks);
+    if (typeof setSelectedChurchAvatar !== 'function') { 
+        console.error('[useNarrativeAvatar] setSelectedChurchAvatar is not a function in selectChurchAvatar!');
+        return;
+    }
+    setSelectedChurchAvatar(avatar);
+    
+    if (avatar) {
+      localStorage.setItem('selected_church_avatar', JSON.stringify(avatar));
+      const updatedTasks = { ...completedTasks, church: true };
+      setCompletedTasks(updatedTasks);
+      localStorage.setItem('completed_tasks', JSON.stringify(updatedTasks));
+    } else {
+      localStorage.removeItem('selected_church_avatar');
+    }
+  }, [completedTasks]);
+
+  const selectCommunityAvatar = useCallback((avatar: CommunityAvatar | null) => {
+    console.log('[useNarrativeAvatar] selectCommunityAvatar CALLED. Avatar:', avatar, 'Current completedTasks in closure:', completedTasks);
+    setSelectedCommunityAvatar(avatar);
+    
+    if (avatar) {
+      localStorage.setItem('selected_community_avatar', JSON.stringify(avatar));
+      const updatedTasks = { ...completedTasks, community: true };
+      setCompletedTasks(updatedTasks);
+      localStorage.setItem('completed_tasks', JSON.stringify(updatedTasks));
+    } else {
+      localStorage.removeItem('selected_community_avatar');
+    }
+  }, [completedTasks]);
+
+  const selectCompanion = useCallback((companionId: string | null) => {
+    setSelectedCompanionId(companionId);
+    
+    if (companionId) {
+      localStorage.setItem('selected_companion_id', companionId);
+    } else {
+      localStorage.removeItem('selected_companion_id');
+    }
+  }, []);
+
+  const clearSelectedAvatars = useCallback(() => {
+    selectChurchAvatar(null);
+    selectCommunityAvatar(null);
+    selectCompanion(null);
+    
+    // Also clear task completion status
+    const resetTasks = { church: false, community: false };
+    setCompletedTasks(resetTasks);
+    localStorage.setItem('completed_tasks', JSON.stringify(resetTasks));
+  }, [selectChurchAvatar, selectCommunityAvatar, selectCompanion]);
+
+  const saveChurchAvatar = useCallback(async (avatarData: Partial<ChurchAvatar>) => {
+    try {
+      const { data, error } = await supabase
+        .from('church_avatars')
+        .insert([avatarData])
+        .select();
+      
+      if (error) {
+        console.error('Error saving church avatar:', error);
+        return null;
+      }
+      
+      return data?.[0] || null;
+    } catch (err) {
+      console.error('Unexpected error saving church avatar:', err);
+      return null;
+    }
+  }, []);
+
+  const saveCommunityAvatar = useCallback(async (avatarData: Partial<CommunityAvatar>) => {
+    try {
+      const { data, error } = await supabase
+        .from('community_avatars')
+        .insert([avatarData])
+        .select();
+      
+      if (error) {
+        console.error('Error saving community avatar:', error);
+        return null;
+      }
+      
+      return data?.[0] || null;
+    } catch (err) {
+      console.error('Unexpected error saving community avatar:', err);
+      return null;
+    }
+  }, []);
+
+  const markTaskComplete = useCallback((task: keyof CompletedTasks) => {
+    const updatedTasks = { ...completedTasks, [task]: true };
+    setCompletedTasks(updatedTasks);
+    localStorage.setItem('completed_tasks', JSON.stringify(updatedTasks));
+  }, [completedTasks]);
+
+  const unlockTask = useCallback((task: keyof CompletedTasks) => {
+    const updatedTasks = { ...completedTasks, [task]: false };
+    setCompletedTasks(updatedTasks);
+    localStorage.setItem('completed_tasks', JSON.stringify(updatedTasks));
+  }, [completedTasks]);
+
+  return {
+    avatars: allAvatars,
+    churchAvatars,
+    communityAvatars,
+    companions,
+    churchAvatar,
+    communityAvatar,
+    completedTasks,
+    setCompletedTasks,
+    fetchChurchAvatars,
+    fetchCommunityAvatars,
+    fetchCompanions,
+    selectCommunityAvatar,
+    selectChurchAvatar, 
+    selectCompanion,
+    saveChurchAvatar,
+    saveCommunityAvatar,
+    clearSelectedAvatars,
+    markTaskComplete,
+    unlockTask,
+    selectedCompanionId,
+    setSelectedCompanionId,
+    getDefaultChurchIconUrl,
+    getDefaultCommunityIconUrl,
+    isAvatarActive,
+    toggleAvatar,
+    getAvatarByType
+  };
+}
