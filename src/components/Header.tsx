@@ -129,22 +129,22 @@ export function Header() {
                       <span>Modules</span>
                     </DropdownMenuSubTrigger>
                     <DropdownMenuSubContent className="w-48 bg-white">
-                      <DropdownMenuItem onClick={() => handleNavigation('/church_assessment')} className="cursor-pointer">
+                      <DropdownMenuItem onClick={() => handleNavigation('/church-assessment')} className="cursor-pointer">
                         Assessing Your Church
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleNavigation('/community_assessment')} className="cursor-pointer">
+                      <DropdownMenuItem onClick={() => handleNavigation('/community-assessment')} className="cursor-pointer">
                         Identifying Community Needs
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleNavigation('/church_research')} className="cursor-pointer">
+                      <DropdownMenuItem onClick={() => handleNavigation('/church-research')} className="cursor-pointer">
                         Researching Your Church
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleNavigation('/community_research')} className="cursor-pointer">
+                      <DropdownMenuItem onClick={() => handleNavigation('/community-research')} className="cursor-pointer">
                         Researching Your Community
                       </DropdownMenuItem>
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
                   
-                  <DropdownMenuItem onClick={() => handleNavigation('/narrative_build')} className="flex items-center cursor-pointer">
+                  <DropdownMenuItem onClick={() => handleNavigation('/narrative-build')} className="flex items-center cursor-pointer">
                     <MessageCircle className="h-4 w-4 mr-2 text-journey-pink" />
                     <span>Defining Your Vocation</span>
                   </DropdownMenuItem>
@@ -154,7 +154,7 @@ export function Header() {
                     <span>Imagining Ministry Scenarios</span>
                   </DropdownMenuItem>
                   
-                  <DropdownMenuItem onClick={() => handleNavigation('/plan_build')} className="flex items-center cursor-pointer">
+                  <DropdownMenuItem onClick={() => handleNavigation('/plan-build')} className="flex items-center cursor-pointer">
                     <Clipboard className="h-4 w-4 mr-2 text-journey-pink" />
                     <span>Planning for Parish Discernment</span>
                   </DropdownMenuItem>

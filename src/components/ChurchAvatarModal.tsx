@@ -25,12 +25,7 @@ interface ChurchAvatarModalProps {
 }
 
 export function ChurchAvatarModal({ open, onOpenChange, selectChurchAvatar }: ChurchAvatarModalProps) {
-  const {
-    churchAvatars,
-    fetchChurchAvatars,
-    saveChurchAvatar,
-    getDefaultChurchIconUrl,
-  } = useNarrativeAvatar();
+  const { churchAvatars, saveChurchAvatar, getDefaultChurchIconUrl } = useNarrativeAvatar();
   const { generateResponse } = useOpenAI();
   const { getPromptByType } = usePrompts();
 
@@ -44,23 +39,14 @@ export function ChurchAvatarModal({ open, onOpenChange, selectChurchAvatar }: Ch
 
   // Load avatars when opened, reset form when closed
   useEffect(() => {
-    let isMounted = true;
+
 
     if (open) {
       setIsLoading(true);
-      fetchChurchAvatars()
-        .catch(err => {
-          toast({
-            title: 'Load failed',
-            description: String(err),
-            variant: 'destructive',
-          });
-        })
-        .finally(() => {
-          if (isMounted) setIsLoading(false);
-        });
-
+      // Use the avatars from the hook directly
+      setGeneratedAvatars(churchAvatars || []);
       setActiveTab(churchAvatars.length > 0 ? 'select' : 'create');
+      setIsLoading(false);
     } else {
       setAvatarName('');
       setAvatarPointOfView('');
@@ -68,9 +54,9 @@ export function ChurchAvatarModal({ open, onOpenChange, selectChurchAvatar }: Ch
     }
 
     return () => {
-      isMounted = false;
+
     };
-  }, [open, fetchChurchAvatars, churchAvatars.length, toast]);
+  }, [open, churchAvatars]);
 
   const handleGenerateAvatar = async () => {
     if (!avatarName.trim()) {

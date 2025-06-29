@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { MainLayout } from '@/components/MainLayout';
+// MainLayout is provided by router
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'; // TabsContent is unused
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -86,15 +86,20 @@ const guides = [
 const focusAreas = Array.from(new Set(guides.flatMap(guide => guide.focus)));
 
 const SpiritualGuidesPage = () => {
-  const [selectedFocus, setSelectedFocus] = React.useState("All");
+  const [selectedFocus, setSelectedFocus] = React.useState('All');
   
-  const filteredGuides = selectedFocus === "All" 
+  // Get all unique focus areas
+  // Uncommented if needed for filtering
+  // const allFocusAreas = Array.from(new Set(guides.flatMap(guide => guide.focus)));
+  
+  // Filter guides by selected focus
+  const filteredGuides = selectedFocus === 'All'
     ? guides
     : guides.filter(guide => guide.focus.includes(selectedFocus));
-  
+    
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <>
+      <div className="container py-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Spiritual Guides</h1>
           <p className="text-muted-foreground">
@@ -173,7 +178,7 @@ const SpiritualGuidesPage = () => {
           ))}
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

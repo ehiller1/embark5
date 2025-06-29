@@ -5,13 +5,17 @@ import { Footer } from '@/components/Footer';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { VocationAvatarModal } from '@/components/VocationAvatarModal';
 
-export const MainLayout: React.FC = () => {
+interface MainLayoutProps {
+  children?: React.ReactNode;
+}
+
+export const MainLayout: React.FC<MainLayoutProps> = ({}) => {
   const [isNarrativeModalOpen, setIsNarrativeModalOpen] = useState(false);
   const location = useLocation();
 
   // Pages that need the avatar modal
   const needsAvatarModal = [
-    '/narrative_build',
+    '/narrative-build',
     '/conversation',
     // Add other paths that need the avatar modal here
   ].some(path => location.pathname.startsWith(path));
@@ -20,7 +24,7 @@ export const MainLayout: React.FC = () => {
   const shouldShowModal = isNarrativeModalOpen && needsAvatarModal;
 
   // Pages where footer is fixed to bottom
-  const isSpecialPage = ['/conversation', '/church_assessment'].includes(location.pathname);
+  const isSpecialPage = ['/conversation', '/church-assessment'].includes(location.pathname);
 
   return (
     <div className="flex flex-col min-h-screen bg-soft-light">

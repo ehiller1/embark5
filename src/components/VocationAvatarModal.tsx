@@ -41,33 +41,80 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
   onRequestCompanionChange
 }) => {
   useActiveAvatars({ onGenerateMessages: () => {} }); // We are not using validateAvatarsForScenarios directly in this modal
-  const { 
-    selectedChurchAvatar, 
-    selectedCommunityAvatar, 
-    selectChurchAvatar, // This will be passed to ChurchAvatarModal
-    selectCommunityAvatar, // This will be passed to CommunityAvatarModal
-    selectedCompanion, // Now from useNarrativeAvatar
-    // companions, // This is from props (companionsList)
-    // selectCompanion // This is from props (onSelectCompanion)
+  const {
+    churchAvatar,
+    communityAvatar,
+    companions,
+    selectedCompanionId,
+    selectChurchAvatar,
+    selectCommunityAvatar,
   } = useNarrativeAvatar();
-  // Missional avatar logic removed from this modal
-  
+
+  // Hydrate avatar selections from localStorage on modal open
+  React.useEffect(() => {
+    if (!open) return;
+    // Hydrate church avatar
+    if (!churchAvatar) {
+      const stored = localStorage.getItem('selected_church_avatar');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.id) selectChurchAvatar(parsed);
+        } catch (e) {}
+      }
+    }
+    // Hydrate community avatar
+    if (!communityAvatar) {
+      const stored = localStorage.getItem('selected_community_avatar');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.id) selectCommunityAvatar(parsed);
+        } catch (e) {}
+      }
+    }
+    // Hydrate companion avatar selection (only sets selectedCompanionId if not set)
+    if (!selectedCompanionId) {
+      const stored = localStorage.getItem('selected_companion');
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed && parsed.id) {
+            // If companions list includes this id, select it
+            const found = companions.find(c => c.id === parsed.id);
+            if (found && found.id) {
+              // Use selectCompanionId if available, or update context as needed
+              // If selectCompanionId is not available, you may need to update useNarrativeAvatar to expose it
+              if (typeof window !== 'undefined' && window.dispatchEvent) {
+                // Custom event to update context (if needed)
+                window.dispatchEvent(new CustomEvent('selectCompanionFromModal', { detail: { id: found.id } }));
+              }
+            }
+          }
+        } catch (e) {}
+      }
+    }
+  }, [open, churchAvatar, communityAvatar, selectedCompanionId, companions, selectChurchAvatar, selectCommunityAvatar]);
+
+  // Find the selected companion from the companions array
+  const selectedCompanion = companions.find(c => c.id === selectedCompanionId) || null;
+
+  // State for managing modals
   const [showChurchModal, setShowChurchModal] = useState(false);
   const [showCommunityModal, setShowCommunityModal] = useState(false);
 
-
   const handleContinue = () => {
     // Check if all required avatars are selected
-    const hasChurchAvatar = !!selectedChurchAvatar;
-    const hasCommunityAvatar = !!selectedCommunityAvatar;
+    const hasChurchAvatar = !!churchAvatar;
+    const hasCommunityAvatar = !!communityAvatar;
     const hasCompanion = !!selectedCompanion;
     
     // Get companion display name - using name property if available, otherwise fallback to 'Unnamed Companion'
     const companionName = selectedCompanion?.name || 'Unnamed Companion';
     
     console.log('[VocationAvatarModal] Checking avatars:', {
-      church: hasChurchAvatar ? selectedChurchAvatar?.name : 'missing',
-      community: hasCommunityAvatar ? selectedCommunityAvatar?.name : 'missing',
+      church: hasChurchAvatar ? churchAvatar?.name : 'missing',
+      community: hasCommunityAvatar ? communityAvatar?.name : 'missing',
       companion: hasCompanion ? companionName : 'missing'
     });
     
@@ -149,11 +196,11 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
               // Vocation Overview Mode
               <>
                 {/* Church Avatar Section */}
-                <Card className={`border-l-4 ${selectedChurchAvatar ? 'border-l-green-500' : 'border-l-amber-500'}`}>
+                <Card className={`border-l-4 ${churchAvatar ? 'border-l-green-500' : 'border-l-amber-500'}`}>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-base">Church Avatar</CardTitle>
-                      {selectedChurchAvatar && (
+                      {churchAvatar && (
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 flex gap-1 items-center">
                           <CheckCircle className="h-3 w-3" /> Selected
                         </Badge>
@@ -162,15 +209,15 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
                     <CardDescription>Represents your church's personality</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    {selectedChurchAvatar ? (
+                    {churchAvatar ? (
                       <div className="flex items-center gap-3 p-2">
                         <Avatar className="h-12 w-12">
-                          <AvatarImage src={selectedChurchAvatar.image_url} alt={selectedChurchAvatar.avatar_name} />
-                          <AvatarFallback>{selectedChurchAvatar.avatar_name?.charAt(0) || 'C'}</AvatarFallback>
+                          <AvatarImage src={churchAvatar.image_url} alt={churchAvatar.avatar_name} />
+                          <AvatarFallback>{churchAvatar.avatar_name?.charAt(0) || 'C'}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">{selectedChurchAvatar.avatar_name}</div>
-                          <p className="text-xs text-muted-foreground line-clamp-1">{selectedChurchAvatar.avatar_point_of_view}</p>
+                          <div className="font-medium">{churchAvatar.avatar_name}</div>
+                          <p className="text-xs text-muted-foreground line-clamp-1">{churchAvatar.avatar_point_of_view}</p>
                         </div>
                         <Button 
                           variant="ghost" 
@@ -200,11 +247,11 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
                 </Card>
 
                 {/* Community Avatar Section */}
-                <Card className={`border-l-4 ${selectedCommunityAvatar ? 'border-l-green-500' : 'border-l-amber-500'}`}>
+                <Card className={`border-l-4 ${communityAvatar ? 'border-l-green-500' : 'border-l-amber-500'}`}>
                   <CardHeader className="pb-2">
                     <div className="flex justify-between items-center">
                       <CardTitle className="text-base">Community Avatar</CardTitle>
-                      {selectedCommunityAvatar && (
+                      {communityAvatar && (
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 flex gap-1 items-center">
                           <CheckCircle className="h-3 w-3" /> Selected
                         </Badge>
@@ -213,15 +260,15 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
                     <CardDescription>Represents your target audience</CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">
-                    {selectedCommunityAvatar ? (
+                    {communityAvatar ? (
                       <div className="flex items-center gap-3 p-2">
                         <Avatar className="h-12 w-12">
-                          <AvatarImage src={selectedCommunityAvatar.image_url} alt={selectedCommunityAvatar.avatar_name} />
-                          <AvatarFallback>{selectedCommunityAvatar.avatar_name?.charAt(0) || 'C'}</AvatarFallback>
+                          <AvatarImage src={communityAvatar.image_url} alt={communityAvatar.avatar_name} />
+                          <AvatarFallback>{communityAvatar.avatar_name?.charAt(0) || 'C'}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <div className="font-medium">{selectedCommunityAvatar.avatar_name}</div>
-                          <p className="text-xs text-muted-foreground line-clamp-1">{selectedCommunityAvatar.avatar_point_of_view}</p>
+                          <div className="font-medium">{communityAvatar.avatar_name}</div>
+                          <p className="text-xs text-muted-foreground line-clamp-1">{communityAvatar.avatar_point_of_view}</p>
                         </div>
                         <Button 
                           variant="ghost" 

@@ -24,18 +24,20 @@ export const useNavigationItems = () => {
   
   const mainItems = [
     { name: 'Home', path: '/', icon: <Home className="h-4 w-4 mr-2" /> },
-    { name: 'Defining your vocation', path: '/narrative_build', icon: <MessageCircle className="h-4 w-4 mr-2" /> },
+    { name: 'Defining your vocation', path: '/narrative-build', icon: <MessageCircle className="h-4 w-4 mr-2" /> },
     { name: 'Creating Scenarios', path: '/scenario', icon: <Map className="h-4 w-4 mr-2" /> },
-    { name: 'Discernment Planning', path: '/plan_build', icon: <Clipboard className="h-4 w-4 mr-2" /> },
+    { name: 'Discernment Planning', path: '/plan-build', icon: <Clipboard className="h-4 w-4 mr-2" /> },
     { name: 'Implementation', path: '/implementation', icon: <Users className="h-4 w-4 mr-2" /> },
     { name: 'Connect', path: '/connect', icon: <Share2 className="h-4 w-4 mr-2" /> },
   ];
   
   const modules: NavModule[] = [
-    { name: 'Community Assessment', path: '/community_assessment', icon: <Book className="h-4 w-4 mr-2" /> },
-    { name: 'Community Research', path: '/community_research', icon: <Book className="h-4 w-4 mr-2" /> },
-    { name: 'Church Assessment', path: '/church_assessment', icon: <Book className="h-4 w-4 mr-2" /> },
-    { name: 'Church Research', path: '/church_research', icon: <Book className="h-4 w-4 mr-2" /> }
+    { name: 'Community Assessment', path: '/community-assessment', icon: <Book className="h-4 w-4 mr-2" /> },
+    { name: 'Community Research', path: '/community-research', icon: <Book className="h-4 w-4 mr-2" /> },
+    { name: 'Church Assessment', path: '/church-assessment', icon: <Book className="h-4 w-4 mr-2" /> },
+    { name: 'Church Research', path: '/church-research', icon: <Book className="h-4 w-4 mr-2" /> },
+    { name: 'Research Summary', path: '/research-summary', icon: <Book className="h-4 w-4 mr-2" /> },
+    { name: 'Survey Summary', path: '/survey-summary', icon: <Book className="h-4 w-4 mr-2" /> }
   ];
   
   const resources: NavResource[] = [

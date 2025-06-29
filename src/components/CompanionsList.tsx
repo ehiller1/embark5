@@ -14,17 +14,20 @@ export function CompanionsList() {
     selectCompanion 
   } = useNarrativeAvatar();
   const [isLoading, setIsLoading] = useState(true); // Local loading state
-  // const [updatingImages, setUpdatingImages] = useState(false);
   const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
   
-  
+  // Load the active companion from localStorage on initial render
+  useEffect(() => {
+    const storedCompanionId = localStorage.getItem('selected_companion_id');
+    if (storedCompanionId && storedCompanionId !== selectedCompanion?.id) {
+      selectCompanion(storedCompanionId);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      // console.log("[CompanionsList] useEffect: allCompanions.length:", allCompanions.length);
       if (allCompanions.length === 0) {
-        // console.log("[CompanionsList] Attempting to refresh companions as list is empty.");
         await refreshCompanions(); // This is fetchCompanions from useNarrativeAvatar
       }
       setIsLoading(false);
@@ -52,7 +55,13 @@ export function CompanionsList() {
 
   const handleCompanionClick = (companion: Companion) => {
     console.log("[CompanionsList] Companion clicked:", companion);
-    selectCompanion(companion);
+    
+    // Update the selected companion in the context
+    selectCompanion(companion.id);
+    
+    // Update localStorage directly to ensure it's always in sync
+    localStorage.setItem('selected_companion_id', companion.id);
+    
     toast({
       title: "Companion Selected",
       description: `${companion.name || 'The selected companion'} is now your active companion.`,

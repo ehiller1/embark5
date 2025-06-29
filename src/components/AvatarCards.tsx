@@ -4,8 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CheckCircle } from "lucide-react";
 
+import { SectionAvatar } from '@/hooks/useSectionAvatars';
+
 interface AvatarCardsProps {
-  sectionAvatar: any;
+  sectionAvatar?: SectionAvatar;
   selectedCompanion: any;
   selectedChurchAvatar: any;
   selectedCommunityAvatar: any;
@@ -41,7 +43,7 @@ export const AvatarCards: React.FC<AvatarCardsProps> = ({
   return (
     <div className="space-y-4">
       {/* Section Avatar Card */}
-      {sectionAvatar && (
+      {sectionAvatar ? (
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{sectionAvatar.name || "Guide"}</CardTitle>
@@ -52,13 +54,15 @@ export const AvatarCards: React.FC<AvatarCardsProps> = ({
                 <AvatarImage src={sectionAvatar.avatar_url} alt={sectionAvatar.name || "Guide"} />
                 <AvatarFallback>{sectionAvatar.name?.[0] || "G"}</AvatarFallback>
               </Avatar>
-              <div className="text-sm">
-                {sectionAvatar.description || "Your guide for this section"}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {sectionAvatar.description || "Your guide for this section"}
+                </p>
               </div>
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
       
       {/* Companion Card */}
       {selectedCompanion && (

@@ -23,7 +23,7 @@ interface AvatarSidebarProps {
   selectedChurchAvatar: ChurchAvatar | null;
   selectedCommunityAvatar: CommunityAvatar | null;
   activeCard: AvatarRole | null;
-  handleAvatarCardClick: (type: string) => void;
+  handleAvatarCardClick: (type: AvatarRole) => void;
 }
 
 export const AvatarSidebar = ({

@@ -6,12 +6,12 @@ import { supabase } from '@/integrations/lib/supabase';
 import { ChurchAssessmentInterface } from '@/components/church-assessment/ChurchAssessmentInterface';
 import { AssessmentAvatars } from '@/components/church-assessment/AssessmentAvatars';
 import { toast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 
-const STORAGE_KEY = 'church_assessment_messages';
+
+
 
 export function ChurchAssessmentContent() {
-  const navigate = useNavigate();
+
   const { selectedCompanion } = useSelectedCompanion();
   const { getAvatarForPage } = useSectionAvatars();
   
@@ -133,12 +133,8 @@ export function ChurchAssessmentContent() {
     testOpenAI();
   }, []);
 
-  const handleNext = () => {
-    // persist any last‐minute state
-    const msgs = localStorage.getItem(STORAGE_KEY) || '[]';
-    localStorage.setItem(STORAGE_KEY, msgs);
-    navigate('/church_research');
-  };
+
+
 
   return (
     <div className="flex flex-col h-[calc(100vh-14rem)] max-w-4xl mx-auto p-4 pt-8">
@@ -153,7 +149,7 @@ export function ChurchAssessmentContent() {
         <div className="col-span-3 flex-1 overflow-hidden">
           <ChurchAssessmentInterface 
             key={refreshKey} 
-            onNext={handleNext} 
+            
           />
         </div>
       </div>

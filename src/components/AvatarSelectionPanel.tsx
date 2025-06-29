@@ -23,8 +23,8 @@ export function AvatarSelectionPanel() {
   // Commented out as these are not currently used in this component.
   
   const {
-    selectedChurchAvatar,
-    selectedCommunityAvatar,
+    churchAvatar,
+    communityAvatar,
     selectChurchAvatar,
     selectCommunityAvatar,
     selectedCompanion, // Added from useNarrativeAvatar
@@ -69,13 +69,13 @@ export function AvatarSelectionPanel() {
   };
 
   // Check if required avatars are selected (church and community are required, companion is optional)
-  const requiredAvatarsSelected = selectedChurchAvatar && selectedCommunityAvatar;
+  const requiredAvatarsSelected = churchAvatar && communityAvatar;
   
   // Build the missing avatars message
   const getMissingAvatarsMessage = () => {
     const missing = [];
-    if (!selectedChurchAvatar) missing.push('a church avatar');
-    if (!selectedCommunityAvatar) missing.push('a community avatar');
+    if (!churchAvatar) missing.push('a church avatar');
+    if (!communityAvatar) missing.push('a community avatar');
     
     // Only add companion to the message if both church and community are already selected
     // This makes companion appear optional in the UI
@@ -90,10 +90,10 @@ export function AvatarSelectionPanel() {
       <Card>
         <CardContent className="p-6">
           <AvatarCards 
-            sectionAvatar={null} 
+            sectionAvatar={undefined} 
             selectedCompanion={selectedCompanion} 
-            selectedChurchAvatar={selectedChurchAvatar} 
-            selectedCommunityAvatar={selectedCommunityAvatar} 
+            selectedChurchAvatar={churchAvatar} 
+            selectedCommunityAvatar={communityAvatar} 
             onCompanionCardClick={() => handleAvatarCardClick('companion')} 
             onChurchCardClick={() => handleAvatarCardClick('church')} 
             onCommunityCardClick={() => handleAvatarCardClick('community')} 
@@ -160,7 +160,7 @@ export function AvatarSelectionPanel() {
         onOpenChange={setShowVocationModal} 
         selectionContext="vocation_overview" // Explicitly set context for clarity
         companionsList={companions} // Pass companions for display in overview
-        onSelectCompanion={selectCompanion} // Pass for potential direct selection/update if needed in future
+        onSelectCompanion={companion => selectCompanion(companion ? companion.id : null)} // Adapt to context API
         onRequestCompanionChange={handleRequestCompanionChange} // Pass the handler
         // selectChurchAvatar and selectCommunityAvatar are implicitly handled by VocationAvatarModal's own state/props for its child modals
       />
@@ -171,7 +171,7 @@ export function AvatarSelectionPanel() {
           open={showCompanionModal} 
           onOpenChange={setShowCompanionModal} 
           companionsList={companions} 
-          onSelectCompanion={selectCompanion} 
+          onSelectCompanion={companion => selectCompanion(companion ? companion.id : null)} 
           selectionContext="companion"
         />
       )}

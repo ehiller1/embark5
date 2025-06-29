@@ -7,7 +7,7 @@ import { usePromptsOperations } from './usePromptsOperations';
  * Hook for prompt-related UI components
  */
 export function usePromptsUI() {
-  const { loading, error, refreshPrompts, ...rest } = usePromptsOperations();
+  const { error, refreshPrompts, ...rest } = usePromptsOperations();
 
   const getLoadingUI = () => (
     <div className="flex justify-center items-center p-8">
@@ -25,7 +25,7 @@ export function usePromptsUI() {
 
   return {
     ...rest,
-    loading,
+
     error,
     refreshPrompts,
     getLoadingUI,

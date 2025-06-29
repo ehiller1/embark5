@@ -26,13 +26,13 @@ export const NarrativeConfirmationModal: React.FC<NarrativeConfirmationModalProp
   onOpenChange,
   onComplete
 }) => {
-  const { selectedChurchAvatar, selectedCommunityAvatar } = useNarrativeAvatar();
+  const { churchAvatar, communityAvatar } = useNarrativeAvatar();
   const { selectedCompanion } = useSelectedCompanion();
 
   const handleContinue = () => {
     // Check if all required avatars are selected
-    const hasChurchAvatar = !!selectedChurchAvatar;
-    const hasCommunityAvatar = !!selectedCommunityAvatar;
+    const hasChurchAvatar = !!churchAvatar;
+    const hasCommunityAvatar = !!communityAvatar;
     const hasCompanion = !!selectedCompanion;
     
     if (hasChurchAvatar && hasCommunityAvatar && hasCompanion) {
@@ -60,28 +60,28 @@ export const NarrativeConfirmationModal: React.FC<NarrativeConfirmationModalProp
           <AlertDialogDescription className="space-y-4 py-4">
             <p>You've selected the following avatars to guide your narrative building process:</p>
             
-            {selectedChurchAvatar && (
+            {churchAvatar && (
               <div className="flex items-center space-x-3 p-2 bg-muted/50 rounded-md">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedChurchAvatar.image_url} alt={selectedChurchAvatar.avatar_name} />
-                  <AvatarFallback>{selectedChurchAvatar.avatar_name?.charAt(0) || 'C'}</AvatarFallback>
+                  <AvatarImage src={churchAvatar?.avatar_url} alt={churchAvatar?.name || "Church Avatar"} />
+                  <AvatarFallback>{churchAvatar?.name?.charAt(0) || 'C'}</AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="font-medium">Church Avatar</div>
-                  <div className="text-sm text-muted-foreground">{selectedChurchAvatar.avatar_name}</div>
+                  <div className="text-sm text-muted-foreground">{churchAvatar?.name}</div>
                 </div>
               </div>
             )}
             
-            {selectedCommunityAvatar && (
+            {communityAvatar && (
               <div className="flex items-center space-x-3 p-2 bg-muted/50 rounded-md">
                 <Avatar className="h-10 w-10">
-                  <AvatarImage src={selectedCommunityAvatar.image_url} alt={selectedCommunityAvatar.avatar_name} />
-                  <AvatarFallback>{selectedCommunityAvatar.avatar_name?.charAt(0) || 'C'}</AvatarFallback>
+                  <AvatarImage src={communityAvatar?.avatar_url} alt={communityAvatar?.name || "Community Avatar"} />
+                  <AvatarFallback>{communityAvatar?.name?.charAt(0) || 'C'}</AvatarFallback>
                 </Avatar>
                 <div>
                   <div className="font-medium">Community Avatar</div>
-                  <div className="text-sm text-muted-foreground">{selectedCommunityAvatar.avatar_name}</div>
+                  <div className="text-sm text-muted-foreground">{communityAvatar?.name}</div>
                 </div>
               </div>
             )}

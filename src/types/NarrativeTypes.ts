@@ -66,6 +66,7 @@ export interface ScenarioItem {
   theologicalJustification?: string;
   potentialChallengesBenefits?: string;
   successIndicators?: string;
+  impactOnCommunity?: string; // Added to track impact on the community
 }
 
 /** A simple message item (used outside narrative conversation) */

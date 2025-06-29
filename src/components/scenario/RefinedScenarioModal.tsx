@@ -8,8 +8,8 @@ import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 
 // Extended scenario item with optional additional fields that might come from the AI response
-interface ExtendedScenarioItem extends ScenarioItem {
-  targetAudience?: string[] | string;
+type ExtendedScenarioItem = Omit<ScenarioItem, 'targetAudience'> & {
+  targetAudience?: string[]; // Ensure targetAudience is always string[]
   strategicRationale?: string;
   theologicalJustification?: string;
   potentialChallengesBenefits?: string;
@@ -160,15 +160,19 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
                         </div>
 
                         {/* Handle optional extended fields */}
-                        {(scenario as ExtendedScenarioItem).targetAudience && (
+                        {('targetAudience' in scenario) && (
                           <div className="space-y-2">
                             <Label htmlFor={`targetAudience-${scenarioIndex}`}>Target Audience</Label>
                             <Input
                               id={`targetAudience-${scenarioIndex}`}
-                              value={Array.isArray((scenario as ExtendedScenarioItem).targetAudience) 
-                                ? ((scenario as ExtendedScenarioItem).targetAudience as string[]).join(', ') 
-                                : ((scenario as ExtendedScenarioItem).targetAudience as string)}
-                              onChange={(e) => handleInputChange(scenarioIndex, 'targetAudience', e.target.value.split(',').map(item => item.trim()))}
+                              value={Array.isArray(scenario.targetAudience) 
+                                ? scenario.targetAudience.join(', ') 
+                                : ''}
+                              onChange={(e) => handleInputChange(
+                                scenarioIndex, 
+                                'targetAudience', 
+                                e.target.value.split(',').map(item => item.trim()).filter(Boolean)
+                              )}
                             />
                           </div>
                         )}

@@ -4,9 +4,9 @@ import { usePrompts } from "@/hooks/usePrompts";
 import { useSectionAvatars } from "@/hooks/useSectionAvatars";
 import { validateMessage } from "@/utils/messageUtils";
 import { toast } from "@/hooks/use-toast";
-import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
+
 import { PromptType } from '@/utils/promptUtils';
-import { fillTemplate } from "@/utils/template";
+
 
 export interface Message {
   id: number;
@@ -35,7 +35,7 @@ export function useChurchAssessmentMessages(
   const { getAvatarForPage } = useSectionAvatars();
 
   const companionAvatar = selectedCompanion?.avatar_url;
-  const sectionAvatar = displayAvatar?.avatar_url || getAvatarForPage('church_assessment')?.avatar_url;
+  const sectionAvatar = displayAvatar?.avatar_url || getAvatarForPage('church-assessment')?.avatar_url;
 
   // Load stored messages
   useEffect(() => {

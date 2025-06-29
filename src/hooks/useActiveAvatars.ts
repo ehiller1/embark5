@@ -17,8 +17,8 @@ export interface AvatarData {
 export function useActiveAvatars({ onGenerateMessages }: UseActiveAvatarsProps) {
   const { selectedCompanion } = useSelectedCompanion();
   const { 
-    selectedChurchAvatar,
-    selectedCommunityAvatar,
+    churchAvatar,
+    communityAvatar,
   } = useNarrativeAvatar();
   
   const [activeAvatars, setActiveAvatars] = useState<AvatarType[]>([]);
@@ -27,11 +27,11 @@ export function useActiveAvatars({ onGenerateMessages }: UseActiveAvatarsProps) 
   useEffect(() => {
     const newActiveAvatars: AvatarType[] = [];
     
-    if (selectedChurchAvatar) {
+    if (churchAvatar) {
       newActiveAvatars.push('church');
     }
     
-    if (selectedCommunityAvatar) {
+    if (communityAvatar) {
       newActiveAvatars.push('community');
     }
     
@@ -43,12 +43,12 @@ export function useActiveAvatars({ onGenerateMessages }: UseActiveAvatarsProps) 
     
     // Update localStorage to persist active avatar state
     localStorage.setItem('active_avatars', JSON.stringify(newActiveAvatars));
-  }, [selectedChurchAvatar, selectedCommunityAvatar, selectedCompanion]);
+  }, [churchAvatar, communityAvatar, selectedCompanion]);
   
   // Create avatarData object with all selected avatars
   const avatarData: AvatarData = {
-    church: selectedChurchAvatar,
-    community: selectedCommunityAvatar,
+    church: churchAvatar,
+    community: communityAvatar,
     companion: selectedCompanion
   };
 

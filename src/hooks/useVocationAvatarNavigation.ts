@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useNarrativeAvatar } from '@/hooks/useNarrativeAvatar';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 
-export function useVocationAvatarNavigation(open: boolean, onOpenChange: (open: boolean) => void, shouldValidate: boolean = false) {
+export function useVocationAvatarNavigation(open: boolean, _onOpenChange: (open: boolean) => void, shouldValidate: boolean = false) {
   const navigate = useNavigate();
-  const { selectedChurchAvatar, selectedCommunityAvatar } = useNarrativeAvatar();
+  const { churchAvatar, communityAvatar } = useNarrativeAvatar();
   const { selectedCompanion } = useSelectedCompanion();
 
   useEffect(() => {
     if (!open && shouldValidate) {
-      const avatarsCompleted = selectedChurchAvatar && selectedCommunityAvatar && selectedCompanion;
+      const avatarsCompleted = churchAvatar && communityAvatar && selectedCompanion;
 
       if (avatarsCompleted) {
         setTimeout(() => {
@@ -18,5 +18,5 @@ export function useVocationAvatarNavigation(open: boolean, onOpenChange: (open: 
         }, 100);
       }
     }
-  }, [open, shouldValidate, selectedChurchAvatar, selectedCommunityAvatar, selectedCompanion, navigate]);
+  }, [open, shouldValidate, churchAvatar, communityAvatar, selectedCompanion, navigate]);
 }

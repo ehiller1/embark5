@@ -4,26 +4,125 @@ import ForceGraph2D, {
   type ForceGraphMethods,
   type NodeObject,
 } from 'react-force-graph-2d';
-import { NetworkConnection, NetworkNode, NetworkLink } from '@/types/NetworkTypes';
+import type { NetworkConnection, NetworkNode, NetworkLink } from '@/types/NetworkTypes';
 import { Card } from '@/components/ui/card';
 
 // Define node and link types with our custom properties
-type GraphNode = NetworkNode & NodeObject & { x?: number; y?: number; group: string; id: string };
-type GraphLink = NetworkLink & { source: GraphNode; target: GraphNode; strength?: number; bidirectional?: boolean };
+interface GraphNode extends NetworkNode {
+  x?: number;
+  y?: number;
+  group: string;
+  id: string;
+  name: string;
+  similarity: number;
+  attributes?: Record<string, any>;
+  relationship_type?: string;
+  last_interaction?: string;
+  __index?: number;
+  __bckgDimensions?: [number, number];
+  __color?: string;
+  __size?: number;
+}
 
-type GraphData = {
-  nodes: GraphNode[];
-  links: GraphLink[];
-};
+// Define a base interface for our internal link representation
+interface InternalLink {
+  source: string | GraphNode;
+  target: string | GraphNode;
+  strength: number;
+  bidirectional: boolean;
+  relationship_type: string;
+  __index?: number;
+  __color?: string;
+  __lineWidth?: number;
+}
 
-// Type guard to check if a node has x and y properties
-const isPositionedNode = (node: NodeObject | any): node is (NodeObject & {x: number, y: number}) => {
-  return node && typeof node === 'object' && typeof node.x === 'number' && typeof node.y === 'number';
-};
+// Define the final link type that will be used in the graph data
+interface GraphLink extends Omit<NetworkLink, 'source' | 'target' | 'strength' | 'bidirectional' | 'relationship_type'>, InternalLink {}
 
-// Type guard to check if node is a NetworkNode
-const isGraphNode = (node: NodeObject | any): node is GraphNode => {
+// Type guard for GraphNode
+const isGraphNode = (node: any): node is GraphNode => {
   return node && typeof node === 'object' && 'id' in node && 'group' in node;
+};
+
+// Type guard for positioned node
+const isPositionedNode = (node: any): node is (GraphNode & { x: number; y: number }) => {
+  return isGraphNode(node) && 'x' in node && 'y' in node;
+};
+
+
+
+// Helper function to create a new GraphNode
+const createGraphNode = (id: string, group: string, data: any = {}): GraphNode => {
+  return {
+    id,
+    group,
+    name: data.name || id,
+    similarity: data.similarity || 0,
+    attributes: data.attributes || {},
+    relationship_type: data.relationship_type,
+    last_interaction: data.last_interaction,
+    // Add any additional properties from data
+    ...data,
+    // Ensure required properties are set
+    x: data.x,
+    y: data.y
+  };
+};
+
+// Helper function to ensure a node exists and return it
+const ensureNode = (nodes: GraphNode[], id: string, group: string, data: any = {}): GraphNode => {
+  let node = nodes.find(n => n.id === id);
+  if (!node) {
+    node = createGraphNode(id, group, data);
+    nodes.push(node);
+  }
+  return node;
+};
+
+// Type for our intermediate link format that can handle both string IDs and node objects
+interface IntermediateLink {
+  source: string | GraphNode;
+  target: string | GraphNode;
+  strength?: number;
+  relationship_type?: string;
+  bidirectional?: boolean;
+}
+
+// Helper function to resolve a node reference (string ID or node object) to a node object
+const resolveNode = (nodeRef: string | GraphNode, nodes: GraphNode[]): GraphNode => {
+  if (typeof nodeRef === 'string') {
+    const foundNode = nodes.find(n => n.id === nodeRef);
+    if (!foundNode) {
+      // Create a minimal valid GraphNode if not found
+      return createGraphNode(nodeRef, 'unknown', { name: nodeRef });
+    }
+    return foundNode;
+  }
+  return nodeRef;
+};
+
+// Helper to convert GraphLink to NetworkLink
+const toNetworkLink = (link: GraphLink): NetworkLink => {
+  const source = typeof link.source === 'string' ? link.source : link.source.id;
+  const target = typeof link.target === 'string' ? link.target : link.target.id;
+  
+  // Create a new object with only the properties that NetworkLink expects
+  const networkLink: NetworkLink = {
+    source,
+    target,
+    strength: link.strength,
+    bidirectional: link.bidirectional,
+    relationship_type: link.relationship_type
+  };
+  
+  // Copy any additional properties that might be needed
+  Object.entries(link).forEach(([key, value]) => {
+    if (!(key in networkLink)) {
+      (networkLink as any)[key] = value;
+    }
+  });
+  
+  return networkLink;
 };
 
 interface NetworkVisualizationProps {
@@ -40,41 +139,58 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const fgRef = useRef<ForceGraphMethods | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
 
-  const { nodes, links } = useMemo((): GraphData => {
+  const { nodes, links } = useMemo(() => {
     if (!networkData) {
       return { nodes: [], links: [] };
     }
 
     const nodes: GraphNode[] = [];
-    const links: GraphLink[] = [];
+    const tempLinks: IntermediateLink[] = [];
 
-    nodes.push({
-      id: 'user',
-      name: 'You',
-      group: 'user',
-      similarity: 1
-    });
-
+    // Process network data and convert to graph format
     const addGroupData = (data: any, groupName: string) => {
-        if (!data) return;
+        if (!data?.connections) return;
 
+        // Add user node
+        const userId = 'user';
+        ensureNode(nodes, userId, 'user', { name: 'You' });
+
+        // Process connections
         data.connections.forEach((conn: any) => {
             const nodeId = `${groupName}-${conn.id}`;
-            if (!nodes.some(n => n.id === nodeId)) {
-                nodes.push({ ...conn, id: nodeId, group: groupName });
-            }
-            links.push({ source: 'user', target: nodeId, strength: conn.similarity, relationship_type: conn.relationship_type });
+            const node = ensureNode(nodes, nodeId, groupName, conn);
+            
+            tempLinks.push({
+                source: userId,
+                target: node,
+                strength: conn.similarity || 0.5,
+                relationship_type: conn.relationship_type || 'connected',
+                bidirectional: false
+            });
         });
 
+        // Process connections between nodes
         if (data.connections_between_nodes) {
             data.connections_between_nodes.forEach((conn: any) => {
                 const sourceId = `${conn.source_type}-${conn.source_id}`;
                 const targetId = `${conn.target_type}-${conn.target_id}`;
-                links.push({ ...conn, source: sourceId, target: targetId });
+                
+                // Ensure both source and target nodes exist
+                const sourceNode = ensureNode(nodes, sourceId, conn.source_type, { name: sourceId });
+                const targetNode = ensureNode(nodes, targetId, conn.target_type, { name: targetId });
+                
+                tempLinks.push({
+                    source: sourceNode,
+                    target: targetNode,
+                    strength: conn.strength || 0.3,
+                    relationship_type: conn.relationship_type || 'related',
+                    bidirectional: conn.bidirectional || false
+                });
             });
         }
     };
 
+    // Process all group data
     if (selectedGroup === 'all' || selectedGroup === 'church') {
         addGroupData(networkData.church_similarity_data, 'church');
     }
@@ -85,7 +201,30 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         addGroupData(networkData.plan_similarity_data, 'plan');
     }
 
-    return { nodes, links };
+    // Convert intermediate links to final GraphLink format with resolved nodes
+    const processedLinks: GraphLink[] = tempLinks.map(link => {
+      const source = resolveNode(link.source, nodes);
+      const target = resolveNode(link.target, nodes);
+      
+      // Create a new link object with resolved nodes and default values
+      const processedLink: GraphLink = {
+        ...link,
+        source,
+        target,
+        strength: link.strength ?? 0.5,
+        bidirectional: link.bidirectional ?? false,
+        relationship_type: link.relationship_type || 'related'
+      };
+      
+      return processedLink;
+    });
+    
+    // Convert links to NetworkLink format for the ForceGraph component
+    const networkLinks: NetworkLink[] = processedLinks.map(link => toNetworkLink(link));
+
+    return { nodes, links: networkLinks };
+
+
   }, [networkData, selectedGroup]);
 
   useEffect(() => {
@@ -109,16 +248,25 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     return 5 + (node.similarity || 0.5) * 10;
   }, []);
 
-  const handleNodeClick = useCallback((node: NodeObject) => {
-    if (isGraphNode(node)) {
-      onNodeClick(node);
-      if (node.x !== undefined && node.y !== undefined) {
-        fgRef.current?.centerAt(node.x, node.y, 1000);
-        fgRef.current?.zoom(2.5, 1000);
-      }
+  const handleNodeClick = useCallback((node: NodeObject | null) => {
+    if (node && isGraphNode(node)) {
+      // Convert GraphNode to NetworkNode
+      const networkNode: NetworkNode = {
+        id: node.id,
+        name: node.name || node.id,
+        group: node.group as 'church' | 'community' | 'plan',
+        similarity: node.similarity || 0,
+        attributes: node.attributes || {},
+        position: node.position,
+        relationship_type: node.relationship_type,
+        last_interaction: node.last_interaction
+      };
+      onNodeClick(networkNode);
+    } else {
+      onNodeClick(null);
     }
   }, [onNodeClick]);
-  
+
   const handleBackgroundClick = useCallback(() => {
     onNodeClick(null);
     setHighlightedNodeId(null);

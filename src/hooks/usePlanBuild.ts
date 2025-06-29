@@ -9,8 +9,18 @@ import {
 } from "@/types/NarrativeTypes";
 import { storageUtils } from "@/utils/storage";
 import { useSelectedScenarios } from "./useSelectedScenarios";
-import { supabase } from "@/integrations/lib/supabase"; // Fixed Supabase import path
-import { v4 as uuidv4 } from 'uuid'; // Added uuid import
+import { supabase } from "@/integrations/lib/supabase";
+import { v4 as uuidv4 } from 'uuid';
+
+type ExtendedVocationalFilter = Partial<VocationalFilter> & {
+    id?: string;
+    avatar_role?: string;
+    mission_statement?: string;
+    created_at?: string;
+    createdAt?: string;
+    name?: string;
+    statement?: string;
+};
 // import { useUser } from '@/hooks/useUser'; // Example: if you have a user hook
 
 // Validation utilities
@@ -18,22 +28,24 @@ const validateVocationalStatement = (
     statement: unknown
 ): VocationalFilter | null => {
     if (!statement || typeof statement !== "object") return null;
-    const s = statement as Partial<VocationalFilter> & Record<string, any>;
+    
+    const s = statement as ExtendedVocationalFilter;
     
     // Check for traditional VocationalFilter format
     if (s.statement && s.name) {
-        return statement as VocationalFilter;
+        return {
+            name: s.name,
+            statement: s.statement,
+            createdAt: s.createdAt || s.created_at || new Date().toISOString(),
+        };
     }
     
-    // Check for alternative format with mission_statement instead
+    // Check for alternative format with mission_statement
     if (s.mission_statement) {
-        // Create a compatible VocationalFilter object
         return {
-            id: s.id || uuidv4(),
             name: s.name || "Vocational Statement",
             statement: s.mission_statement,
-            avatar_role: s.avatar_role || "system",
-            created_at: s.created_at || new Date().toISOString(),
+            createdAt: s.createdAt || s.created_at || new Date().toISOString(),
         };
     }
     
@@ -42,18 +54,27 @@ const validateVocationalStatement = (
 
 const validateScenario = (scenario: unknown): ScenarioItem | null => {
     if (!scenario || typeof scenario !== "object") return null;
-    const s = scenario as Partial<ScenarioItem>;
+    const s = scenario as Partial<ScenarioItem> & Record<string, any>;
     
     // Only require title and description
     if (s.title && s.description) {
-        // Create a valid ScenarioItem with missing fields filled in
-        return {
-            id: s.id || uuidv4(), // Generate ID if missing
+        // Create a valid ScenarioItem with required fields
+        const validScenario: ScenarioItem = {
+            id: s.id || uuidv4(),
             title: s.title,
             description: s.description,
-            is_refined: s.is_refined !== undefined ? s.is_refined : true,
-            created_at: s.created_at || new Date().toISOString(),
         };
+        
+        // Add optional fields if they exist
+        if (s.is_refined !== undefined) validScenario.is_refined = s.is_refined;
+        if (s.targetAudience) validScenario.targetAudience = s.targetAudience;
+        if (s.strategicRationale) validScenario.strategicRationale = s.strategicRationale;
+        if (s.theologicalJustification) validScenario.theologicalJustification = s.theologicalJustification;
+        if (s.potentialChallengesBenefits) validScenario.potentialChallengesBenefits = s.potentialChallengesBenefits;
+        if (s.successIndicators) validScenario.successIndicators = s.successIndicators;
+        if (s.impactOnCommunity) validScenario.impactOnCommunity = s.impactOnCommunity;
+        
+        return validScenario;
     }
     
     return null;

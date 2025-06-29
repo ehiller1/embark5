@@ -280,7 +280,7 @@ export function useRoundtableMessaging(systemPromptType: PromptType) {
             targetAudience: Array.isArray(response.targetAudience) 
               ? response.targetAudience 
               : typeof response.targetAudience === 'string'
-                ? response.targetAudience.split(',').map(item => item.trim())
+                ? response.targetAudience.split(',').map((item: string) => item.trim())
                 : [],
             strategicRationale: response.strategicRationale || response.rationale || '',
             theologicalJustification: response.theologicalJustification || '',

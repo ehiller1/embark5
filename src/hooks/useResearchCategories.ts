@@ -10,7 +10,11 @@ export interface ResearchCategory {
   page_type: 'community_research' | 'church_research';
 }
 
-export function useResearchCategories(pageType: 'community_research' | 'church_research') {
+export function useResearchCategories(pageType: 'community_research' | 'church_research' | 'community-research' | 'church-research') {
+  // Convert kebab-case to snake_case for database compatibility
+  const dbPageType = pageType.includes('-') 
+    ? pageType.replace('-', '_') as 'community_research' | 'church_research'
+    : pageType as 'community_research' | 'church_research';
   const [categories, setCategories] = useState<ResearchCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +26,7 @@ export function useResearchCategories(pageType: 'community_research' | 'church_r
         const { data, error } = await supabase
           .from('research_categories')
           .select('*')
-          .eq('page_type', pageType)
+          .eq('page_type', dbPageType)
           .order('category_group', { ascending: true });
 
         if (error) {

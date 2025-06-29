@@ -1,6 +1,5 @@
 
 import { useState } from 'react';
-import { MainLayout } from '@/components/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -23,6 +22,7 @@ interface Resource {
 interface CategoryPreviewProps {
   category: string;
   onResourceClick: (resource: Resource) => void;
+  filteredResources: Resource[];
 }
 
 const resources: Resource[] = [
@@ -84,9 +84,9 @@ const resources: Resource[] = [
 
 const categories = [...new Set(resources.map(resource => resource.category))];
 
-const CategoryPreview = ({ category, onResourceClick }: CategoryPreviewProps) => {
-  // Get resources for this category
-  const categoryResources = resources.filter(r => r.category === category);
+const CategoryPreview = ({ category, onResourceClick, filteredResources }: CategoryPreviewProps) => {
+  // Get resources for this category from the filtered resources
+  const categoryResources = filteredResources.filter(r => r.category === category);
   // Display at most 2 items per category
   const displayResources = categoryResources.slice(0, 2);
   
@@ -143,11 +143,13 @@ const TheologicalResourcesPage = () => {
   const [selectedResource, setSelectedResource] = useState<Resource | null>(null);
   const [currentTab, setCurrentTab] = useState("all");
   
+  // Filter resources based on search query and current tab
   const filteredResources = resources.filter(resource => 
-    searchQuery === "" ||
+    (searchQuery === "" ||
     resource.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     resource.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    resource.author.toLowerCase().includes(searchQuery.toLowerCase())
+    resource.author.toLowerCase().includes(searchQuery.toLowerCase())) &&
+    (currentTab === "all" || resource.category === currentTab)
   );
 
   const handleTabChange = (value: string) => {
@@ -155,8 +157,8 @@ const TheologicalResourcesPage = () => {
   };
 
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <>
+      <div className="container py-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Theological Resources for Change</h1>
           <p className="text-muted-foreground">
@@ -188,6 +190,7 @@ const TheologicalResourcesPage = () => {
                 key={category} 
                 category={category}
                 onResourceClick={setSelectedResource}
+                filteredResources={filteredResources}
               />
             ))}
           </TabsContent>
@@ -195,7 +198,7 @@ const TheologicalResourcesPage = () => {
           {categories.map(category => (
             <TabsContent key={category} value={category}>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {resources
+                {filteredResources
                   .filter(resource => resource.category === category)
                   .map(resource => (
                     <Card 
@@ -253,7 +256,7 @@ const TheologicalResourcesPage = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </>
   );
 };
 

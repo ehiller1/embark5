@@ -1,4 +1,4 @@
-
+// src/components/research/ResearchSearch.tsx
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +6,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Loader2, FileText, MessageSquare } from "lucide-react";
 import { SearchResult, PageType } from '@/types/research';
-import { useToast } from "@/hooks/use-toast";
 
 interface ResearchSearchProps {
   query: string;
@@ -31,9 +30,6 @@ export function ResearchSearch({
   hasValidationError = false,
   pageType,
 }: ResearchSearchProps) {
-
-  const { toast } = useToast();
-  
   const handleResultClick = (result: SearchResult) => {
     console.log('[ResearchSearch] Result clicked:', {
       resultId: result.id,
@@ -55,7 +51,7 @@ export function ResearchSearch({
 
   const getPlaceholder = () => {
     if (hasValidationError) {
-      return pageType === 'church_research' 
+      return pageType === 'church_research'
         ? 'Church name and location are required'
         : 'Location is required';
     }
@@ -67,7 +63,8 @@ export function ResearchSearch({
       <CardHeader>
         <CardTitle className="text-base font-medium">Search Results</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      {/* Make the card content a flex column so ScrollArea can flexibly grow */}
+      <CardContent className="space-y-4 flex flex-col min-h-0">
         <div className="flex gap-2">
           <Input
             value={query}
@@ -75,10 +72,10 @@ export function ResearchSearch({
             placeholder={getPlaceholder()}
             disabled={hasValidationError}
             onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-            className="flex-1" // Fixed visibility issue by removing the absolute positioning
+            className="flex-1"
           />
-          <Button 
-            onClick={() => onSearch()}
+          <Button
+            onClick={onSearch}
             disabled={isLoading || hasValidationError}
             aria-label="Search"
           >
@@ -89,25 +86,26 @@ export function ResearchSearch({
             )}
           </Button>
         </div>
-        
+
         {hasValidationError && (
           <p className="text-amber-600 text-sm">
-            {pageType === 'church_research' 
+            {pageType === 'church_research'
               ? 'Church name and location are required to search'
               : 'Location is required to search'}
           </p>
         )}
 
-        <ScrollArea className="h-[calc(100vh-28rem)]">
+        {/* Let the scroll area fill remaining vertical space */}
+        <ScrollArea className="flex-1 min-h-0">
           <div className="space-y-4">
             {results.length === 0 && !isLoading && (
               <div className="text-center py-8 text-muted-foreground">
-                {activeCategory 
-                  ? 'Search for information about this category' 
+                {activeCategory
+                  ? 'Search for information about this category'
                   : 'Enter a search query to begin'}
               </div>
             )}
-            
+
             {results.map((result) => (
               <Card
                 key={result.id}

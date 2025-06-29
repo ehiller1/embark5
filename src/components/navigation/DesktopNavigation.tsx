@@ -37,8 +37,8 @@ export const DesktopNavigation = () => {
           <NavigationMenuItem>
             <NavigationMenuTrigger className={cn(
               "flex items-center",
-              (isItemActive('/community_assessment') || isItemActive('/community_research') || 
-               isItemActive('/church_assessment') || isItemActive('/church_research')) ? "text-journey-pink" : ""
+              (isItemActive('/community-assessment') || isItemActive('/community-research') || 
+               isItemActive('/church-assessment') || isItemActive('/church-research')) ? "text-journey-pink" : ""
             )}>
               <BookOpen className="h-4 w-4 mr-2" />
               Assessment
@@ -46,7 +46,7 @@ export const DesktopNavigation = () => {
             <NavigationMenuContent>
               <ul className="grid w-[400px] gap-3 p-4 md:w-[500px]">
                 <li>
-                  <NavigationMenuLink asChild onClick={() => navigate('/community_assessment')}>
+                  <NavigationMenuLink asChild onClick={() => navigate('/community-assessment')}>
                     <a className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-journey-lightPink/20">
                       <div className="text-sm font-medium">Community Assessment</div>
                       <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
@@ -56,7 +56,7 @@ export const DesktopNavigation = () => {
                   </NavigationMenuLink>
                 </li>
                 <li>
-                  <NavigationMenuLink asChild onClick={() => navigate('/community_research')}>
+                  <NavigationMenuLink asChild onClick={() => navigate('/community-research')}>
                     <a className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-journey-lightPink/20">
                       <div className="text-sm font-medium">Community Research</div>
                       <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
@@ -66,7 +66,7 @@ export const DesktopNavigation = () => {
                   </NavigationMenuLink>
                 </li>
                 <li>
-                  <NavigationMenuLink asChild onClick={() => navigate('/church_assessment')}>
+                  <NavigationMenuLink asChild onClick={() => navigate('/church-assessment')}>
                     <a className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-journey-lightPink/20">
                       <div className="text-sm font-medium">Church Assessment</div>
                       <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
@@ -76,7 +76,7 @@ export const DesktopNavigation = () => {
                   </NavigationMenuLink>
                 </li>
                 <li>
-                  <NavigationMenuLink asChild onClick={() => navigate('/church_research')}>
+                  <NavigationMenuLink asChild onClick={() => navigate('/church-research')}>
                     <a className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-journey-lightPink/20">
                       <div className="text-sm font-medium">Church Research</div>
                       <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
@@ -94,9 +94,9 @@ export const DesktopNavigation = () => {
               className={cn(
                 navigationMenuTriggerStyle(),
                 "flex items-center",
-                isItemActive('/narrative_build') ? "text-journey-pink" : ""
+                isItemActive('/narrative-build') ? "text-journey-pink" : ""
               )}
-              onClick={() => navigate('/narrative_build')}
+              onClick={() => navigate('/narrative-build')}
             >
               <MessageCircle className="h-4 w-4 mr-2" />
               Defining your vocation
@@ -122,9 +122,9 @@ export const DesktopNavigation = () => {
               className={cn(
                 navigationMenuTriggerStyle(),
                 "flex items-center",
-                isItemActive('/plan_build') ? "text-journey-pink" : ""
+                isItemActive('/plan-build') ? "text-journey-pink" : ""
               )}
-              onClick={() => navigate('/plan_build')}
+              onClick={() => navigate('/plan-build')}
             >
               <Clipboard className="h-4 w-4 mr-2" />
               Discernment Planning

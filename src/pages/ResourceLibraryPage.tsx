@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MainLayout } from "@/components/MainLayout";
+// MainLayout is provided by router
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -33,12 +33,15 @@ interface ResourceItem {
   id: string;
   title: string;
   content: string;
-  scenario_title?: string;
-  resource_type?: string;
+  scenario_title: string | null;
+  resource_type: string;
   category?: string;
-  tags?: string[];
+  tags: string[] | null;
   created_at: string;
   updated_at: string;
+  user_id: string | null;
+  church_id: string | null;
+  created_by: string | null;
 }
 
 // Helper function to parse JSON content and display it as a preview (for cards)
@@ -151,8 +154,12 @@ interface EditFormValues {
   title: string;
   content: string;
   category?: string;
-  tags?: string[];
-  resource_type?: string;
+  tags: string[];
+  resource_type: string;
+  user_id: string;
+  scenario_title: string;
+  created_by: string;
+  church_id: string;
 }
 
 const RESOURCE_CATEGORIES = [
@@ -272,7 +279,12 @@ const ResourceLibraryPage = () => {
       title: "",
       content: "",
       category: "Uncategorized",
-      tags: []
+      tags: [],
+      resource_type: "resource",
+      user_id: "",
+      scenario_title: "",
+      created_by: "",
+      church_id: ""
     }
   });
   
@@ -287,7 +299,11 @@ const ResourceLibraryPage = () => {
         content: selectedResource.content,
         category: selectedResource.category || "Uncategorized",
         tags: selectedResource.tags || [],
-        resource_type: selectedResource.resource_type
+        resource_type: selectedResource.resource_type || "resource",
+        user_id: selectedResource.user_id || "",
+        scenario_title: selectedResource.scenario_title || "",
+        created_by: selectedResource.created_by || "",
+        church_id: selectedResource.church_id || ""
       });
     }
   }, [selectedResource, isEditMode, form]);
@@ -305,9 +321,15 @@ const ResourceLibraryPage = () => {
         throw error;
       }
       
-      const processedResources = (data || []).map(resource => ({
+      const processedResources: ResourceItem[] = (data || []).map(resource => ({
         ...resource,
-        category: resource.category || "Uncategorized"
+        category: resource.category || "Uncategorized",
+        tags: Array.isArray(resource.tags) ? resource.tags : [],
+        scenario_title: resource.scenario_title ?? "",
+        user_id: resource.user_id ?? "",
+        church_id: resource.church_id ?? "",
+        created_by: resource.created_by ?? "",
+        resource_type: resource.resource_type ?? "resource"
       }));
       
       setResources(processedResources);
@@ -357,8 +379,13 @@ const ResourceLibraryPage = () => {
         title: values.title,
         content: values.content,
         category: values.category,
-        tags: values.tags || [],
-        updated_at: new Date().toISOString()
+        tags: values.tags,
+        updated_at: new Date().toISOString(),
+        user_id: values.user_id,
+        scenario_title: values.scenario_title,
+        created_by: values.created_by,
+        church_id: values.church_id,
+        resource_type: values.resource_type
       });
       
       const { error } = await supabase
@@ -370,14 +397,19 @@ const ResourceLibraryPage = () => {
         throw error;
       }
       
-      const updatedResources = resources.map(resource => 
+      const updatedResources: ResourceItem[] = resources.map(resource => 
         resource.id === selectedResource.id 
           ? { 
               ...resource, 
               title: values.title, 
               content: values.content,
               category: values.category,
-              tags: values.tags || [],
+              tags: values.tags,
+              user_id: values.user_id,
+              scenario_title: values.scenario_title,
+              created_by: values.created_by,
+              church_id: values.church_id,
+              resource_type: values.resource_type,
               updated_at: new Date().toISOString() 
             } 
           : resource
@@ -389,7 +421,12 @@ const ResourceLibraryPage = () => {
         title: values.title,
         content: values.content,
         category: values.category,
-        tags: values.tags || [],
+        tags: values.tags,
+        user_id: values.user_id,
+        scenario_title: values.scenario_title,
+        created_by: values.created_by,
+        church_id: values.church_id,
+        resource_type: values.resource_type,
         updated_at: new Date().toISOString()
       });
       
@@ -437,7 +474,7 @@ const ResourceLibraryPage = () => {
       title: selectedResource.title,
       content: selectedResource.content,
       category: selectedResource.category,
-      tags: selectedResource.tags
+      tags: Array.isArray(selectedResource.tags) ? selectedResource.tags : []
     });
 
     if (relatedResources) {
@@ -474,16 +511,19 @@ const ResourceLibraryPage = () => {
       const resources: any[] = []; // Placeholder to allow compilation
       if (resources && Array.isArray(resources)) {
         // Format resources for display in the modal
-        const formattedResources = resources.map((resource: Record<string, any>) => ({
+        const formattedResources: ResourceItem[] = (resources as any[]).map(resource => ({
           id: resource.id || uuidv4(),
           title: resource.title || 'Untitled Resource',
           content: resource.content || '',
           category: resource.category || 'Uncategorized',
-          tags: resource.tags || [],
           resource_type: resource.resource_type || 'workshop',
           scenario_title: resource.scenario_title || '',
           created_at: resource.created_at || new Date().toISOString(),
-          updated_at: resource.updated_at || new Date().toISOString()
+          updated_at: resource.updated_at || new Date().toISOString(),
+          user_id: resource.user_id || "",
+          created_by: resource.created_by || "",
+          church_id: resource.church_id || "",
+          tags: resource.tags ?? []
         }));
         setGeneratedResources(formattedResources);
         await fetchResources(); // Refresh the main list to include newly generated resources
@@ -530,7 +570,7 @@ const ResourceLibraryPage = () => {
     // Exclude resource types already displayed in tabs and specific types like research_summary
     const excludedTypesOnMainPage = ['discernment_plan', 'vocational_statement', 'scenario', 'research_summary'];
     const matchesResourceType = currentTab === 'all' 
-      ? !excludedTypesOnMainPage.includes(resource.resource_type || '')
+      ? !excludedTypesOnMainPage.includes(resource.resource_type)
       : true;
       
     const matchesSearch = searchQuery === "" || 
@@ -542,7 +582,7 @@ const ResourceLibraryPage = () => {
       (resource.category || "Uncategorized") === categoryFilter;
     
     const matchesTags = selectedTags.length === 0 || 
-      (resource.tags && selectedTags.some(tag => resource.tags?.includes(tag)));
+      ((Array.isArray(resource.tags) ? resource.tags : []).length > 0 && selectedTags.some(tag => (Array.isArray(resource.tags) ? resource.tags : []).includes(tag)));
     
     return matchesSearch && matchesCategory && matchesTags && matchesResourceType;
   });
@@ -558,8 +598,8 @@ const ResourceLibraryPage = () => {
   };
   
   return (
-    <MainLayout>
-      <div className="container py-6 space-y-6">
+    <>
+      <div className="container py-8 space-y-6">
         {/* Discernment Plan Resources Button */}
         <div className="flex justify-end">
           <Button
@@ -875,6 +915,71 @@ const ResourceLibraryPage = () => {
                   )}
                 />
                 
+                <FormField
+                  control={form.control}
+                  name="user_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>User ID</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="scenario_title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Scenario Title</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="created_by"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Created By</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="church_id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Church ID</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="resource_type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Resource Type</FormLabel>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                
                 <div className="flex justify-end space-x-2">
                   <Button 
                     type="button" 
@@ -1034,7 +1139,7 @@ const ResourceLibraryPage = () => {
                           <CardContent>
                             <ScrollArea className="h-[120px]">
                               <p className="text-sm text-muted-foreground">
-                                {resource.content.substring(0, 400)}...
+                                {tryParseAndDisplayContent(resource.content)}
                               </p>
                             </ScrollArea>
                           </CardContent>
@@ -1057,7 +1162,7 @@ const ResourceLibraryPage = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </MainLayout>
+    </>
   );
 };
 
@@ -1084,6 +1189,7 @@ const ResourceDisplayGrid = ({
         >
           <div className="bg-muted h-32 relative">
             <div className="absolute inset-0 flex items-center justify-center">
+              {/* Placeholder for thumbnail */}
               <div className="w-full h-full bg-gradient-to-br from-muted-foreground/10 to-primary/5 flex items-center justify-center">
                 <span className="font-medium text-muted-foreground">{getResourceTypeLabel(resource.resource_type)}</span>
               </div>
@@ -1106,16 +1212,16 @@ const ResourceDisplayGrid = ({
             </p>
           </CardContent>
           <CardFooter className="pt-0 pb-4">
-            {resource.tags && resource.tags.length > 0 && (
+            {(Array.isArray(resource.tags) ? resource.tags : []).length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {resource.tags.slice(0, 2).map(tag => (
+                {(Array.isArray(resource.tags) ? resource.tags : []).slice(0, 2).map(tag => (
                   <Badge key={tag} variant="outline" className="text-xs">
                     {tag}
                   </Badge>
                 ))}
-                {resource.tags.length > 2 && (
+                {(Array.isArray(resource.tags) ? resource.tags : []).length > 2 && (
                   <Badge variant="outline" className="text-xs">
-                    +{resource.tags.length - 2}
+                    +{(Array.isArray(resource.tags) ? resource.tags : []).length - 2}
                   </Badge>
                 )}
               </div>

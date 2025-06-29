@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronRight, Info, MessageSquare } from 'lucide-react';
+// import { ChevronRight, Info, MessageSquare } from 'lucide-react'; // Removed unused imports
 import { AvatarRole } from '@/types/NarrativeTypes';
 import { ChurchAvatar, CommunityAvatar } from '@/hooks/useNarrativeAvatar';
 import { Companion } from '@/types/NarrativeTypes';
@@ -15,9 +15,9 @@ interface VocationalSidebarProps {
   selectedCommunityAvatar: CommunityAvatar | null;
   activePerspective: string;
   handleSwitchPerspective: (perspective: string) => void;
-  handleViewDetails?: (role: string) => void;
+
   activeCard?: AvatarRole | null;
-  handleAvatarCardClick?: (type: AvatarRole) => void;
+  handleAvatarCardClick?: (type: AvatarRole) => void; // Ensure AvatarSidebar uses AvatarRole, not string
 }
 
 export const VocationalSidebar: React.FC<VocationalSidebarProps> = ({
@@ -27,7 +27,6 @@ export const VocationalSidebar: React.FC<VocationalSidebarProps> = ({
   selectedCommunityAvatar,
   activePerspective,
   handleSwitchPerspective,
-  handleViewDetails = () => {},
   activeCard = null,
   handleAvatarCardClick = () => {}
 }) => {
@@ -88,7 +87,6 @@ export const VocationalSidebar: React.FC<VocationalSidebarProps> = ({
         selectedCommunityAvatar={selectedCommunityAvatar}
         activeCard={activeCard}
         handleAvatarCardClick={handleAvatarCardClick}
-        handleViewDetails={handleViewDetails}
       />
     </aside>
   );

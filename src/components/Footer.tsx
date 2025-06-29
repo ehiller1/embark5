@@ -15,10 +15,10 @@ export function Footer({ className }: FooterProps) {
   // Determine if we're on a page that needs special footer handling
   const isSpecialPage = [
     '/conversation', 
-    '/church_assessment', 
-    '/community_assessment',
-    '/church_research',
-    '/community_research'
+    '/church-assessment', 
+    '/community-assessment',
+    '/church-research',
+    '/community-research'
   ].includes(location.pathname);
   
   return (

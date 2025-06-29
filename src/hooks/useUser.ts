@@ -15,13 +15,17 @@ export const useUser = () => {
   const { profile, isLoading: profileLoading, error: profileError } = useUserProfile();
 
   // Combine auth user and profile data into a single user object
-  const user: User | null = isAuthenticated && authUser && profile
-    ? {
-        id: authUser.id,
-        email: authUser.email,
-        ...profile, // Spread the rest of the profile properties
-      }
-    : null;
+  let user: User | null = null;
+  if (isAuthenticated && authUser && profile) {
+    // Omit `id` from profile to prevent duplicate keys when merging
+    const { id: _ignoredId, ...profileWithoutId } = profile as Record<string, any>;
+    user = {
+      id: authUser.id,
+      email: authUser.email,
+      ...profileWithoutId,
+    } as User;
+  }
+
 
   // The overall loading state is true if either auth or profile is loading
   const loading = authLoading || profileLoading;

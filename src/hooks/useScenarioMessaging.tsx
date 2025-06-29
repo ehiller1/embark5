@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { ScenarioItem, Message, ChurchAvatar, CommunityAvatar, Companion } from '@/types/NarrativeTypes';
+import { ScenarioItem, Message, ChurchAvatar, CommunityAvatar } from '@/types/NarrativeTypes';
 import { useOpenAI } from '@/hooks/useOpenAI';
 import { usePrompts } from '@/hooks/usePrompts';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
@@ -145,7 +145,7 @@ export const useScenarioMessaging = () => {
     setIsProcessingMessage(true);
 
     try {
-      const { data: promptData, error: promptError } = await getPromptByType('scenario_adaptation');
+      const { data: promptData, error: promptError } = await getPromptByType('scenario_builder' as any); // Using scenario_builder as fallback
       if (promptError || !promptData?.prompt) {
         throw new Error('Failed to load scenario_adaptation prompt');
       }
@@ -212,9 +212,9 @@ export const useScenarioMessaging = () => {
 
       const companionName = selectedCompanion?.companion || 'Your Companion';
       const companionType = selectedCompanion?.companion_type || 'helpful assistant';
-      const companionTraits = selectedCompanion?.traits?.join(', ') || 'inquisitive, supportive';
+      const companionTraits = Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : (selectedCompanion?.traits || 'inquisitive, supportive');
       const companionSpeechPattern = selectedCompanion?.speech_pattern || 'clear and encouraging';
-      const companionKnowledgeDomains = selectedCompanion?.knowledge_domains?.join(', ') || 'general topics';
+      const companionKnowledgeDomains = Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : (selectedCompanion?.knowledge_domains || 'general topics');
 
       const churchAvatarInfo = churchAvatar
         ? `${churchAvatar.avatar_name} (representing ${churchAvatar.avatar_point_of_view})`

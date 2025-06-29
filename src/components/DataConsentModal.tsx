@@ -18,7 +18,7 @@ export function DataConsentModal({ isOpen, onClose }: DataConsentModalProps) {
     // Store consent in localStorage to prevent showing again
     localStorage.setItem("journeyDataConsent", "true");
     onClose();
-    navigate("/module-explanation");
+    navigate("/clergy-home");
   };
 
   return (

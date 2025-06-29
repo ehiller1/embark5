@@ -4,7 +4,7 @@ import { useOpenAI } from '@/hooks/useOpenAI';
 import { usePrompts } from '@/hooks/usePrompts';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { validateMessage } from '@/utils/messageUtils';
-import { fillTemplate } from '@/utils/template';
+
 import { PromptType } from '@/utils/promptUtils';
 
 export interface Message {

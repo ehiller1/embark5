@@ -106,6 +106,9 @@ interface NarrativeAvatarContextType {
   unlockTask: (task: keyof CompletedTasks) => void;
   selectedCompanionId: string | null;
   setSelectedCompanionId: React.Dispatch<React.SetStateAction<string | null>>;
+  selectedCompanion: Companion | null;
+  fetchCompanions: () => Promise<void>;
+  fetchCommunityAvatars: () => Promise<void>;
   getDefaultChurchIconUrl: () => string;
   getDefaultCommunityIconUrl: () => string;
   isAvatarActive: (id: string, role: string) => boolean;
@@ -144,6 +147,9 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
     community: false
   });
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // Compute selectedCompanion from companions and selectedCompanionId
+  const selectedCompanion = companions.find(c => c.id === selectedCompanionId) || null;
 
   useEffect(() => {
     // Try to load selected avatars from localStorage on initial render
@@ -702,6 +708,9 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
     unlockTask,
     selectedCompanionId,
     setSelectedCompanionId,
+    selectedCompanion,
+    fetchCompanions,
+    fetchCommunityAvatars,
     getDefaultChurchIconUrl,
     getDefaultCommunityIconUrl,
     isAvatarActive,

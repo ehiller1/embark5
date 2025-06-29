@@ -1,5 +1,6 @@
 
 import { useState, useEffect } from "react";
+import { useUser } from "@/hooks/useUser";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -22,6 +23,7 @@ export function ScenarioReviewModal({
   savedScenarios,
   onScenarioSaved
 }: ScenarioReviewModalProps) {
+  const { user } = useUser();
   const [editedScenario, setEditedScenario] = useState(finalScenario);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditMode, setIsEditMode] = useState(true);
@@ -76,7 +78,9 @@ export function ScenarioReviewModal({
           content: editedScenario,
           resource_type: "scenario",
           scenario_title: sourceTitles,
-          tags: ["scenario", "refined"]
+          tags: ["scenario", "refined"],
+          created_by: user?.id || null,
+          church_id: user?.church_id || user?.profile?.church_id || null
         })
         .select()
         .single();

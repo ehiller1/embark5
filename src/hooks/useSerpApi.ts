@@ -71,7 +71,7 @@ export const useSerpApi = () => {
       const resultsWithIds: SearchResult[] = response.organic_results.map((result: any) => ({
         ...result,
         id: result.id || crypto.randomUUID(), // Ensure ID is always present
-        type: 'web' as 'web', // Add the mandatory 'type' field
+        type: 'web' as const, // Add the mandatory 'type' field
         title: result.title || '', // Ensure title is a string if canonical requires it (it's optional, so this is fine)
         snippet: result.snippet || '', // Ensure snippet is a string
       }));

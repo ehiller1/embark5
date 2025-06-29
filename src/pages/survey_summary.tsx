@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/lib/supabase';
 import { useUser } from '@/hooks/useUser';
 import { useOpenAI } from '@/hooks/useOpenAI';
-import { MainLayout } from '@/components/MainLayout';
+
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, Loader2 } from 'lucide-react';
@@ -59,6 +59,9 @@ interface Prompt {
   prompt?: string;
   created_at: string;
 }
+
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 const SurveySummaryPage: React.FC = () => {
   const { user } = useUser();
@@ -305,7 +308,7 @@ const SurveySummaryPage: React.FC = () => {
       console.log('[SurveySummary] Conversation data sample:', conversationData.substring(0, 100) + '...');
       
       // Replace both possible placeholder formats
-      let populatedPrompt = promptText
+      const populatedPrompt = promptText
         .replace('{conversation_data}', conversationData)
         .replace('$(message history)', conversationData) // Old format with space
         .replace('$(message_history)', conversationData); // New format with underscore
@@ -348,9 +351,15 @@ const SurveySummaryPage: React.FC = () => {
   }, [generateResponse]);
   
   // Load data when component mounts or user changes
+  // Use a ref to track whether data has been loaded already to prevent infinite loops
+  const dataLoadedRef = React.useRef(false);
+
   useEffect(() => {
     // Skip if there's no user or we're already loading
     if (!user || isLoading) return;
+    
+    // Create a single load instance to prevent multiple calls to OpenAI
+    if (dataLoadedRef.current) return;
     
     const loadData = async () => {
       if (user.role !== 'Clergy') {
@@ -401,6 +410,9 @@ const SurveySummaryPage: React.FC = () => {
           setSummaryData(summary);
         }
         
+        // Mark that we've loaded the data
+        dataLoadedRef.current = true;
+        
       } catch (err) {
         console.error('Error fetching survey data:', err);
         setError(err instanceof Error ? err.message : 'An unknown error occurred');
@@ -410,17 +422,15 @@ const SurveySummaryPage: React.FC = () => {
     };
     
     loadData();
-  }, [user]); // Only depend on user changes, not on the function references
+  }, [user, isLoading, fetchConversationHistory, fetchSurveyPrompt, generateSurveySummary, checkChurchProfileExists]); // Include all dependencies used inside the effect
 
   // Show loading state
   if (isLoading) {
     return (
-      <MainLayout>
-        <div className="flex flex-col items-center justify-center min-h-screen p-4">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <p className="mt-4 text-muted-foreground">Loading survey summary...</p>
-        </div>
-      </MainLayout>
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">Loading survey summary...</p>
+      </div>
     );
   }
   
@@ -429,71 +439,74 @@ const SurveySummaryPage: React.FC = () => {
     // Special handling for church profile requirement error
     if (error === 'Please complete your church profile before accessing the survey summary.') {
       return (
-        <MainLayout>
-          <div className="p-4">
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Church Profile Required</AlertTitle>
-              <AlertDescription className="flex flex-col space-y-4">
-                <p>{error}</p>
-                <Button asChild className="w-fit">
-                  <Link to="/community-profile">Create Church Profile</Link>
-                </Button>
-              </AlertDescription>
-            </Alert>
-          </div>
-        </MainLayout>
+        <div className="p-4">
+          <Alert>
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Church Profile Required</AlertTitle>
+            <AlertDescription className="flex flex-col space-y-4">
+              <p>{error}</p>
+              <Button asChild className="w-fit">
+                <Link to="/community-profile">Create Church Profile</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </div>
       );
     }
     
     return (
-      <MainLayout>
-        <div className="p-4">
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        </div>
-      </MainLayout>
+      <div className="p-4">
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      </div>
     );
   }
   
   // Show loading state for summary generation
   if (isGeneratingSummary) {
     return (
-      <MainLayout>
-        <div className="container mx-auto p-4">
-          <h1 className="text-2xl font-bold mb-6">Parish Survey Summary</h1>
-          <div className="flex flex-col items-center justify-center min-h-[400px]">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            <p className="mt-4 text-muted-foreground">Generating survey summary...</p>
-          </div>
+      <div className="container mx-auto p-4">
+        <h1 className="text-2xl font-bold mb-6">Parish Survey Summary</h1>
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="mt-4 text-muted-foreground">Generating survey summary...</p>
         </div>
-      </MainLayout>
+      </div>
     );
   }
 
   // Show empty state if no conversations
   if (conversations.length === 0) {
     return (
-      <MainLayout>
-        <div className="container mx-auto py-8 px-4">
-          <Alert>
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>No Data</AlertTitle>
-            <AlertDescription>
-              No survey data found for your church.
-            </AlertDescription>
-          </Alert>
-        </div>
-      </MainLayout>
+      <div className="container mx-auto py-8 px-4">
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No Data</AlertTitle>
+          <AlertDescription>
+            No survey data found for your church.
+          </AlertDescription>
+        </Alert>
+      </div>
     );
   }
 
+  const navigate = useNavigate();
+
   return (
-    <MainLayout>
-      <div className="container mx-auto py-8 px-4">
+    <div className="container mx-auto py-8 px-4">
+      <div className="mb-4 pt-2 flex items-center">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => navigate('/clergyHomePage')}
+          className="flex items-center gap-1 text-journey-pink hover:bg-journey-lightPink/20"
+        >
+          <ArrowLeft className="h-4 w-4" /> Back
+        </Button>
+      </div>
         <h1 className="text-3xl font-bold mb-6">Parish Survey Summary</h1>
         
         {/* Summary Cards */}
@@ -693,7 +706,6 @@ const SurveySummaryPage: React.FC = () => {
           ))}
         </div>
       </div>
-    </MainLayout>
   );
 };
 

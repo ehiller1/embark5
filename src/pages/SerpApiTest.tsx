@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import { useState } from 'react'; // React is auto-imported with JSX
 import { MainLayout } from '@/components/MainLayout';
 import { useSerpApi } from '@/hooks/useSerpApi';
 import { Button } from '@/components/ui/button';

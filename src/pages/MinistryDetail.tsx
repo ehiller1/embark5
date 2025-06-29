@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MainLayout } from '@/components/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -24,6 +24,10 @@ import {
 import { supabase } from '@/integrations/lib/supabase';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
+type ImpactMetrics = {
+  [key: string]: string | number;
+};
+
 // Temporary local Ministry type for type safety
 interface Ministry {
   id: string;
@@ -40,7 +44,7 @@ interface Ministry {
   church_name: string;
   diocese: string | null;
   location: string;
-  impact_metrics: any;
+  impact_metrics: ImpactMetrics;
   media_urls: string[];
   user_id: string | null;
 }

@@ -14,12 +14,30 @@ import { useResearchCategories, ResearchCategory } from '@/hooks/useResearchCate
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export interface ResearchCategoriesProps {
-  pageType: 'community_research' | 'church_research';
+  pageType: 'community_research' | 'church_research' | 'community-research' | 'church-research';
   activeCategory: string | null;
   onSelectCategory: (category: string, searchPrompt?: string) => void;
+  className?: string;
 }
 
+// ...
+
+// Fix: Destructure className from props
+export const ResearchCategories: React.FC<ResearchCategoriesProps> = ({
+  pageType,
+  activeCategory,
+  onSelectCategory,
+  className
+}) => {
+
 // Default search prompts for each category
+// Helper function to normalize page type (convert from kebab-case to snake_case if needed)
+function normalizePageType(pageType: string): 'community_research' | 'church_research' {
+  if (pageType === 'community-research') return 'community_research';
+  if (pageType === 'church-research') return 'church_research';
+  return pageType as 'community_research' | 'church_research';
+}
+
 const DEFAULT_SEARCH_PROMPTS: Record<string, Record<string, string>> = {
   community_research: {
     demographics: "demographics population statistics {location}",
@@ -47,11 +65,9 @@ const DEFAULT_SEARCH_PROMPTS: Record<string, Record<string, string>> = {
   }
 };
 
-export function ResearchCategories({
-  pageType,
-  activeCategory,
-  onSelectCategory,
-}: ResearchCategoriesProps) {
+
+  // Normalize the page type for internal use
+  const normalizedPageType = normalizePageType(pageType);
   const { categories, loading } = useResearchCategories(pageType);
 
   React.useEffect(() => {
@@ -73,8 +89,10 @@ export function ResearchCategories({
 
     // Get the default search prompt for this category
     const categoryKey = category.label.toLowerCase().replace(/\s+/g, '_');
-    const defaultPrompt = DEFAULT_SEARCH_PROMPTS[pageType][categoryKey] || 
-                         `${category.label} ${pageType === 'church_research' ? '{church_name}' : ''} {location}`;
+    
+    // Generate a default prompt if one isn't provided
+    const defaultPrompt = DEFAULT_SEARCH_PROMPTS[normalizedPageType]?.[categoryKey] || 
+                         `${category.label} ${normalizedPageType === 'church_research' ? '{church_name}' : ''} {location}`;
     
     // Use the database prompt if available, otherwise use the default
     const searchPrompt = category.search_prompt || defaultPrompt;
@@ -105,7 +123,7 @@ export function ResearchCategories({
   }
 
   return (
-    <Card className="h-full">
+    <Card className={`h-full ${className || ''}`}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base font-medium flex items-center gap-1">
           <List className="h-4 w-4" />
@@ -125,7 +143,7 @@ export function ResearchCategories({
         </TooltipProvider>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[calc(100vh-24rem)]">
+        <ScrollArea className="h-[calc(100vh-16rem)]">
           <div className="space-y-4">
             {Object.entries(groupedCategories).map(([group, items]) => (
               <div key={group}>

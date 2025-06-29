@@ -35,7 +35,7 @@ export const ScenarioConversation: React.FC<ScenarioConversationProps> = ({
   setCurrentMessage,
   isProcessingMessage,
   onSendMessage,
-  selectedScenarios,
+
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 

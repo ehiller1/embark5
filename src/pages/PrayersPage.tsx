@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { MainLayout } from '@/components/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
+// MainLayout is provided by router
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+// import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const prayers = [
@@ -58,10 +58,18 @@ const prayers = [
 
 const categories = [...new Set(prayers.map(prayer => prayer.category))];
 
-const PrayersPage = () => {
+const PrayersPage: React.FC = () => {
+  const [selectedCategory] = React.useState<string>('all');
+
+  // Filter prayers by category
+  // Filter prayers based on selected category
+  const filteredPrayers = selectedCategory === 'all' 
+    ? prayers 
+    : prayers.filter(prayer => prayer.category.toLowerCase() === selectedCategory.toLowerCase());
+  
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <>
+      <div className="container py-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Prayers for Discernment</h1>
           <p className="text-muted-foreground">
@@ -79,7 +87,7 @@ const PrayersPage = () => {
           
           <TabsContent value="all">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {prayers.map(prayer => (
+              {filteredPrayers.map(prayer => (
                 <Card key={prayer.id} className="h-full">
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -115,7 +123,7 @@ const PrayersPage = () => {
           ))}
         </Tabs>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

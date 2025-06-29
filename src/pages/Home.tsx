@@ -1,5 +1,5 @@
 
-import React from 'react';
+// React is auto-imported with JSX
 import { MainLayout } from '@/components/MainLayout';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';

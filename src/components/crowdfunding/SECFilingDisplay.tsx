@@ -92,16 +92,16 @@ export const SECFilingDisplay = ({ filings, ministryTitle }: SECFilingDisplayPro
           <div key={filing.id} className="border rounded-lg p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center space-x-3">
-                {getStatusIcon(filing.filing_status)}
+                {getStatusIcon(filing.filing_status || '')}
                 <div>
-                  <h4 className="font-medium">{getFilingTypeLabel(filing.filing_type)}</h4>
+                  <h4 className="font-medium">{getFilingTypeLabel(filing.filing_type || '')}</h4>
                   <p className="text-sm text-muted-foreground">
                     {filing.filing_date ? new Date(filing.filing_date).toLocaleDateString() : 'Not filed'}
                   </p>
                 </div>
               </div>
-              <Badge className={getStatusColor(filing.filing_status)}>
-                {filing.filing_status.charAt(0).toUpperCase() + filing.filing_status.slice(1)}
+              <Badge className={getStatusColor(filing.filing_status || '')}>
+                {(filing.filing_status || '').charAt(0).toUpperCase() + (filing.filing_status || '').slice(1)}
               </Badge>
             </div>
 
@@ -136,7 +136,7 @@ export const SECFilingDisplay = ({ filings, ministryTitle }: SECFilingDisplayPro
                       {Object.entries(filing.filing_data.use_of_funds).map(([key, value]) => (
                         <div key={key} className="flex justify-between">
                           <span className="capitalize">{key.replace('_', ' ')}:</span>
-                          <span>{((value as number) * 100).toFixed(1)}%</span>
+                          <span>{(typeof value === 'number' ? (value * 100).toFixed(1) : (!isNaN(Number(value)) ? (Number(value) * 100).toFixed(1) : value))}%</span>
                         </div>
                       ))}
                     </div>

@@ -48,7 +48,7 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
       const companionToSelect = companions.find(c => c.id === pendingSelectedCompanionId);
       if (companionToSelect) {
         console.log('[CompanionSelectionModal] Calling selectCompanion with:', companionToSelect);
-        selectCompanion(companionToSelect);
+        selectCompanion(companionToSelect.id);
       } else {
         // This case should ideally not happen if pendingSelectedCompanionId is valid
         console.warn('[CompanionSelectionModal] Pending companion ID not found in companions list');

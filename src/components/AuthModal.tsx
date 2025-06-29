@@ -197,11 +197,12 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
       return;
     }
     setIsLoading(true);
-    let church_id = role === 'Clergy' ? uuidv4() : selectedChurch;
+    const church_id = role === 'Clergy' ? uuidv4() : selectedChurch;
     
     try {
       console.log('[AuthModal] Attempting signup with email:', email, 'role:', role, 'church_id:', church_id);
-      const { error, session, user } = await signup(email, password, { 
+      const { error, session, user } = await signup(email, password, {
+        email, 
         firstName, 
         lastName, 
         churchName, 
@@ -211,7 +212,7 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
         phone, 
         role, 
         church_id,
-        created_at: new Date().toISOString() 
+ 
       });
       
       if (error) {

@@ -86,7 +86,7 @@ export function useVocationalStatements(avatarRole: 'church' | 'community' | 'co
             // For Companion, 'companion' field is the name according to NarrativeTypes.ts
             const companionName = companionData.companion || 'the designated Companion'; 
             const companionType = companionData.companion_type || 'an insightful guide';
-            let traitsString = companionData.traits || 'wisdom and empathy'; // Directly use traits if string, or fallback
+            const traitsString = companionData.traits || 'wisdom and empathy'; // Directly use traits if string, or fallback
             // The prompt expects a string for traits, so if it's an array in data, it should be joined before this hook.
             // However, the type definition says `traits?: string;` so it should already be a string.
             const companionSpeech = companionData.speech_pattern || 'a thoughtful manner';

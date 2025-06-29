@@ -3,9 +3,9 @@ import { useOpenAI } from "./useOpenAI";
 import { useSelectedCompanion } from "./useSelectedCompanion";
 import { usePrompts } from "./usePrompts";
 import { useSectionAvatars } from "./useSectionAvatars";
-import { fillTemplate } from "@/utils/template";
+
 import { toast } from "./use-toast";
-import { v4 as uuidv4 } from 'uuid';
+
 
 export interface Message {
   id: number;

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useOpenAI } from './useOpenAI';
 import { usePrompts } from './usePrompts';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@/integrations/lib/supabase';
 
 interface ChurchAvatar {
   id: string;

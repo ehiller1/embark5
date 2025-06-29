@@ -1,11 +1,21 @@
-
 import React from 'react';
-import { MainLayout } from '@/components/MainLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+// MainLayout is provided by router
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronRight } from 'lucide-react';
+
+// Type definition for case studies
+interface CaseStudy {
+  id: number;
+  title: string;
+  location: string;
+  categories: string[];
+  summary: string;
+  keyInsights: string[];
+  outcomes: string;
+}
 
 const caseStudies = [
   {
@@ -97,15 +107,16 @@ const caseStudies = [
 const allCategories = Array.from(new Set(caseStudies.flatMap(study => study.categories)));
 
 const CaseStudiesPage = () => {
-  const [selectedCategory, setSelectedCategory] = React.useState("All");
-  
-  const filteredStudies = selectedCategory === "All" 
-    ? caseStudies 
+  const [selectedCategory, setSelectedCategory] = React.useState<string>('all');
+
+  // Filter case studies based on selected category
+  const filteredStudies = selectedCategory === 'all'
+    ? caseStudies
     : caseStudies.filter(study => study.categories.includes(selectedCategory));
-  
+
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <>
+      <div className="container py-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Case Studies</h1>
           <p className="text-muted-foreground">
@@ -125,13 +136,13 @@ const CaseStudiesPage = () => {
         </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredStudies.map((study) => (
+          {filteredStudies.map((study: CaseStudy) => (
             <Card key={study.id} className="h-full flex flex-col">
               <CardHeader>
                 <CardTitle className="text-xl">{study.title}</CardTitle>
                 <CardDescription>{study.location}</CardDescription>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {study.categories.map(category => (
+                  {study.categories.map((category: string) => (
                     <Badge key={`${study.id}-${category}`} variant="outline">{category}</Badge>
                   ))}
                 </div>
@@ -141,7 +152,7 @@ const CaseStudiesPage = () => {
                 <div>
                   <h4 className="font-medium mb-2">Key Insights:</h4>
                   <ul className="list-disc pl-5 space-y-1">
-                    {study.keyInsights.map((insight, index) => (
+                    {study.keyInsights.map((insight: string, index: number) => (
                       <li key={index} className="text-sm text-muted-foreground">{insight}</li>
                     ))}
                   </ul>
@@ -161,7 +172,7 @@ const CaseStudiesPage = () => {
           ))}
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

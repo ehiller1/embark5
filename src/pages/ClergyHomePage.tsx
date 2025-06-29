@@ -1,845 +1,424 @@
+// src/pages/ClergyHomePage.tsx
 import React, { useEffect, useState } from 'react';
-// Import both hooks from the compatibility wrapper
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { Link } from 'react-router-dom';
-
+import { useNavigate } from 'react-router-dom';
 import { useCardStates } from '@/hooks/useCardStates';
+import { CompanionSelectionModal } from '@/components/CompanionSelectionModal';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { 
-  BookOpen, 
-  Users, 
-  BarChart3, 
-  Book, 
-  Compass, 
-  GitBranch, 
-  PenTool, 
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from '@/components/ui/accordion';
+import { CircularProgress } from '../components/ui/circular-progress';
+import { motion } from 'framer-motion';
+import {
+  BookOpen,
+  Users,
+  BarChart3,
+  Book,
+  Compass,
+  GitBranch,
+  PenTool,
   ArrowRight,
   CheckCircle,
-  ChevronRight,
-  Eye,
   FileText,
   ChartPie,
   Building,
   FileSearch,
   Briefcase,
   LampDesk,
-  Link as LinkIcon
+  Link as LinkIcon,
 } from 'lucide-react';
 
-// Add JSX namespace for React
-declare global {
-  namespace JSX {
-    interface IntrinsicElements {
-      div: React.DetailedHTMLProps<React.HTMLAttributes<HTMLDivElement>, HTMLDivElement>;
-      // Add other HTML elements as needed
-    }
-  }
-}
+const PHASES = [
+  {
+    title: 'Understanding Your Church',
+    desc: 'Gather and analyze information about your congregation.',
+    steps: [
+      {
+        key: 'churchProfile',
+        label: 'Congregational Profile',
+        icon: <Building className="h-5 w-5" />,
+        color: ['#E0F2FF', '#3B82F6'],
+      },
+      {
+        key: 'surveySummary',
+        label: 'Survey Summary',
+        icon: <BarChart3 className="h-5 w-5" />,
+        color: ['#DBEAFE', '#6366F1'],
+      },
+    ],
+  },
+  {
+    title: 'Knowing Your Community',
+    desc: 'Research and assess your surrounding community context.',
+    steps: [
+      {
+        key: 'communityResearch',
+        label: 'Community Research',
+        icon: <FileSearch className="h-5 w-5" />,
+        color: ['#D1FAE5', '#059669'],
+      },
+      {
+        key: 'communityAssessment',
+        label: 'Community Assessment',
+        icon: <ChartPie className="h-5 w-5" />,
+        color: ['#6EE7B7', '#047857'],
+      },
+    ],
+  },
+  {
+    title: 'Church Research and Assessment',
+    desc: "Analyze your church's context and capacity.",
+    steps: [
+      {
+        key: 'churchResearch',
+        label: 'Church Research',
+        icon: <BookOpen className="h-5 w-5" />,
+        color: ['#FCE7F3', '#DB2777'],
+      },
+      {
+        key: 'churchAssessment',
+        label: 'Church Assessment',
+        icon: <Users className="h-5 w-5" />,
+        color: ['#FECACA', '#DC2626'],
+      },
+    ],
+  },
+  {
+    title: 'Discernment and Planning',
+    desc: "Synthesize research, define your church's vocation, and create a discernment plan.",
+    steps: [
+      {
+        key: 'researchSummary',
+        label: 'Research Summary',
+        icon: <FileText className="h-5 w-5" />,
+        color: ['#E0E7FF', '#4338CA'],
+      },
+      {
+        key: 'vocationalStatement',
+        label: 'Your Mission or Vocation',
+        icon: <Compass className="h-5 w-5" />,
+        color: ['#BFDBFE', '#2563EB'],
+      },
+      {
+        key: 'scenarioBuilding',
+        label: 'Scenario Building',
+        icon: <GitBranch className="h-5 w-5" />,
+        color: ['#DBEAFE', '#0EA5E9'],
+      },
+    ],
+  },
+  {
+    title: 'Implementation and Testing',
+    desc: 'Create a discernment plan and test its implementation.',
+    steps: [
+      {
+        key: 'discernmentPlan',
+        label: 'Planning the Discernment Process',
+        icon: <PenTool className="h-5 w-5" />,
+        color: ['#FEF3C7', '#D97706'],
+      },
+      {
+        key: 'implementationTesting',
+        label: 'Engaging the Parish',
+        icon: <Briefcase className="h-5 w-5" />,
+        color: ['#FDE68A', '#EA580C'],
+      },
+    ],
+  },
+  {
+    title: 'Supporting Materials',
+    desc: 'Access guides and resources for your journey.',
+    steps: [
+      {
+        key: 'resourceLibrary',
+        label: 'Resource Library',
+        icon: <Book className="h-5 w-5" />,
+        color: ['#FCE7F3', '#DB2777'],
+      },
+      {
+        key: 'ministryInsights',
+        label: 'Ministry Insights',
+        icon: <LampDesk className="h-5 w-5" />,
+        color: ['#FECACA', '#DC2626'],
+      },
+      {
+        key: 'connectWithChurches',
+        label: 'Connect with Churches',
+        icon: <LinkIcon className="h-5 w-5" />,
+        color: ['#E0E7FF', '#4338CA'],
+      },
+    ],
+  },
+];
 
-// Props for the FlippableCard component
-interface CardAction {
-  text: string;
-  link: string;
-  icon?: React.ReactNode;
-}
+const CARD_META: Record<string, any> = {
+  churchProfile: {
+    desc: 'Profile your church community',
+    action: 'Create Profile',
+    view: 'View Profile',
+    link: '/community-profile',
+  },
+  surveySummary: {
+    desc: 'Summarize congregation input',
+    action: 'Start Survey',
+    view: 'View Summary',
+    link: '/survey-summary',
+  },
+  communityResearch: {
+    desc: 'Research your neighborhood context',
+    action: 'Start Research',
+    view: 'View Research',
+    link: '/community-research',
+  },
+  communityAssessment: {
+    desc: "Assess your community's needs",
+    action: 'Start Assessment',
+    view: 'View Assessment',
+    link: '/community-assessment',
+  },
+  churchResearch: {
+    desc: "Research your church context",
+    action: 'Start Research',
+    view: 'View Research',
+    link: '/church-research',
+  },
+  churchAssessment: {
+    desc: "Assess your church's capacity",
+    action: 'Start Assessment',
+    view: 'View Assessment',
+    link: '/church-assessment',
+  },
+  researchSummary: {
+    desc: 'Synthesize research findings',
+    action: 'Create Summary',
+    view: 'View Research Summary',
+    link: '/research-summary',
+  },
+  vocationalStatement: {
+    desc: "Define your church's calling",
+    action: 'Create Statement',
+    view: 'View Vocational Statement',
+    link: '/narrative-build',
+  },
+  scenarioBuilding: {
+    desc: 'Create future ministry scenarios',
+    action: 'Build Scenarios',
+    view: 'View Scenarios',
+    link: '/scenario-building',
+  },
+  discernmentPlan: {
+    desc: 'Create your strategic plan',
+    action: 'Create Plan',
+    view: 'View Plan',
+    link: '/plan-build',
+  },
+  implementationTesting: {
+    desc: 'Test your ministry plan',
+    action: 'Start Testing',
+    view: 'View Test Results',
+    link: '/implementation',
+  },
+  resourceLibrary: {
+    desc: 'Guides, templates, and articles',
+    action: 'Browse Resources',
+    view: 'View Resources',
+    link: '/resource-library',
+  },
+  ministryInsights: {
+    desc: 'Best practices and innovations',
+    action: 'Explore Insights',
+    view: 'View Insights',
+    link: '/ministry-ideas',
+  },
+  connectWithChurches: {
+    desc: 'Network and collaborate',
+    action: 'Connect Now',
+    view: 'View Connections',
+    link: '/connect',
+  },
+};
 
-interface FlippableCardProps {
-  title: string;
-  description: string;
-  icon: React.ReactNode;
-  isCompleted: boolean;
-  frontContent: string;
-  frontAction: CardAction;
-  backContent: string;
-  backAction: CardAction;
-  lastUpdated?: string;
-}
+const ClergyHomePage: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, session, loading: authLoading } = useAuth();
+  const { profile, isLoading: profileLoading } = useUserProfile();
+  const { cardStates: hookStates } = useCardStates();
+  const [userName, setUserName] = useState('there');
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+  const [selectedCard, setSelectedCard] = useState<string | null>(null);
+  const [showModal, setShowModal] = useState(false);
 
-const FlippableCard: React.FC<FlippableCardProps> = ({
-  title,
-  description,
-  icon,
-  isCompleted,
-  frontContent,
-  frontAction,
-  backContent,
-  backAction,
-  lastUpdated
-}) => {
-  const [isFlipped, setIsFlipped] = useState(false);
-  
-  // Determine if the action is disabled (e.g., requirements not met)
-  const isDisabled = frontAction.text.includes("First");
-  
-  // If completed, show flipped state by default
+  // Extract card completion
+  const cardStates: Record<string, boolean> = {};
+  PHASES.flatMap(p => p.steps).forEach(s => {
+    cardStates[s.key] = !!(hookStates as any)[s.key];
+  });
+
+  const total = Object.keys(cardStates).length;
+  const done = Object.values(cardStates).filter(Boolean).length;
+  const progress = total ? (done / total) * 100 : 0;
+
+  // Get first name
   useEffect(() => {
-    setIsFlipped(isCompleted);
-  }, [isCompleted]);
+    if (authLoading || profileLoading) return;
+    if (!user || !session) {
+      setIsLoading(false);
+      return;
+    }
+    try {
+      const first =
+        profile?.name?.split(' ')[0] ||
+        user.user_metadata?.full_name?.split(' ')[0] ||
+        user.email?.split('@')[0] ||
+        'there';
+      setUserName(first);
+      setIsLoading(false);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Unknown error occurred'));
+      setIsLoading(false);
+    }
+  }, [authLoading, profileLoading, user, profile, session]);
 
-  return (
-    <div className="relative h-full" onClick={() => {
-      if (isCompleted && !isFlipped) {
-        // Allow the card to be clicked to view details when completed
-        setIsFlipped(true);
-      }
-    }}>
-      <div className="relative w-full h-full">
-        {/* Front of Card */}
-        <Card 
-          className={`hover:shadow-md transition-shadow ${isFlipped ? 'hidden' : 'block'} ${isCompleted ? 'border-gray-300 border-dashed bg-gray-50' : 'border'} h-full`}
-        >
-          <CardHeader className="mt-6">
-            <CardTitle className={`flex items-center gap-2 text-lg ${
-              isCompleted 
-                ? 'text-gray-500 font-normal' 
-                : ''
-            }`}>
-              {icon}
-              {title}
-            </CardTitle>
-            <CardDescription className={isCompleted ? 'text-gray-400' : ''}>{description}</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className={`text-sm mb-5 ${
-              isCompleted 
-                ? 'text-gray-500' 
-                : ''
-            }`}>{frontContent}</p>
-          </CardContent>
-          <CardFooter className="border-t pt-4 flex justify-between mt-auto">
-            {!isCompleted && (
-              <span className="text-xs text-muted-foreground">Not started</span>
-            )}
-            {isCompleted && (
-              <span className="text-xs flex items-center gap-1 text-emerald-700">
-                <CheckCircle className="h-3 w-3" /> Completed
-              </span>
-            )}
-            <div className="flex gap-2">
-              {isCompleted && (
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="size-8 rounded-full" 
-                  onClick={() => setIsFlipped(true)}
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              )}
-              {isDisabled ? (
-                <Button size="sm" className="gap-1" disabled>
-                  {frontAction.text} {frontAction.icon}
-                </Button>
-              ) : (
-                <Button size="sm" asChild className="gap-1">
-                  <Link to={frontAction.link}>
-                    {frontAction.text} {frontAction.icon}
-                  </Link>
-                </Button>
-              )}
-            </div>
-          </CardFooter>
-        </Card>
-        
-        {/* Back of Card */}
-        <Card 
-          className={`hover:shadow-md transition-shadow ${isFlipped ? 'block' : 'hidden'} border border-gray-300 bg-gray-50 h-full`}
-        >
-          <div className="absolute top-2 right-2 z-10">
-            <Badge className="bg-green-100 text-green-800 hover:bg-green-100">
-              Completed
-            </Badge>
-          </div>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg text-gray-500 font-normal">
-              {icon}
-              {title}
-            </CardTitle>
-            <CardDescription className="text-gray-400">{description}</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <p className="text-sm mb-5 text-gray-500">{backContent}</p>
-          </CardContent>
-          <CardFooter className="border-t pt-4 flex justify-between">
-            {lastUpdated && (
-              <span className="text-xs text-muted-foreground">Last updated: {lastUpdated}</span>
-            )}
-            <div className="flex gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="size-8 rounded-full" 
-                onClick={() => setIsFlipped(false)}
-              >
-                <ChevronRight className="h-4 w-4 rotate-180" />
-              </Button>
-              <Button variant="outline" size="sm" asChild className="gap-1">
-                <Link to={backAction.link}>
-                  {backAction.text} {backAction.icon}
-                </Link>
-              </Button>
-            </div>
-          </CardFooter>
-        </Card>
+  if (error) return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-4">
+      <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
+      <Button onClick={() => window.location.reload()} variant="outline">
+        Refresh Page
+      </Button>
+      <div className="mt-4 p-4 bg-red-50 rounded text-sm text-left max-w-md">
+        <p className="font-semibold">Error:</p>
+        <p className="text-red-700">{error.message}</p>
       </div>
     </div>
   );
-};
 
-const ClergyHomePage = () => {
-  console.log('[ClergyHomePage] Component rendering');
-  
-  // Get auth state
-  const { user, session, loading: authLoading } = useAuth();
-  const isAuthenticated = !!session;
-  // Get profile state
-  const { profile, isLoading: profileLoading } = useUserProfile();
-  
-  // Local state
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [userName, setUserName] = useState<string>('there');
-  const [error, setError] = useState<Error | null>(null);
-  
-  // Log initial state for debugging
-  useEffect(() => {
-    console.log('[ClergyHomePage] Auth state:', { 
-      isAuthenticated,
-      authLoading,
-      hasUser: !!user, 
-      userId: user?.id,
-      profileLoading,
-      hasProfile: !!profile,
-      profileRole: profile?.role
-    });
-  }, [isAuthenticated, authLoading, user, profileLoading, profile]);
-  
-  // Log local state
-  console.log('[ClergyHomePage] Local state:', { isLoading, userName });
-  // Card states are managed by the useCardStates hook
-  const { cardStates: cardStatesFromHook } = useCardStates();
-  
-  // Map the card states from useCardStates to the expected card keys
-  const cardStates: Record<string, boolean> = {
-    churchProfile: cardStatesFromHook.churchProfile,
-    resourceLibrary: cardStatesFromHook.resourceLibrary || false,
-    churchResearch: cardStatesFromHook.churchResearch,
-    churchAssessment: cardStatesFromHook.churchAssessment,
-    communityResearch: cardStatesFromHook.communityResearch,
-    communityAssessment: cardStatesFromHook.communityAssessment,
-    researchSummary: cardStatesFromHook.researchSummary,
-    vocationalStatement: cardStatesFromHook.vocationalStatement,
-    scenario: cardStatesFromHook.scenario,
-    surveySummary: cardStatesFromHook.surveySummary || false,
-    scenarioBuilding: cardStatesFromHook.scenarioBuilding || false,
-    implementationTesting: cardStatesFromHook.implementationTesting || false,
-    discernmentPlan: cardStatesFromHook.discernmentPlan || false,
-    ministryInsights: cardStatesFromHook.ministryInsights || false
+  if (isLoading) return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin h-12 w-12 border-t-2 border-b-2 border-primary rounded-full"></div>
+      <span className="ml-4">Loading your dashboard...</span>
+    </div>
+  );
+
+  if (!user) return (
+    <div className="flex flex-col items-center justify-center min-h-screen p-4">
+      <h1 className="text-2xl font-bold mb-4">Please sign in to continue</h1>
+      <Button asChild>
+        <Link to="/signin">Sign In</Link>
+      </Button>
+    </div>
+  );
+
+  const onCardClick = (key: string) => {
+    if (cardStates[key]) return;
+    setSelectedCard(key);
+    setShowModal(true);
   };
-  
-  // Log which cards are marked as completed
-  console.log('[ClergyHomePage] Card states:', cardStates);
-  
-  const userRole = profile?.role || 'Clergy';
-  
-  // Toggle card state function (kept for backward compatibility)
-  const toggleCardState = (cardKey: string) => {
-    // This is a no-op now since state is managed by the useCardStates hook
-    // We keep the function for backward compatibility with the UI
-    console.log(`Card state toggled: ${cardKey}`);
+
+  const onModalComplete = () => {
+    setShowModal(false);
+    if (selectedCard) navigate(CARD_META[selectedCard].link);
   };
-  
-  // Handle user name extraction and profile data
-  useEffect(() => {
-    try {
-      console.log('[ClergyHomePage] useEffect - user profile effect running', { 
-        user, 
-        hasProfile: !!profile,
-        isAuthenticated,
-        authLoading,
-        profileLoading
-      });
-      
-      // Skip if still loading
-      if (authLoading || profileLoading) {
-        console.log('[ClergyHomePage] Still loading auth or profile, skipping...');
-        return;
-      }
-      
-      // Update loading state
-      const newLoadingState = authLoading || profileLoading;
-      setIsLoading(newLoadingState);
-      
-      // Handle unauthenticated state
-      if (!isAuthenticated || !user) {
-        console.log('[ClergyHomePage] No authenticated user');
-        setIsLoading(false);
-        return;
-      }
-      
-      // Extract user name
-      const extractUserName = () => {
-        if (!user) return 'there';
-        
-        try {
-          // From profile
-          if (profile?.name) {
-            return profile.name.split(' ')[0];
-          }
-          
-          // From auth metadata
-          if (user?.user_metadata?.full_name) {
-            return user.user_metadata.full_name.split(' ')[0];
-          }
-          
-          // From email
-          if (user?.email) {
-            const emailName = user.email.split('@')[0];
-            return emailName.charAt(0).toUpperCase() + emailName.slice(1);
-          }
-          
-          return 'there';
-        } catch (err) {
-          console.error('Error extracting user name:', err);
-          return 'there';
-        }
-      };
-      
-      const name = extractUserName();
-      setUserName(name);
-      setIsLoading(false);
-      setError(null);
-      
-      // Log user data for debugging
-      console.log('[ClergyHomePage] User data:', { 
-        hasUser: !!user, 
-        userId: user?.id,
-        userEmail: user?.email,
-        hasProfile: !!profile,
-        finalUserName: name,
-        profileRole: profile?.role
-      });
-    } catch (err) {
-      console.error('[ClergyHomePage] Error in profile effect:', err);
-      setError(err instanceof Error ? err : new Error('An unknown error occurred'));
-    } finally {
-      // Mark loading as complete
-      setIsLoading(false);
-    }
-  }, [user, profile, isAuthenticated, authLoading, profileLoading]);
 
-  // Initialize card states
-  useEffect(() => {
-    console.log('[ClergyHomePage] Initializing card states');
-    // Card states are now managed by the useCardStates hook
-  }, []);
-
-  // Show error boundary if there's an error
-  if (error) {
-    console.error('[ClergyHomePage] Rendering error state:', error);
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
-        <h2 className="text-2xl font-bold text-red-600 mb-4">Something went wrong</h2>
-        <p className="mb-6">We're having trouble loading your dashboard. Please try refreshing the page.</p>
-        <Button onClick={() => window.location.reload()} variant="outline">
-          Refresh Page
-        </Button>
-        <div className="mt-4 p-4 bg-red-50 rounded text-sm text-left max-w-md">
-          <p className="font-semibold">Error details:</p>
-          <p className="text-red-700">{error.message}</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show loading state
-  if (isLoading) {
-    console.log('[ClergyHomePage] Rendering loading state');
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        <div className="ml-4">Loading your dashboard...</div>
-      </div>
-    );
-  }
-  
-  if (!user) {
-    console.log('[ClergyHomePage] No authenticated user, showing sign-in prompt');
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-        <h1 className="text-2xl font-bold mb-4">Please sign in to continue</h1>
-        <p className="mb-6">You need to be signed in to access the clergy dashboard.</p>
-        <Button asChild>
-          <Link to="/signin">Sign In</Link>
-        </Button>
-      </div>
-    );
-  }
-  
-  console.log('[ClergyHomePage] Rendering main content', { userName, userRole, cardStates });
-
-  console.log('[ClergyHomePage] Rendering JSX');
-
-  const totalSteps = Object.values(cardStates).length;
-  const completedSteps = Object.values(cardStates).filter(Boolean).length;
-  const progressValue = totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0;
   return (
-    <div className="container mx-auto px-4 py-8" data-testid="clergy-home-layout">
-        {/* Welcome Header */}
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight">
-            Welcome, Rev. {userName}
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            {userRole === 'Clergy' ? 'Manage your church discernment journey' : 'Support your congregation through discernment'}
-          </p>
-          <h2 className="text-lg font-semibold">Your Progress</h2>
-          <span className="text-sm text-muted-foreground">
-            {Object.values(cardStates).filter(Boolean).length} of {Object.values(cardStates).length} steps completed
-          </span>
+    <div className="min-h-screen bg-gradient-to-br from-white via-blue-50 to-indigo-50 pb-16">
+      <div className="container mx-auto px-4 py-8">
+        {/* Hero */}
+        <div className="flex items-center justify-between mb-12">
+          <div>
+            <h1 className="text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 to-sky-400">
+              Welcome back, {userName}!
+            </h1>
+            <p className="mt-2 text-lg text-gray-600">
+              Your discernment journey in progress.
+            </p>
+          </div>
+          <CircularProgress
+            size={96}
+            strokeWidth={8}
+            value={progress}
+            label={`${done}/${total}`}
+          />
         </div>
-        <Progress value={progressValue} className="h-2" />
 
-        <div className="space-y-8">
-          {/* Phase 1: Understanding Your Church */}
-          <section className="space-y-4">
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold">
-                Understanding Your Church
-              </h2>
-              <p className="text-sm text-muted-foreground">Gather and analyze information about your congregation</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Step 1: Church Profile */}
-              <div onClick={() => toggleCardState('churchProfile')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">1</div>
-                <FlippableCard 
-                  title="Congregational Profile"
-                  description="Profile your church communit"
-                  icon={<Building className="h-4 w-4 text-primary" />}
-                  isCompleted={cardStates.churchProfile}
-                  frontContent="Document your church community's demographics, characteristics, and current state."
-                  frontAction={{
-                    text: cardStates.churchProfile ? "View Profile" : "Create Profile",
-                    link: "/community-profile",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've documented your church community's profile and characteristics."
-                  backAction={{
-                    text: "View Profile",
-                    link: "/community-profile",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                  lastUpdated="June 11, 2025"
-                />
-              </div>
-              
-              {/* Step 2: Survey Summary */}
-              <div onClick={() => toggleCardState('surveySummary')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">2</div>
-                <FlippableCard 
-                  title="Survey Summary"
-                  description="Summarize congregation input"
-                  icon={<BarChart3 className="h-4 w-4 text-primary" />}
-                  isCompleted={cardStates.surveySummary}
-                  frontContent={cardStates.churchProfile ? 
-                    "Summarize and analyze input received from your congregation members." : 
-                    "You must complete your church profile before accessing survey summary."}
-                  frontAction={{
-                    text: cardStates.churchProfile ? (cardStates.surveySummary ? "View Summary" : "Start Survey") : "Complete Profile First",
-                    link: cardStates.churchProfile ? "/survey-summary" : "/community-profile",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've summarized the input received from your congregation."
-                  backAction={{
-                    text: "View Summary",
-                    link: "/survey-summary",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-            </div>
-          </section>
+        {/* Accordion of Phases */}
+        <Accordion type="single" collapsible>
+          {PHASES.map((phase, i) => (
+            <AccordionItem value={`phase-${i}`} key={phase.title}>
+              <AccordionTrigger>
+                <span className="text-2xl font-semibold">
+                  {i + 1}. {phase.title}
+                </span>
+              </AccordionTrigger>
+              <AccordionContent className="pb-8">
+                <p className="mb-4 text-gray-500">{phase.desc}</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {phase.steps.map(({ key, label, icon, color }) => {
+                    const completed = cardStates[key];
+                    const meta = CARD_META[key];
+                    return (
+                      <motion.div
+                        key={key}
+                        whileHover={!completed ? { scale: 1.03 } : {}}
+                        className={`
+                          relative overflow-hidden rounded-2xl border border-gray-200
+                          bg-white/80 transition-shadow
+                          ${completed ? 'opacity-60' : 'hover:shadow-2xl cursor-pointer'}
+                        `}
+                        style={{
+                          background: `linear-gradient(135deg, ${color[0]}, ${color[1]})`,
+                          backgroundBlendMode: 'multiply',
+                        }}
+                        onClick={() => onCardClick(key)}
+                        role="button"
+                        aria-pressed={completed}
+                        tabIndex={0}
+                        onKeyDown={(e: React.KeyboardEvent) => (e.key === 'Enter' && onCardClick(key))}
+                      >
+                        {completed && (
+                          <CheckCircle className="absolute top-4 right-4 text-green-500 h-6 w-6" />
+                        )}
+                        <div className="flex items-center px-6 py-5">
+                          <div className="p-3 bg-indigo-100 rounded-full">
+                            {icon}
+                          </div>
+                          <div className="ml-4">
+                            <h3 className="text-lg font-semibold">{label}</h3>
+                            <p className="text-sm text-gray-500">{meta.desc}</p>
+                          </div>
+                        </div>
+                        <div className="px-6 pb-6">
+                          <Button
+                            variant={completed ? 'outline' : 'default'}
+                            disabled={completed}
+                            className="w-full"
+                          >
+                            {completed ? meta.view : meta.action}
+                            <ArrowRight className="ml-2 h-4 w-4" />
+                          </Button>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
 
-          <div className="h-px bg-border w-full"></div>
-
-          {/* Phase 2: Knowing Your Community */}
-          <section className="space-y-4">
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold">
-                Knowing Your Community
-              </h2>
-              <p className="text-sm text-muted-foreground">Research and assess your surrounding community context</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Step 3: Community Research */}
-              <div onClick={() => toggleCardState('communityResearch')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">3</div>
-                <FlippableCard 
-                  title="Community Research"
-                  description="Research your neighborhood context"
-                  icon={<FileSearch className="h-4 w-4 text-primary" />}
-                  isCompleted={cardStates.communityResearch}
-                  frontContent={cardStates.surveySummary ? 
-                    "Research demographic and contextual data about your surrounding community." : 
-                    "You must complete your survey summary before starting community research."}
-                  frontAction={{
-                    text: cardStates.surveySummary ? (cardStates.communityResearch ? "View Research" : "Start Research") : "Complete Survey First",
-                    link: cardStates.surveySummary ? "/community_research" : "/survey-summary",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've gathered research about your surrounding community context."
-                  backAction={{
-                    text: "View Research",
-                    link: "/community_research",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-              
-              {/* Step 4: Community Assessment */}
-              <div onClick={() => toggleCardState('communityAssessment')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">4</div>
-                <FlippableCard 
-                  title="Community Assessment"
-                  description="Assess your community's needs"
-                  icon={<ChartPie className="h-4 w-4 text-primary" />}
-                  isCompleted={cardStates.communityAssessment}
-                  frontContent={cardStates.communityResearch ? 
-                    "Assess your community's needs and identify key areas for ministry opportunity." : 
-                    "You must complete your community research before performing assessment."}
-                  frontAction={{
-                    text: cardStates.communityResearch ? (cardStates.communityAssessment ? "View Assessment" : "Start Assessment") : "Complete Research First",
-                    link: cardStates.communityResearch ? "/community_assessment" : "/community_research",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've assessed your community's needs and identified ministry opportunities."
-                  backAction={{
-                    text: "View Assessment",
-                    link: "/community_assessment",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <div className="h-px bg-border w-full"></div>
-
-          {/* Phase 3: Church Research and Assessment */}
-          <section className="space-y-4">
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold">
-                Church Research and Assessment
-              </h2>
-              <p className="text-sm text-muted-foreground">Analyze your church's context and capacity</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Step 5: Church Research */}
-              <div onClick={() => toggleCardState('churchResearch')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">5</div>
-                <FlippableCard 
-                  title="Church Research"
-                  description="Research your church context"
-                  icon={<BookOpen className="h-4 w-4 text-primary" />}
-                  isCompleted={cardStates.churchResearch}
-                  frontContent={cardStates.communityAssessment ? 
-                    "Research your church's history, current strengths and opportunities." : 
-                    "You must complete your community assessment before starting church research."}
-                  frontAction={{
-                    text: cardStates.communityAssessment ? (cardStates.churchResearch ? "View Research" : "Start Research") : "Complete Assessment First",
-                    link: cardStates.communityAssessment ? "/church_research" : "/community_assessment",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've researched your church's context and identified key characteristics."
-                  backAction={{
-                    text: "View Research",
-                    link: "/church_research",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-              
-              {/* Step 6: Church Assessment */}
-              <div onClick={() => toggleCardState('churchAssessment')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">6</div>
-                <FlippableCard 
-                  title="Church Assessment"
-                  description="Assess your church's capacity"
-                  icon={<Users className="h-4 w-4 text-primary" />}
-                  isCompleted={cardStates.churchAssessment}
-                  frontContent={cardStates.churchResearch ? 
-                    "Assess your church's strengths, weaknesses, and ministry capacity." : 
-                    "You must complete your church research before assessing capacity."}
-                  frontAction={{
-                    text: cardStates.churchResearch ? (cardStates.churchAssessment ? "View Assessment" : "Start Assessment") : "Complete Research First",
-                    link: cardStates.churchResearch ? "/church_assessment" : "/church_research",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've assessed your church's capacity and ministry potential."
-                  backAction={{
-                    text: "View Assessment",
-                    link: "/church_assessment",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <div className="h-px bg-border w-full"></div>
-
-          {/* Phase 4-6 */}
-          <section className="space-y-4">
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold">
-                Discernment and Planning
-              </h2>
-              <p className="text-sm text-muted-foreground">Synthesize research, define your church's vocation, and create a discernment plan</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Step 7: Research Summary */}
-              <div onClick={() => toggleCardState('researchSummary')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">7</div>
-                <FlippableCard 
-                  title="Research Summary"
-                  description="Synthesize research findings"
-                  icon={<FileText className="h-5 w-5 text-primary" />}
-                  isCompleted={cardStates.researchSummary}
-                  frontContent={cardStates.churchAssessment ? 
-                    "Synthesize all research findings into a comprehensive summary." : 
-                    "You must complete your church assessment before synthesizing research."}
-                  frontAction={{
-                    text: cardStates.churchAssessment ? "Create Summary" : "Complete Assessment First",
-                    link: cardStates.churchAssessment ? "/ResearchSummary" : "/church_assessment",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've synthesized your research findings into a comprehensive summary."
-                  backAction={{
-                    text: "View Research Summary",
-                    link: "/ResearchSummary",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-              
-              {/* Step 8: Vocational Statement */}
-              <div onClick={() => toggleCardState('vocationalStatement')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">8</div>
-                <FlippableCard 
-                  title="Your Mission or Vocation"
-                  description="Define your church's calling"
-                  icon={<Compass className="h-5 w-5 text-primary" />}
-                  isCompleted={cardStates.vocationalStatement}
-                  frontContent={cardStates.researchSummary ? 
-                    "Define your church's unique calling and vocational direction." : 
-                    "You must complete your research summary before defining vocational statement."}
-                  frontAction={{
-                    text: cardStates.researchSummary ? "Create Statement" : "Complete Summary First",
-                    link: cardStates.researchSummary ? "/conversation" : "/ResearchSummary",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've defined your church's unique calling and vocational direction."
-                  backAction={{
-                    text: "View Vocational Statement",
-                    link: "/conversation",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-              
-              {/* Step 9: Scenario Building */}
-              <div onClick={() => toggleCardState('scenarioBuilding')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">9</div>
-                <FlippableCard 
-                  title="Scenario Building"
-                  description="Create future ministry scenarios"
-                  icon={<GitBranch className="h-5 w-5 text-primary" />}
-                  isCompleted={cardStates.scenarioBuilding}
-                  frontContent={cardStates.vocationalStatement ? 
-                    "Create and explore possible future ministry scenarios for your church." : 
-                    "You must complete your vocational statement before building scenarios."}
-                  frontAction={{
-                    text: cardStates.vocationalStatement ? "Build Scenarios" : "Complete Vocational Statement First",
-                    link: cardStates.vocationalStatement ? "/scenario" : "/conversation",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've created and explored possible future ministry scenarios for your church."
-                  backAction={{
-                    text: "View Scenarios",
-                    link: "/scenario",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <div className="h-px bg-border w-full"></div>
-
-          {/* Phase 7-8 */}
-          <section className="space-y-4">
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold">
-                Implementation and Testing
-              </h2>
-              <p className="text-sm text-muted-foreground">Create a discernment plan and test its implementation</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Step 10: Discernment Plan */}
-              <div onClick={() => toggleCardState('discernmentPlan')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">10</div>
-                <FlippableCard 
-                  title="Planning the Discernment Process"
-                  description="Create your strategic plan"
-                  icon={<PenTool className="h-5 w-5 text-primary" />}
-                  isCompleted={cardStates.discernmentPlan}
-                  frontContent={cardStates.scenarioBuilding ? 
-                    "Develop a strategic discernment plan based on your scenarios and vocational calling." : 
-                    "You must complete scenario building before creating a discernment plan."}
-                  frontAction={{
-                    text: cardStates.scenarioBuilding ? "Create Plan" : "Complete Scenarios First",
-                    link: cardStates.scenarioBuilding ? "/plan_build" : "/scenario",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've developed a strategic discernment plan for your church's future ministry."
-                  backAction={{
-                    text: "View Plan",
-                    link: "/plan_build",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-              
-              {/* Step 11: Implementation Testing */}
-              <div onClick={() => toggleCardState('implementationTesting')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">11</div>
-                <FlippableCard 
-                  title="Engaging the Parish"
-                  description="Test your ministry plan"
-                  icon={<Briefcase className="h-5 w-5 text-primary" />}
-                  isCompleted={cardStates.implementationTesting}
-                  frontContent={cardStates.discernmentPlan ? 
-                    "Test your discernment plan with small-scale implementation and gather feedback." : 
-                    "You must complete your discernment plan before testing implementation."}
-                  frontAction={{
-                    text: cardStates.discernmentPlan ? "Start Testing" : "Complete Plan First",
-                    link: cardStates.discernmentPlan ? "/implementation" : "/plan_build",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've tested elements of your plan and gathered valuable implementation feedback."
-                  backAction={{
-                    text: "View Test Results",
-                    link: "/implementation",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-
-          <div className="h-px bg-border w-full"></div>
-
-          {/* Resources */}
-          <section className="space-y-4">
-            <div className="mb-2">
-              <h2 className="text-xl font-semibold">
-                Supporting Materials
-              </h2>
-              <p className="text-sm text-muted-foreground">Access guides and resources for your journey</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Step 12: Resource Library */}
-              <div onClick={() => toggleCardState('resourceLibrary')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">12</div>
-                <FlippableCard 
-                  title="Resource Library"
-                  description="Guides, templates, and articles"
-                  icon={<Book className="h-5 w-5 text-primary" />}
-                  isCompleted={cardStates.resourceLibrary}
-                  frontContent="Access materials and templates to support your church's discernment process."
-                  frontAction={{
-                    text: "Browse Resources",
-                    link: "/resource-library",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've accessed the resource library for guidance and templates."
-                  backAction={{
-                    text: "View Resources",
-                    link: "/resource-library",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-              
-              {/* Step 13: Ministry Insights */}
-              <div onClick={() => toggleCardState('ministryInsights')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">13</div>
-                <FlippableCard 
-                  title="Ministry Insights"
-                  description="Best practices and innovations"
-                  icon={<LampDesk className="h-5 w-5 text-primary" />}
-                  isCompleted={cardStates.ministryInsights}
-                  frontContent="Explore ministry insights, innovations and best practices from church leaders."
-                  frontAction={{
-                    text: "Explore Insights",
-                    link: "/ministry-ideas",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've explored ministry insights and best practices for your context."
-                  backAction={{
-                    text: "View Insights",
-                    link: "/ministry-ideas",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-              
-              {/* Step 14: Connect with Churches */}
-              <div onClick={() => toggleCardState('connectWithChurches')} className="relative group">
-                <div className="absolute -left-2 top-0 h-full w-1 bg-primary rounded-r opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                <div className="absolute top-2 left-2 z-10 flex items-center justify-center w-7 h-7 rounded-full bg-primary text-white text-base font-medium">14</div>
-                <FlippableCard 
-                  title="Connect with Churches"
-                  description="Network and collaborate with other churches"
-                  icon={<LinkIcon className="h-5 w-5 text-primary" />}
-                  isCompleted={cardStates.connectWithChurches}
-                  frontContent="Connect with other churches, share experiences, and collaborate on ministry initiatives."
-                  frontAction={{
-                    text: "Connect Now",
-                    link: "/connect",
-                    icon: <ArrowRight className="h-3 w-3" />
-                  }}
-                  backContent="You've connected with other churches and explored collaboration opportunities."
-                  backAction={{
-                    text: "View Connections",
-                    link: "/connect",
-                    icon: <Eye className="h-3 w-3" />
-                  }}
-                />
-              </div>
-            </div>
-          </section>
-        </div>
+        {/* Companion Modal */}
+        <CompanionSelectionModal
+          open={showModal}
+          onOpenChange={setShowModal}
+          onSelectionComplete={onModalComplete}
+        />
+      </div>
     </div>
   );
 };

@@ -1,12 +1,64 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useForm } from 'react-hook-form';
 import { useOpenAI } from '@/hooks/useOpenAI';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, BarChart2, AlertTriangle } from 'lucide-react';
+import { supabase } from '@/integrations/lib/supabase';
+// Recharts imports
+import { BarChart, PieChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, Cell } from 'recharts';
+// Form components
+import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+
+// Chart components and utilities
+import { ChartContainer } from '@/components/charts/ChartContainer';
+import { ChartTooltipContent } from '@/components/charts/ChartTooltipContent';
+import { ChartLegendContent } from '@/components/charts/ChartLegendContent';
+import Tiptap from '@/components/ui/tiptap';
+
+// Chart configuration and data
+const chartConfig = {
+  growth: { height: 300, width: '100%' },
+  demographic: { height: 300, width: '100%' },
+  engagement: { height: 300, width: '100%' }
+};
+
+// Chart colors
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+
+// Sample data for charts
+const attendanceData = [
+  { name: 'Church A', value: 420 },
+  { name: 'Church B', value: 320 },
+  { name: 'Church C', value: 180 },
+  { name: 'Church D', value: 240 }
+];
+
+const growthRateData = [
+  { name: '2019', church_a: 2.1, church_b: 1.2 },
+  { name: '2020', church_a: -0.5, church_b: -1.8 },
+  { name: '2021', church_a: 0.8, church_b: 0.2 },
+  { name: '2022', church_a: 1.5, church_b: 0.9 }
+];
+
+const demographicData = [
+  { name: '18-24', church_a: 15, church_b: 22 },
+  { name: '25-34', church_a: 20, church_b: 28 },
+  { name: '35-44', church_a: 25, church_b: 20 },
+  { name: '45-54', church_a: 18, church_b: 15 },
+  { name: '55+', church_a: 22, church_b: 15 }
+];
+
+const engagementData = [
+  { name: 'Sunday Service', church_a: 85, church_b: 78 },
+  { name: 'Small Groups', church_a: 42, church_b: 65 },
+  { name: 'Volunteering', church_a: 28, church_b: 35 },
+  { name: 'Online Content', church_a: 35, church_b: 48 }
+];
 
 interface ComparativeAnalysisModalProps {
   open: boolean;
@@ -264,10 +316,10 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip content={(props) => <ChartTooltipContent {...props} />} />
-                  <Legend content={(props) => <ChartLegendContent {...props} />} />
+                  <Tooltip content={(props: any) => <ChartTooltipContent {...props} />} />
+                  <Legend content={(props: any) => <ChartLegendContent {...props} />} />
                   <Bar dataKey="value" fill="#8884d8">
-                    {attendanceData.map((entry, index) => (
+                    {attendanceData.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Bar>
@@ -294,8 +346,8 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip content={(props) => <ChartTooltipContent {...props} />} />
-                  <Legend content={(props) => <ChartLegendContent {...props} />} />
+                  <Tooltip content={(props: any) => <ChartTooltipContent {...props} />} />
+                  <Legend content={(props: any) => <ChartLegendContent {...props} />} />
                   <Bar dataKey="yourChurch" fill="#0088FE" name="Your Church" />
                   <Bar dataKey="similarChurches" fill="#00C49F" name="Similar Churches" />
                 </BarChart>
@@ -323,8 +375,8 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip content={(props) => <ChartTooltipContent {...props} />} />
-                  <Legend content={(props) => <ChartLegendContent {...props} />} />
+                  <Tooltip content={(props: any) => <ChartTooltipContent {...props} />} />
+                  <Legend content={(props: any) => <ChartLegendContent {...props} />} />
                   <Bar dataKey="yourChurch" fill="#0088FE" name="Your Church" />
                   <Bar dataKey="similarChurches" fill="#00C49F" name="Similar Churches" />
                 </BarChart>
@@ -350,8 +402,8 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip content={(props) => <ChartTooltipContent {...props} />} />
-                  <Legend content={(props) => <ChartLegendContent {...props} />} />
+                  <Tooltip content={(props: any) => <ChartTooltipContent {...props} />} />
+                  <Legend content={(props: any) => <ChartLegendContent {...props} />} />
                   <Bar dataKey="yourChurch" fill="#0088FE" name="Your Church" />
                   <Bar dataKey="similarChurches" fill="#00C49F" name="Similar Churches" />
                 </BarChart>
@@ -381,7 +433,9 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-[95vw] w-[95vw] h-[95vh] max-h-[95vh] overflow-y-auto p-0">
         <div className="sticky top-0 z-10 bg-background p-6 border-b">
-          <DialogTitle className="text-xl font-bold">Comparative Analysis</DialogTitle>
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Comparative Analysis</DialogTitle>
+          </DialogHeader>
         </div>
 
         <div className="p-6">
@@ -407,7 +461,7 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
                   </FormItem>
                 )} />
                 <div className="border rounded-md min-h-[300px]">
-                  <Tiptap content={state.editorContent} onChange={c => setState(prev => ({ ...prev, editorContent: c }))} />
+                  <Tiptap content={state.editorContent} onChange={(content: string) => setState(prev => ({ ...prev, editorContent: content }))} />
                 </div>
                 <Button type="submit" disabled={state.saving} className="w-full">
                   {state.saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}

@@ -66,7 +66,7 @@ export const ConversationInterface: React.FC<ConversationInterfaceProps> = ({
   };
 
   const handleStartAssessment = () => {
-    navigate('/community_assessment');
+    navigate('/community-research');
   };
 
   // Use propSelectedCompanion for checks and display

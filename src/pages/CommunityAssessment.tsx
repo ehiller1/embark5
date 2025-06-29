@@ -8,14 +8,6 @@ import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { AssessmentSidebar } from '@/components/AssessmentSidebar';
 import { useSectionAvatars } from '@/hooks/useSectionAvatars';
 import { AvatarCards } from '@/components/AvatarCards';
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 
 export default function CommunityAssessment() {
   const navigate = useNavigate();
@@ -23,82 +15,68 @@ export default function CommunityAssessment() {
   const [sessionKey, setSessionKey] = useState<string>('initial');
   const { selectedCompanion } = useSelectedCompanion();
   const { getAvatarForPage } = useSectionAvatars();
-  
-  // Always get conversation avatar as fallback if specific one isn't available
-  const communityAssessmentAvatar = getAvatarForPage('community_assessment');
-  const conversationAvatar = getAvatarForPage('conversation');
-  const displayAvatar = communityAssessmentAvatar || conversationAvatar;
-  
+
+  const communityAvatar = getAvatarForPage('community-assessment');
+  const fallbackAvatar = getAvatarForPage('conversation');
+  const displayAvatar = communityAvatar || fallbackAvatar;
+
   useEffect(() => {
-    // Generate a unique key based on the current session
-    // This forces a re-render of child components when the session changes
     setSessionKey(session?.access_token?.substring(0, 8) || 'no-session');
   }, [session]);
-  
-  const handleNext = () => {
-    navigate('/community_research');
-  };
-  
-  const content = (
-<>
-      <div className="mb-4">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/conversation">Conversation</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Community Assessment</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
-      
-      <div className="mb-4 pt-2 flex items-center">
-        <Button 
-          variant="ghost" 
-          size="sm" 
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-1 text-journey-pink hover:bg-journey-lightPink/20"
-        >
-          <ArrowLeft className="h-4 w-4" /> Back
-        </Button>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-4">
-        <aside className="w-full md:overflow-y-auto">
-          <div className="sticky top-20 pink-glass p-1.5 rounded-xl space-y-1.5">
-            <AvatarCards 
+
+  return (
+    <AssessmentSidebar>
+      <div className="flex flex-col lg:flex-row">
+        {/* SIDEBAR */}
+        <aside className="w-full lg:w-64 flex-shrink-0">
+          <div className="sticky top-20 pink-glass p-6 rounded-2xl">
+            <AvatarCards
               sectionAvatar={displayAvatar}
               selectedCompanion={selectedCompanion}
               selectedChurchAvatar={null}
               selectedCommunityAvatar={null}
+              companionTitle="Your Guide"
+              churchTitle="Church"
+              communityTitle="Community"
             />
           </div>
         </aside>
-        
-        <div className="flex-1">
-          <h1 className="text-2xl font-serif font-semibold mb-4 bg-clip-text text-transparent bg-gradient-journey">Your Community Point of View</h1>
-          
-          <div className="p-1 bg-gradient-journey-light rounded-xl mb-4">
-            <div className="bg-white p-4 rounded-lg">
-              <p className="text-sm text-muted-foreground">
-                Evaluate your community and gather insights that will help shape your church's ministry approach.
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex-grow h-[calc(100vh-300px)] overflow-hidden">
-            <CommunityAssessmentInterface key={sessionKey} onNext={handleNext} />
-          </div>
-        </div>
-      </div>
-    </>  );
 
-  return (
-    <AssessmentSidebar>
-      {content}
+        {/* MAIN CONTENT */}
+        <main className="flex-1 flex flex-col px-6 lg:px-8 py-6">
+          {/* 1) SINGLE BACK BUTTON */}
+          <div className="mb-6">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/clergy-home')}
+              className="flex items-center gap-1 text-journey-pink hover:bg-journey-lightPink/20"
+            >
+              <ArrowLeft className="h-4 w-4" /> Back
+            </Button>
+          </div>
+
+          {/* 2) TITLE */}
+          <h1 className="text-3xl font-serif font-semibold bg-clip-text text-transparent bg-gradient-journey mb-4">
+            Your Community Assessment
+          </h1>
+
+          {/* 3) DESCRIPTION BAR */}
+          <div className="mb-8 p-4 bg-gradient-journey-light rounded-2xl">
+            <p className="text-sm text-muted-foreground">
+              Evaluate your community and gather insights that will help shape your church’s ministry approach.
+            </p>
+          </div>
+
+          {/* 4) EMBEDDED CHAT */}
+          <div className="flex-1 overflow-hidden">
+            <CommunityAssessmentInterface
+              key={sessionKey}
+              disableNext  // this prop removes the “Next” button inside the form
+            />
+          </div>
+        </main>
+      </div>
     </AssessmentSidebar>
   );
 }

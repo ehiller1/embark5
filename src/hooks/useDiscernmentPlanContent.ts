@@ -6,9 +6,13 @@ interface ResourceContent {
   title: string;
   content: string;
   resource_type: string;
-  church_id: string;
+  church_id: string | null;
   created_at: string;
   updated_at: string;
+  user_id: string | null;
+  scenario_title: string | null;
+  tags: string[] | null;
+  created_by: string | null;
 }
 
 interface GroupedResources {
@@ -63,7 +67,7 @@ export const useResourceContent = () => {
         // otherwise fetch all available resources
         let query = supabase
           .from('resource_library')
-          .select('id, title, content, resource_type, church_id, created_at, updated_at');
+          .select('id, title, content, resource_type, church_id, created_at, updated_at, user_id, scenario_title, tags, created_by');
         
         // Only filter by church_id if we have one
         if (churchId) {

@@ -3,8 +3,6 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { Loader2 } from 'lucide-react';
-import { devUtils } from '@/utils/devUtils';
-import { supabase } from "@/integrations/lib/supabase";
 
 interface UserMenuProps {
   onLogout: () => void;
@@ -25,29 +23,7 @@ export const UserMenu = ({ onLogout }: UserMenuProps) => {
     console.log('[UserMenu] Logout clicked');
     onLogout();
   }, [onLogout]);
-  
-  const handleForceLogout = useCallback(() => {
-    console.log('[UserMenu] Force logout requested');
-    devUtils.forceLogout();
-  }, []);
-  
-  const handleFixSession = useCallback(async () => {
-    console.log('[UserMenu] Fix session requested');
-    try {
-      // Refresh the session
-      const { data, error } = await supabase.auth.refreshSession();
-      if (error) {
-        console.error('[UserMenu] Error refreshing session:', error);
-      } else {
-        console.log('[UserMenu] Session refreshed successfully:', data.session ? 'Valid session' : 'No session');
-        // Force a page reload to update all components
-        window.location.reload();
-      }
-    } catch (err) {
-      console.error('[UserMenu] Exception when refreshing session:', err);
-    }
-  }, []);
-  
+
   // Debug logging - only log when values change
   const prevStateRef = useRef<{
     isAuthenticated: boolean;
@@ -115,28 +91,6 @@ export const UserMenu = ({ onLogout }: UserMenuProps) => {
       >
         Sign Out
       </Button>
-      
-      {/* Development-only buttons */}
-      {process.env.NODE_ENV === 'development' && (
-        <>
-          <Button 
-            variant="destructive" 
-            size="sm" 
-            onClick={handleForceLogout}
-            className="ml-2 text-xs"
-          >
-            DEV: Force Logout
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleFixSession}
-            className="ml-2 text-xs bg-amber-100 border-amber-300 hover:bg-amber-200 hover:border-amber-400"
-          >
-            DEV: Fix Session
-          </Button>
-        </>
-      )}
     </div>
   );
 };

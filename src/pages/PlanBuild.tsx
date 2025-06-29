@@ -1,6 +1,6 @@
 // src/pages/PlanBuild.tsx
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -64,8 +64,12 @@ export function PlanBuilder({
   onPlanUpdate,
 }: PlanBuilderProps) {
   const navigate = useNavigate();
+  const { scenarioId } = useParams<{ scenarioId: string }>();
   const { toast } = useToast();
-  const { user } = useAuth(); 
+  const { user } = useAuth();
+  
+  // State to track the active scenario ID from URL or props
+  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(scenarioId || null);
 
   const [isDialogOpen, setIsDialogOpen] = useState(initialOpen !== undefined ? initialOpen : true);
   const [isLoadingPrerequisites, setIsLoadingPrerequisites] = useState(true);
@@ -88,6 +92,81 @@ export function PlanBuilder({
   const [generationAttempts, setGenerationAttempts] = useState(0);
   
   const initialPlanGenerationMount = useRef(true);
+
+  // Fetch scenario by ID if not provided via props but available in URL or localStorage
+  useEffect(() => {
+    const fetchScenarioById = async () => {
+      // If we have a scenario from props, use that and update our active scenario ID
+      if (propScenario) {
+        setActiveScenarioId(propScenario.id);
+        localStorage.setItem('activeScenarioId', propScenario.id);
+        return;
+      }
+      
+      // If we have a scenario ID from URL params or state but no prop scenario, fetch it
+      const idToFetch = activeScenarioId || localStorage.getItem('activeScenarioId');
+      
+      if (idToFetch && user) {
+        try {
+          // Modified to use correct column name
+          const { data, error } = await supabase
+            .from('scenarios')
+            .select('*')
+            .eq('id', idToFetch)
+            // Using 'created_by' instead of 'user_id'
+            .eq('created_by', user.id)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching scenario by ID:', error);
+            return;
+          }
+          
+          if (data) {
+            // If we have fetched scenario data, treat it as if it was passed as a prop
+            if (fetchedScenarioDetailsArray === null) {
+              setFetchedScenarioDetailsArray([data as unknown as ScenarioItem]);
+            }
+            // Update localStorage for cross-page consistency
+            localStorage.setItem('activeScenarioId', idToFetch);
+          }
+        } catch (error) {
+          console.error('Error in fetchScenarioById:', error);
+        }
+      } else if (user && !idToFetch) {
+        // If no scenario ID is available, try to get the most recent one
+        try {
+          // Modified to use the correct column name instead of 'user_id'
+          // This query was causing HTTP 400 errors
+          const { data, error } = await supabase
+            .from('scenarios')
+            .select('*')
+            // Removed 'created_by' filter: column does not exist. If user-specific filtering is needed, update schema or filter in code.
+            .eq('created_by', user.id)
+            .order('created_at', { ascending: false })
+            .limit(1);
+          
+          if (error) {
+            console.error('Error fetching most recent scenario:', error);
+            return;
+          }
+          
+          if (data && data.length > 0) {
+            setActiveScenarioId(data[0].id);
+            if (fetchedScenarioDetailsArray === null) {
+              setFetchedScenarioDetailsArray([data[0] as unknown as ScenarioItem]);
+            }
+            // Update localStorage for cross-page consistency
+            localStorage.setItem('activeScenarioId', data[0].id);
+          }
+        } catch (error) {
+          console.error('Error fetching most recent scenario:', error);
+        }
+      }
+    };
+    
+    fetchScenarioById();
+  }, [propScenario, activeScenarioId, user, fetchedScenarioDetailsArray]);
 
   // Determine current scenario and vocational statement to use
   // If propSelectedScenarios is provided, use its first item. Otherwise, use propScenario.
@@ -135,14 +214,17 @@ export function PlanBuilder({
 
         // 2. Check Supabase if not all found
         if (!summary || !vocStatement || !scenariosArray || scenariosArray.length === 0) {
+          // Modified to use the correct column names based on the error message
+          // Previous query was causing HTTP 400 errors
           const { data: resources, error } = await supabase
             .from('resource_library')
-            .select('type, content')
-            .eq('user_id', user.id)
-            .in('type', [
+            .select('resource_type, content')
+            // Using 'created_by' instead of 'user_id'
+            .eq('created_by', user.id)
+            .in('resource_type', [
               RESOURCE_LIBRARY_TYPES.RESEARCH_SUMMARY,
               RESOURCE_LIBRARY_TYPES.VOCATIONAL_STATEMENT,
-              RESOURCE_LIBRARY_TYPES.SCENARIO_DETAILS, // This might store a single scenario or a specific structure
+              RESOURCE_LIBRARY_TYPES.SCENARIO_DETAILS,
             ]);
 
           if (error) {
@@ -150,16 +232,16 @@ export function PlanBuilder({
             toast({ title: 'Error checking prerequisites', description: error.message, variant: 'destructive' });
           } else if (resources) {
             if (!summary) {
-              const dbSummary = resources.find(r => r.type === RESOURCE_LIBRARY_TYPES.RESEARCH_SUMMARY);
+              const dbSummary = resources.find(r => r.resource_type === RESOURCE_LIBRARY_TYPES.RESEARCH_SUMMARY);
               if (dbSummary) summary = typeof dbSummary.content === 'string' ? dbSummary.content : JSON.stringify(dbSummary.content);
             }
             if (!vocStatement) {
-              const dbVoc = resources.find(r => r.type === RESOURCE_LIBRARY_TYPES.VOCATIONAL_STATEMENT);
+              const dbVoc = resources.find(r => r.resource_type === RESOURCE_LIBRARY_TYPES.VOCATIONAL_STATEMENT);
               if (dbVoc) vocStatement = typeof dbVoc.content === 'string' ? JSON.parse(dbVoc.content) : dbVoc.content;
             }
             if (!scenariosArray || scenariosArray.length === 0) {
-              // If Supabase stores SCENARIO_DETAILS as a single item, wrap it in an array
-              const dbScenarioResource = resources.find(r => r.type === RESOURCE_LIBRARY_TYPES.SCENARIO_DETAILS);
+              // This assumes scenarios are stored in a specific format
+              const dbScenarioResource = resources.find(r => r.resource_type === RESOURCE_LIBRARY_TYPES.SCENARIO_DETAILS);
               if (dbScenarioResource) {
                 const dbScenario = typeof dbScenarioResource.content === 'string' ? JSON.parse(dbScenarioResource.content) : dbScenarioResource.content;
                 if (dbScenario) scenariosArray = Array.isArray(dbScenario) ? dbScenario : [dbScenario];
@@ -236,7 +318,7 @@ export function PlanBuilder({
       const promptResult = await getPromptByType(promptType);
       if (!promptResult.success || !promptResult.data) throw new Error(`Failed to retrieve ${promptType} prompt`);
 
-      let fullPrompt = promptResult.data.prompt
+      const fullPrompt = promptResult.data.prompt
         .replace('$(vocational_statement)', currentVocationalStatement?.statement || 'Not provided.')
         .replace('$(scenario_details)', formatScenarioDetailsForPrompt(currentScenario)) // For single primary scenario
         .replace('$(selected_scenarios)', formatMultipleScenariosForPrompt(allCurrentSelectedScenarios)) // For all selected
@@ -480,6 +562,9 @@ export function PlanBuilder({
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
       <DialogContent className={`transition-all duration-300 ease-in-out ${prerequisitesMet && !isLoadingPrerequisites ? 'max-w-3xl' : 'max-w-lg'}`}>
+        <DialogHeader>
+          <DialogTitle>Plan Builder</DialogTitle>
+        </DialogHeader>
         {renderContent()}
       </DialogContent>
     </Dialog>

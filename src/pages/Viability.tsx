@@ -60,7 +60,25 @@ const Analysis = () => {
   if (!isAuthenticated || !user) return null;
 
   return (
-    <>
+    <div className="flex flex-col h-screen bg-gray-50">
+      <header className="bg-white shadow-sm py-4 px-6 border-b">
+        <div className="flex items-center space-x-4">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => navigate('/clergy-home')}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowRight className="h-4 w-4 rotate-180" />
+            Back to Home
+          </Button>
+          <h1 className="text-2xl font-semibold text-gray-900">Viability Assessment</h1>
+        </div>
+        <p className="text-muted-foreground mb-6">
+          Churches often wrestle with the question of when to begin a discernment process—especially in seasons of transition, declining membership, or shifting community dynamics.
+          We've aggregated deep wisdom and real-world insight to help you consider whether this is the right time for your church to take its next step.
+        </p>
+      </header>
       <div className="pt-20 px-6 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-2">Is now the right time?</h1>
         <p className="text-muted-foreground mb-6">
@@ -112,7 +130,7 @@ const Analysis = () => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 

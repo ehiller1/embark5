@@ -1,9 +1,7 @@
-// src/pages/ResearchSummary.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MainLayout } from '@/components/MainLayout';
+
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/lib/supabase';
 import { useOpenAI } from '@/hooks/useOpenAI';
@@ -15,7 +13,13 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { ArrowLeft, Save, Printer, ChartBar, ArrowRight } from 'lucide-react';
 import { AssessmentSidebar } from '@/components/AssessmentSidebar';
 
-export default function ResearchSummary() {
+// Currently unused, but kept for future implementation
+// interface PromptItem {
+//   prompt: string;
+//   [key: string]: unknown;  // Allow for additional properties
+// }
+
+export default function ResearchSummary(): JSX.Element {
   const [churchName, setChurchName] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [summaryDraft, setSummaryDraft] = useState<string>('');
@@ -28,7 +32,7 @@ export default function ResearchSummary() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { generateResponse } = useOpenAI();
-  const { prompts, isLoading: promptsLoading, error: promptsError } = usePromptsData();
+  const { prompts, isLoading: promptsLoading } = usePromptsData();
 
   // Load churchName & location, then generate summary when prompt available
   useEffect(() => {
@@ -39,7 +43,7 @@ export default function ResearchSummary() {
   }, []);
 
   useEffect(() => {
-    if (!promptsLoading && prompts['assessment_report']) {
+    if (!promptsLoading && prompts?.['assessment_report']) {
       generateSummary();
     }
   }, [promptsLoading, prompts]);
@@ -63,7 +67,37 @@ export default function ResearchSummary() {
     }
   }, [summaryDraft]);
 
-  const generateSummary = async () => {
+  interface Message {
+    sender: string;
+    content: string;
+    [key: string]: any;
+  }
+
+  interface CompanionData {
+    companion?: string;
+    companion_type?: string;
+    traits?: string | string[];
+    speech_pattern?: string;
+    knowledge_domains?: string | string[];
+    [key: string]: any;
+  }
+
+  // Format messages helper function
+  const formatMessages = (messages: string | null): string => {
+    if (!messages) return 'No messages available';
+    try {
+      const parsed: Message[] = JSON.parse(messages);
+      return parsed
+        .filter((msg) => msg.sender === 'assistant')
+        .map((msg) => msg.content)
+        .join('\n\n');
+    } catch (err) {
+      console.error('Error parsing messages:', err);
+      return 'Error parsing messages';
+    }
+  };
+
+  const generateSummary = async (): Promise<void> => {
     try {
       setIsLoadingSummary(true);
       setSummaryError(null);
@@ -86,39 +120,40 @@ export default function ResearchSummary() {
 
       if (companionData) {
         try {
-          const parsed = JSON.parse(companionData);
+          const parsed: CompanionData = JSON.parse(companionData);
           companion = {
             name: parsed.companion || companion.name,
             type: parsed.companion_type || companion.type,
-            traits: Array.isArray(parsed.traits) ? parsed.traits.join(', ') : companion.traits,
+            traits: Array.isArray(parsed.traits) ? parsed.traits.join(', ') : (parsed.traits || companion.traits),
             speech_pattern: parsed.speech_pattern || companion.speech_pattern,
-            knowledge_domains: Array.isArray(parsed.knowledge_domains) ? parsed.knowledge_domains.join(', ') : companion.knowledge_domains
+            knowledge_domains: Array.isArray(parsed.knowledge_domains) 
+              ? parsed.knowledge_domains.join(', ') 
+              : (parsed.knowledge_domains || companion.knowledge_domains)
           };
         } catch (err) {
           console.error('Error parsing companion data:', err);
         }
       }
 
-      // Format messages for the prompt
-      const formatMessages = (messages: string | null) => {
-        if (!messages) return 'No messages available';
-        try {
-          const parsed = JSON.parse(messages);
-          return parsed
-            .filter((msg: any) => msg.sender === 'assistant')
-            .map((msg: any) => msg.content)
-            .join('\n\n');
-        } catch (err) {
-          console.error('Error parsing messages:', err);
-          return 'Error parsing messages';
-        }
-      };
-
-      // Get the prompt template
-      const promptTemplate = prompts['assessment_report'].prompt;
+      // Get the prompt template with proper type checking
+      const promptData = prompts?.['assessment_report'];
+      if (!promptData) {
+        throw new Error('Assessment report prompt data not found');
+      }
+      
+      // Handle both string and PromptItem types
+      const promptTemplate = typeof promptData === 'string' 
+        ? promptData 
+        : 'prompt' in promptData 
+          ? promptData.prompt 
+          : null;
+          
+      if (!promptTemplate) {
+        throw new Error('Assessment report prompt template not found');
+      }
 
       // Prepare all parameters for the prompt
-      const parameters = {
+      const parameters: Record<string, string> = {
         church_name: churchName || 'Your church',
         location: location || 'unknown location',
         church_assessment_messages: formatMessages(churchMessages),
@@ -138,82 +173,162 @@ export default function ResearchSummary() {
       const filled = await populatePrompt(promptTemplate, parameters);
       console.log('[ResearchSummary] Populated prompt:', filled);
 
+      // Define message type for generateResponse
+      type ChatMessage = {
+        role: 'system' | 'user' | 'assistant';
+        content: string;
+      };
+
       // Generate the response with proper message formatting
-      const response = await generateResponse({
-        messages: [
-          { 
-            role: 'system', 
-            content: 'You are a research summary generator. Generate a comprehensive research summary based on the provided assessment data.'
-          },
-          { 
-            role: 'user', 
-            content: filled 
-          }
-        ],
-        maxTokens: 3000,
-        temperature: 0.7
-      });
+      const messages: ChatMessage[] = [
+        { 
+          role: 'system', 
+          content: 'You are a helpful assistant that generates detailed church assessment reports.' 
+        },
+        { 
+          role: 'user', 
+          content: filled 
+        }
+      ];
 
-      if (response.error) throw new Error(response.error);
-
-      // Try to parse the response as JSON
+      // Define response type for better type safety
+      type AIResponse = string | { text: string } | { [key: string]: unknown };
+      
+      let response: AIResponse;
+      
       try {
-        // First, try to clean the response text
-        let cleanedText = response.text.trim();
-        
-        // Remove any markdown formatting and clean up the text
-        cleanedText = cleanedText
-          .replace(/\*\*/g, '')  // Remove bold
-          .replace(/\*/g, '')    // Remove italic
-          .replace(/#{1,6}\s/g, '')  // Remove headers
-          .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // Remove markdown links
-          .replace(/```json\n?/g, '')  // Remove code block markers
-          .replace(/```\n?/g, '')      // Remove code block markers
-          .replace(/\\n/g, ' ')        // Replace newlines with spaces
-          .replace(/\n/g, ' ')         // Replace newlines with spaces
-          .replace(/\s+/g, ' ')        // Normalize whitespace
-          .trim();
-        
-        // Try to find the JSON object in the response
-        const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) {
-          throw new Error('No JSON object found in response');
-        }
-        
-        // Parse the JSON
-        const summaryData = JSON.parse(jsonMatch[0]);
-        
-        // Validate the structure
-        if (!summaryData.report || !Array.isArray(summaryData.report)) {
-          throw new Error('Invalid response format: missing report array');
-        }
-        
-        // Validate and clean each section
-        summaryData.report = summaryData.report.map((section: any) => {
-          if (!section.section || !section.content) {
-            throw new Error('Invalid section format: missing section or content field');
-          }
-          return {
-            section: section.section.trim(),
-            content: section.content.trim()
-          };
+        const result = await generateResponse({
+          messages,
+          temperature: 0.7,
+          maxTokens: 4000
         });
-          
-        // Set the formatted summary
-        setSummaryDraft(JSON.stringify(summaryData, null, 2));
 
-      } catch (parseError) {
-        console.error('Failed to parse response:', parseError);
-        throw new Error('Could not parse response as valid JSON. Please try again.');
+        if (!result) {
+          throw new Error('No response from AI service');
+        }
+        response = result as AIResponse;
+
+        // Handle the response based on its type
+        const responseText = (() => {
+          if (typeof response === 'string') {
+            return response;
+          } else if (response && typeof response === 'object' && 'text' in response) {
+            return String(response.text);
+          }
+          return JSON.stringify(response);
+        })();
+
+        if (!responseText) {
+          throw new Error('Empty response from AI service');
+        }
+
+        try {
+          // First, try to clean the response text
+          let cleanedText = responseText.trim();
+          
+          // Remove any markdown formatting and clean up the text
+          cleanedText = cleanedText
+            .replace(/\*\*/g, '')  // Remove bold
+            .replace(/\*/g, '')    // Remove italic
+            .replace(/#{1,6}\s/g, '')  // Remove headers
+            .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // Remove markdown links
+            .replace(/```json\n?/g, '')  // Remove code block markers
+            .replace(/```\n?/g, '')      // Remove code block markers
+            .replace(/\\n/g, ' ')        // Replace newlines with spaces
+            .replace(/\n/g, ' ')         // Replace newlines with spaces
+            .replace(/\s+/g, ' ')        // Normalize whitespace
+            .trim();
+          
+          // Try to find the JSON object in the response
+          const jsonMatch = cleanedText.match(/\{[\s\S]*\}/);
+          if (!jsonMatch) {
+            console.log('No JSON found, using raw response');
+            setSummaryDraft(cleanedText);
+            setHasSaved(false);
+            return;
+          }
+          
+          try {
+            // Parse the JSON
+            const summaryData = JSON.parse(jsonMatch[0]) as { report?: unknown };
+            
+            // Validate the structure
+            if (!summaryData.report || !Array.isArray(summaryData.report)) {
+              console.log('No report array, using raw response');
+              setSummaryDraft(cleanedText);
+              setHasSaved(false);
+              return;
+            }
+            
+            // Define section type for better type safety
+            interface ReportSection {
+              section: string;
+              content: string;
+            }
+            
+            // Validate and clean each section
+            const cleanedReport: ReportSection[] = [];
+            
+            for (const section of summaryData.report) {
+              if (typeof section !== 'object' || section === null) {
+                console.warn('Skipping invalid section:', section);
+                continue;
+              }
+              
+              const typedSection = section as Record<string, unknown>;
+              const sectionTitle = typedSection.section;
+              const content = typedSection.content;
+              
+              if (typeof sectionTitle === 'string' && typeof content === 'string') {
+                cleanedReport.push({
+                  section: sectionTitle.trim(),
+                  content: content.trim()
+                });
+              } else {
+                console.warn('Skipping section with invalid format:', section);
+              }
+            }
+            
+            if (cleanedReport.length > 0) {
+              // Set the formatted summary with valid sections
+              setSummaryDraft(JSON.stringify({ report: cleanedReport }, null, 2));
+            } else {
+              // If no valid sections, fall back to raw response
+              console.log('No valid sections found, using raw response');
+              setSummaryDraft(cleanedText);
+            }
+            setHasSaved(false);
+            
+          } catch (jsonError) {
+            console.error('Error parsing JSON response:', jsonError);
+            setSummaryDraft(cleanedText);
+            setHasSaved(false);
+          }
+        } catch (parseError) {
+          console.error('Failed to process response:', parseError);
+          // If processing fails, use the raw response text
+          setSummaryDraft(responseText);
+          setHasSaved(false);
+        }
+      } catch (err) {
+        console.error('Error generating AI response:', err);
+        throw err; // Re-throw to be caught by outer try-catch
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      setSummaryError(msg);
-      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      const errorMessage = err instanceof Error ? err.message : 'An unknown error occurred';
+      setSummaryError(errorMessage);
+      console.error('Error generating summary:', err);
+      
+      // Show error toast with proper type checking
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
     } finally {
       setIsLoadingSummary(false);
     }
-  };
+  };  // End of generateSummary function
 
   const handleSave = async () => {
     try {
@@ -230,24 +345,47 @@ export default function ResearchSummary() {
       setHasSaved(true);
       toast({ title: 'Saved', description: 'Research summary saved.' });
 
-      // Generate vocational statement
-      if (prompts['narrative_building']) {
-        const nbTemplate = prompts['narrative_building'].prompt;
-        const nbFilled = await populatePrompt(nbTemplate, { research_summary: summaryDraft });
-        const nbResp = await generateResponse({
-          messages: [{ role: 'system', content: nbFilled }],
-          maxTokens: 500,
-          temperature: 0.7
-        });
-        if (!nbResp.error) {
-          localStorage.setItem('vocational_statement', nbResp.text);
+      // Generate vocational statement if narrative_building prompt exists
+      const narrativeBuildingPrompt = prompts?.['narrative_building'];
+      if (narrativeBuildingPrompt) {
+        try {
+          // Handle both string and PromptItem types
+          const nbTemplate = typeof narrativeBuildingPrompt === 'string' 
+            ? narrativeBuildingPrompt 
+            : 'prompt' in narrativeBuildingPrompt 
+              ? narrativeBuildingPrompt.prompt 
+              : null;
+              
+          if (nbTemplate) {
+            const nbFilled = await populatePrompt(nbTemplate, { research_summary: summaryDraft });
+            const options = {
+              messages: [{ role: 'user', content: nbFilled }],
+              temperature: 0.7,
+              maxTokens: 500
+            };
+            const nbResp = await generateResponse(options);
+            
+            // Handle different response types
+            if (typeof nbResp === 'string') {
+              localStorage.setItem('vocational_statement', nbResp);
+            } else if (nbResp && typeof nbResp === 'object' && 'text' in nbResp) {
+              localStorage.setItem('vocational_statement', String(nbResp.text));
+            }
+          }
+        } catch (nbError) {
+          console.error('Error generating vocational statement:', nbError);
+          // Don't block navigation if this part fails
         }
       }
 
-      navigate('/narrative_build');
+      navigate('/narrative-build');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      toast({ title: 'Error', description: msg, variant: 'destructive' });
+      toast({ 
+        title: 'Error', 
+        description: msg, 
+        variant: 'destructive' 
+      });
     }
   };
 
@@ -255,12 +393,11 @@ export default function ResearchSummary() {
 
   return (
     <AssessmentSidebar>
-      <MainLayout>
-        <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8">
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => navigate('/church_assessment')}
+            onClick={() => navigate('/church-assessment')}
             className="flex items-center gap-1 mb-4"
           >
             <ArrowLeft className="h-4 w-4" /> Back to Assessment
@@ -314,7 +451,7 @@ export default function ResearchSummary() {
           {/* New button for navigating to narrative build */}
           <div className="flex justify-center mt-8">
             <Button 
-              onClick={() => navigate('/narrative_build')}
+              onClick={() => navigate('/narrative-build')}
               size="lg" 
               className="px-8"
             >
@@ -328,7 +465,6 @@ export default function ResearchSummary() {
             summaryContent={summaryDraft}
           />
         </div>
-      </MainLayout>
     </AssessmentSidebar>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
@@ -42,7 +42,14 @@ User Reflection: ${reflection}
 Provide insights or discernment advice based on this information.
       `.trim();
 
-      const response = await generateResponse(prompt);
+      const response = await generateResponse({
+        messages: [
+          {
+            role: 'user',
+            content: prompt
+          }
+        ]
+      });
 
       if (!response?.text) {
         throw new Error('No response from OpenAI');

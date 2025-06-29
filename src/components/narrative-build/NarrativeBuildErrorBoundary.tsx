@@ -7,6 +7,8 @@ interface Props {
   children: ReactNode;
 }
 
+import type { ErrorInfo } from 'react';
+
 interface State {
   hasError: boolean;
   error: Error | null;

@@ -7,7 +7,7 @@ export type NarrativeAvatarStep = 'welcome' | 'church' | 'community' | 'companio
 
 export function useNarrativeAvatarFlow() {
   const navigate = useNavigate();
-  const { selectedChurchAvatar, selectedCommunityAvatar } = useNarrativeAvatar();
+  const { churchAvatar, communityAvatar } = useNarrativeAvatar();
   const { selectedCompanion } = useSelectedCompanion();
   
   const [currentStep, setCurrentStep] = useState<NarrativeAvatarStep>('welcome');
@@ -15,8 +15,8 @@ export function useNarrativeAvatarFlow() {
   
   // Check if all required avatars are selected
   const allAvatarsSelected = useCallback(() => {
-    return !!selectedChurchAvatar && !!selectedCommunityAvatar && !!selectedCompanion;
-  }, [selectedChurchAvatar, selectedCommunityAvatar, selectedCompanion]);
+    return !!churchAvatar && !!communityAvatar && !!selectedCompanion;
+  }, [churchAvatar, communityAvatar, selectedCompanion]);
   
   // Initialize based on avatar selection state
   useEffect(() => {
@@ -38,12 +38,12 @@ export function useNarrativeAvatarFlow() {
         setCurrentStep('church');
         break;
       case 'church':
-        if (selectedChurchAvatar) {
+        if (churchAvatar) {
           setCurrentStep('community');
         }
         break;
       case 'community':
-        if (selectedCommunityAvatar) {
+        if (communityAvatar) {
           setCurrentStep('companion');
         }
         break;
@@ -60,7 +60,7 @@ export function useNarrativeAvatarFlow() {
         }
         break;
     }
-  }, [currentStep, selectedChurchAvatar, selectedCommunityAvatar, selectedCompanion, allAvatarsSelected, navigate]);
+  }, [currentStep, churchAvatar, communityAvatar, selectedCompanion, allAvatarsSelected, navigate]);
   
   const goToPreviousStep = useCallback(() => {
     switch (currentStep) {
@@ -82,9 +82,9 @@ export function useNarrativeAvatarFlow() {
   const validateCurrentStep = useCallback((): boolean => {
     switch (currentStep) {
       case 'church':
-        return !!selectedChurchAvatar;
+        return !!churchAvatar;
       case 'community':
-        return !!selectedCommunityAvatar;
+        return !!communityAvatar;
       case 'companion':
         return !!selectedCompanion;
       case 'confirmation':
@@ -92,7 +92,7 @@ export function useNarrativeAvatarFlow() {
       default:
         return true;
     }
-  }, [currentStep, selectedChurchAvatar, selectedCommunityAvatar, selectedCompanion, allAvatarsSelected]);
+  }, [currentStep, churchAvatar, communityAvatar, selectedCompanion, allAvatarsSelected]);
   
   // Calculate progress percentage
   const getStepProgress = useCallback((): number => {

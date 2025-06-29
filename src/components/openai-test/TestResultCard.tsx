@@ -1,5 +1,5 @@
 
-import React from 'react';
+
 import { TestResult } from '@/types/openai-test';
 import { 
   Card, CardContent, CardHeader, 

@@ -363,7 +363,7 @@ export const InvestmentModal = ({ ministry, isOpen, onClose }: InvestmentModalPr
               {step === 1 && (
                 <Button 
                   onClick={() => setStep(2)}
-                  disabled={amount < ministry.minimum_investment || (complianceResult && !complianceResult.compliant)}
+                  disabled={amount < ministry.minimum_investment || !!(complianceResult && !complianceResult.compliant)}
                 >
                   Continue
                 </Button>

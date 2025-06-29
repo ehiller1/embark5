@@ -213,79 +213,98 @@ export function ChurchResearchInterface({ activeCategory, searchPrompt, onNext }
     localStorage.setItem('church_name', churchName);
     toast({ title: 'Church name saved' });
   }
-
   return (
-    <ResearchLayout
-      title="Church Research"
-      locationName={location}
-      breadcrumbs={[
-        { name: 'Church Assessment', href: '/church_assessment' },
-        { name: 'Church Research' }
-      ]}
-    >
-      <Card className="col-span-12 mb-4">
+  <ResearchLayout title="" locationName={location}>
+    {/* wrap everything in a single flex container that spans both columns */}
+    <div className="col-span-2 flex flex-col space-y-6 h-full">
+      
+      {/* 1) Church Name & Location card */}
+      <Card className="w-full">
         <CardContent className="flex flex-wrap gap-4 p-4">
           <div className="flex-1 min-w-[240px]">
-            <label className="text-sm font-medium block">Church Name <span className="text-red-500">*</span></label>
+            <label className="text-sm font-medium block">
+              Church Name <span className="text-red-500">*</span>
+            </label>
             <div className="flex gap-2">
-              <Input value={churchName} onChange={e=>setChurchName(e.target.value)} placeholder="Enter church name" />
-              <Button 
-                onClick={onSaveChurchName}
-                disabled={!churchName}
-              >
+              <Input
+                value={churchName}
+                onChange={e => setChurchName(e.target.value)}
+                placeholder="Enter church name"
+              />
+              <Button onClick={onSaveChurchName} disabled={!churchName}>
                 Save
               </Button>
             </div>
           </div>
           <div className="flex-1 min-w-[240px]">
-            <label className="text-sm font-medium block">Location <span className="text-red-500">*</span></label>
-            <Input value={location} onChange={e=>setLocation(e.target.value)} placeholder="City, state, region" />
+            <label className="text-sm font-medium block">
+              Location <span className="text-red-500">*</span>
+            </label>
+            <Input
+              value={location}
+              onChange={e => setLocation(e.target.value)}
+              placeholder="City, state, region"
+            />
           </div>
         </CardContent>
-        {validationError && <div className="px-4 pb-2 text-red-500 text-sm">{validationError}</div>}
+        {validationError && (
+          <div className="px-4 pb-2 text-red-500 text-sm">
+            {validationError}
+          </div>
+        )}
       </Card>
 
-      <div className="col-span-12 grid grid-cols-2 gap-4">
-        <ResearchSearch
-          query={inputQuery}
-          onQueryChange={setInputQuery}
-          onSearch={handleSearch}
-          results={searchResults}
-          isLoading={isLoading}
-          onSaveResult={saveNoteFromResult}
-          activeCategory={activeCategory}
-          hasValidationError={!!validationError}
-          pageType="church_research"
-        />
-        <ResearchNotes
-          notes={notes[activeCategory] || []}
-          currentNote={currentNote}
-          onNoteChange={setCurrentNote}
-          onSaveNote={saveNote}
-          onEditNote={setEditingNote}
-          activeCategory={activeCategory}
-        />
+      {/* 2) Inner two-column grid for Search + Notes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0">
+        <div className="h-full min-h-0">
+          <ResearchSearch
+            query={inputQuery}
+            onQueryChange={setInputQuery}
+            onSearch={handleSearch}
+            results={searchResults}
+            isLoading={isLoading}
+            onSaveResult={saveNoteFromResult}
+            activeCategory={activeCategory}
+            hasValidationError={!!validationError}
+            pageType="church_research"
+          />
+        </div>
+        <div className="h-full min-h-0">
+          <ResearchNotes
+            notes={notes[activeCategory] || []}
+            currentNote={currentNote}
+            onNoteChange={setCurrentNote}
+            onSaveNote={saveNote}
+            onEditNote={setEditingNote}
+            activeCategory={activeCategory}
+          />
+        </div>
       </div>
 
-      <div className="col-span-12 flex justify-between mt-4">
+      {/* 3) Actions row */}
+      <div className="flex justify-between">
         <Button variant="outline" onClick={saveAllNotes} size="lg" className="px-8">
-          <Save className="mr-2 h-4 w-4" />
-          Save All Notes
+          <Save className="mr-2 h-4 w-4" /> Save All Notes
         </Button>
         <Button onClick={handleNext} disabled={totalNoteCount === 0} size="lg" className="px-8">
           Next: Research Summary <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>
 
+      {/* 4) Edit Note modal */}
       {editingNote && (
         <EditNoteModal
           open
           initialContent={editingNote.content}
           onClose={() => setEditingNote(null)}
-          onSave={content => { updateNote(editingNote.id, content); setEditingNote(null); }}
+          onSave={(content) => {
+            updateNote(editingNote.id, content);
+            setEditingNote(null);
+          }}
           title={`Edit Note in ${editingNote.category}`}
         />
       )}
-    </ResearchLayout>
+    </div>
+  </ResearchLayout>
   );
 }

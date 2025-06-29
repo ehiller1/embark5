@@ -8,7 +8,7 @@ interface Message {
 
 export const useChurchAssessment = () => {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   
   const saveMessage = async (message: Message) => {
     setMessages(prev => [...prev, message]);

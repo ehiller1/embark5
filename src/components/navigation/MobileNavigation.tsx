@@ -125,12 +125,12 @@ export const MobileNavigation = ({ userRole }: MobileNavigationProps) => {
                     variant="ghost"
                     className={cn(
                       "w-full justify-start font-normal",
-                      isItemActive('/community_assessment') || isItemActive('/community_research') ||
-                      isItemActive('/church_assessment') || isItemActive('/church_research')
+                      isItemActive('/community-assessment') || isItemActive('/community-research') ||
+                      isItemActive('/church-assessment') || isItemActive('/church-research')
                         ? "bg-journey-lightPink/20 text-journey-pink"
                         : ""
                     )}
-                    onClick={() => handleNavigate('/community_assessment')}
+                    onClick={() => handleNavigate('/community-assessment')}
                   >
                     <BookOpen className="h-4 w-4 mr-2" />
                     Assessment
@@ -139,9 +139,9 @@ export const MobileNavigation = ({ userRole }: MobileNavigationProps) => {
                     variant="ghost"
                     className={cn(
                       "w-full justify-start font-normal",
-                      isItemActive('/narrative_build') ? "bg-journey-lightPink/20 text-journey-pink" : ""
+                      isItemActive('/narrative-build') ? "bg-journey-lightPink/20 text-journey-pink" : ""
                     )}
-                    onClick={() => handleNavigate('/narrative_build')}
+                    onClick={() => handleNavigate('/narrative-build')}
                   >
                     <MessageCircle className="h-4 w-4 mr-2" />
                     Defining your vocation
@@ -161,9 +161,9 @@ export const MobileNavigation = ({ userRole }: MobileNavigationProps) => {
                     variant="ghost"
                     className={cn(
                       "w-full justify-start font-normal",
-                      isItemActive('/plan_build') ? "bg-journey-lightPink/20 text-journey-pink" : ""
+                      isItemActive('/plan-build') ? "bg-journey-lightPink/20 text-journey-pink" : ""
                     )}
-                    onClick={() => handleNavigate('/plan_build')}
+                    onClick={() => handleNavigate('/plan-build')}
                   >
                     <Clipboard className="h-4 w-4 mr-2" />
                     Discernment Planning
@@ -190,6 +190,7 @@ export const MobileNavigation = ({ userRole }: MobileNavigationProps) => {
                     <Share2 className="h-4 w-4 mr-2" />
                     Connect
                   </Button>
+                  {/* Resources section with expanded submenu */}
                   <Button
                     variant="ghost"
                     className={cn(
@@ -199,7 +200,62 @@ export const MobileNavigation = ({ userRole }: MobileNavigationProps) => {
                     onClick={() => handleNavigate('/resource-library')}
                   >
                     <FileText className="h-4 w-4 mr-2" />
-                    Resources
+                    Resource Library
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start font-normal pl-8",
+                      isItemActive('/prayers') ? "bg-journey-lightPink/20 text-journey-pink" : ""
+                    )}
+                    onClick={() => handleNavigate('/prayers')}
+                  >
+                    Prayers
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start font-normal pl-8",
+                      isItemActive('/case-studies') ? "bg-journey-lightPink/20 text-journey-pink" : ""
+                    )}
+                    onClick={() => handleNavigate('/case-studies')}
+                  >
+                    Case Studies
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start font-normal pl-8",
+                      isItemActive('/theological-resources') ? "bg-journey-lightPink/20 text-journey-pink" : ""
+                    )}
+                    onClick={() => handleNavigate('/theological-resources')}
+                  >
+                    Theological Resources
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start font-normal pl-8",
+                      isItemActive('/ministry-ideas') ? "bg-journey-lightPink/20 text-journey-pink" : ""
+                    )}
+                    onClick={() => handleNavigate('/ministry-ideas')}
+                  >
+                    Ministry Ideas
+                  </Button>
+                  
+                  <Button
+                    variant="ghost"
+                    className={cn(
+                      "w-full justify-start font-normal pl-8",
+                      isItemActive('/spiritual-guides') ? "bg-journey-lightPink/20 text-journey-pink" : ""
+                    )}
+                    onClick={() => handleNavigate('/spiritual-guides')}
+                  >
+                    Spiritual Guides
                   </Button>
                 </>
               )}

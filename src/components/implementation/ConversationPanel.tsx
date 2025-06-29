@@ -24,10 +24,11 @@ const getInitials = (name: string | undefined): string => {
 
 interface ConversationPanelProps {
     conversationId: string;
-    participantCardObjects: ImplementationCard[]; 
+    participantCardObjects: ImplementationCard[];
+    title?: string; // Optional title prop
 }
 
-export function ConversationPanel({ conversationId, participantCardObjects }: ConversationPanelProps) {
+export function ConversationPanel({ conversationId, participantCardObjects, title }: ConversationPanelProps) {
     const [message, setMessage] = useState('');
     const scrollAreaRef = useRef<HTMLDivElement>(null);
     
@@ -60,6 +61,11 @@ export function ConversationPanel({ conversationId, participantCardObjects }: Co
 
     return (
         <Card className="h-full border flex flex-col">
+            {title && (
+                <div className="px-4 py-2 border-b bg-muted/20">
+                    <h3 className="text-sm font-medium">{title}</h3>
+                </div>
+            )}
             <CardContent className="p-0 flex flex-col flex-grow min-h-0">
                 <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
                     <div className="space-y-4">

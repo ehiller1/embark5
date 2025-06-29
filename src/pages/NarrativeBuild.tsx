@@ -1,6 +1,6 @@
 // src/pages/NarrativeBuild.tsx
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/lib/supabase'; // Fixed import path for DB access
 import { toast } from '@/hooks/use-toast'; // Added for notifications
 import { v4 as uuidv4 } from 'uuid';
@@ -11,6 +11,7 @@ import { UIVocationalStatement as ImportedUIVocationalStatement, AvatarRole, Chu
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { AvatarProvider, useAvatarContext } from '@/hooks/useAvatarContext';
 import { useNarrativeAvatar } from '@/hooks/useNarrativeAvatar';
+import { ExtendedUser } from '@/types/UserTypes';
 
 import { useNarrativeGenerationRefactored } from '@/hooks/useNarrativeGenerationRefactored';
 import { useOpenAI } from '@/hooks/useOpenAI';
@@ -46,8 +47,91 @@ type StatementDataFromDialog = UIVocationalStatement & {
 };
 
 const NarrativeBuildContent: React.FC = () => {
+  // --- Missing Requirements Modal State ---
+  const [missingRequirements, setMissingRequirements] = useState<string[]>([]);
+  const [showMissingModal, setShowMissingModal] = useState(false);
+
   const navigate = useNavigate();
-  const { user: currentUser } = useAuth();
+  const { scenarioId } = useParams<{ scenarioId: string }>();
+  const { user } = useAuth();
+  // Cast the user to ExtendedUser type to access church_id
+  const currentUser = user as ExtendedUser;
+  
+  // State to store the active scenario
+  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(scenarioId || null);
+  const [scenarioDetails, setScenarioDetails] = useState<any>(null);
+  
+  // Fetch the most recent scenario if none is specified in the URL
+  // Modal state for missing scenarios
+  const [showMissingScenariosModal, setShowMissingScenariosModal] = useState(false);
+  // Store scenarios in a ref to use in prompt creation without triggering re-renders
+  const scenariosRef = useRef<any[]>([]);
+
+  useEffect(() => {
+    const fetchMostRecentScenario = async () => {
+      let foundScenarios = [];
+      // 1. Try localStorage for scenarios
+      const localScenarios = localStorage.getItem('scenarios');
+      if (localScenarios) {
+        try {
+          const parsed = JSON.parse(localScenarios);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            foundScenarios = parsed;
+          }
+        } catch {}
+      }
+      // 2. If not found in localStorage, fetch from DB using church_id
+      if (foundScenarios.length === 0 && currentUser && currentUser.church_id) {
+        try {
+          const { data, error } = await supabase
+            .from('scenarios')
+            .select('*')
+            .eq('church_id', currentUser.church_id)
+            .order('created_at', { ascending: false });
+          if (error) {
+            console.error('Error fetching scenarios from DB:', error);
+          } else if (data && data.length > 0) {
+            foundScenarios = data;
+          }
+        } catch (error) {
+          console.error('Error in fetchMostRecentScenario:', error);
+        }
+      }
+      scenariosRef.current = foundScenarios;
+      if (foundScenarios.length > 0) {
+        setActiveScenarioId(foundScenarios[0].id);
+        localStorage.setItem('activeScenarioId', foundScenarios[0].id);
+      } else {
+        setShowMissingScenariosModal(true);
+      }
+    };
+    fetchMostRecentScenario();
+  }, [scenarioId, currentUser]);
+
+  // Fetch scenario details when activeScenarioId changes
+  useEffect(() => {
+    const fetchScenarioDetails = async () => {
+      if (!activeScenarioId) return;
+      try {
+        const { data, error } = await supabase
+          .from('scenarios')
+          .select('*')
+          .eq('id', activeScenarioId)
+          .single();
+        if (error) {
+          console.error('Error fetching scenario details:', error);
+          return;
+        }
+        if (data) {
+          setScenarioDetails(data);
+        }
+      } catch (error) {
+        console.error('Error in fetchScenarioDetails:', error);
+      }
+    };
+    
+    fetchScenarioDetails();
+  }, [activeScenarioId, currentUser]);
   const {
     churchAvatar: selectedChurchAvatar,
     communityAvatar: selectedCommunityAvatar,
@@ -60,6 +144,24 @@ const NarrativeBuildContent: React.FC = () => {
     return companions.find(c => c.id === selectedCompanionId) || null;
   }, [companions, selectedCompanionId]);
   const { isLoading: avatarsLoading, /* error: avatarsError, */ missingAvatars } = useAvatarContext(); // avatarsError removed
+
+  // Check for missing requirements on mount and when relevant data changes
+  useEffect(() => {
+    const missing: string[] = [];
+    // Scenario
+    if (!activeScenarioId) missing.push('Active scenario');
+    // Avatars
+    if (!selectedChurchAvatar) missing.push('Church avatar');
+    if (!selectedCommunityAvatar) missing.push('Community avatar');
+    if (!selectedCompanion) missing.push('Companion avatar');
+    // Prompts (basic check)
+    // If you have a promptsLoaded or similar flag, check it here
+    // Research summary: check localStorage or DB fetch result (example)
+    const researchSummary = localStorage.getItem('research_summary');
+    if (!researchSummary) missing.push('Research summary');
+    setMissingRequirements(missing);
+    setShowMissingModal(missing.length > 0);
+  }, [activeScenarioId, selectedChurchAvatar, selectedCommunityAvatar, selectedCompanion]);
 
   const [selectedStatements, setSelectedStatements] = useState<UIVocationalStatement[]>([]);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
@@ -129,7 +231,7 @@ const NarrativeBuildContent: React.FC = () => {
 
   // const researchSummary = useMemo(() => localStorage.getItem('ResearchSummary_content') || '', []); // Old version, replaced
   const [researchSummary, setResearchSummary] = useState<string>('');
-  const { prompts, loading: promptsLoading /*, getPromptByType, getPromptByTypeStrong */ } = usePrompts(); // Renamed loading to promptsLoading, getPromptByType from usePrompts removed as unused (getPromptByTypeStrong is used)
+  const { prompts /*, getPromptByType, getPromptByTypeStrong */ } = usePrompts(); // Removed loading, as it does not exist in usePrompts
 
   useEffect(() => {
     const fetchAndSetResearchSummary = async () => {
@@ -508,7 +610,7 @@ const NarrativeBuildContent: React.FC = () => {
         };
 
         // Use populatePrompt for all avatars
-        let populatedPrompt = populatePrompt(promptTemplate, parameters);
+        const populatedPrompt = populatePrompt(promptTemplate, parameters);
         console.log(`[NarrativeBuild] Populated prompt for ${avatarData.role}:`, populatedPrompt);
 
         const response = await generateResponse({
@@ -801,7 +903,7 @@ const NarrativeBuildContent: React.FC = () => {
     console.log('[NarrativeBuild] Simplified State Check:', {
       researchSummaryAvailable: !!researchSummary,
       researchSummaryLength: researchSummary ? researchSummary.length : 0,
-      promptsLoading, // from usePrompts
+       // from usePrompts
       promptsAvailable: prompts && Object.keys(prompts).length > 0,
       selectedCompanion: !!selectedCompanion,
       selectedChurchAvatar: !!selectedChurchAvatar,
@@ -811,7 +913,7 @@ const NarrativeBuildContent: React.FC = () => {
     });
 
     if (
-      !promptsLoading &&
+      
       selectedCompanion && selectedChurchAvatar && selectedCommunityAvatar &&
       researchSummary && researchSummary.length > 0 &&
       prompts && Object.keys(prompts).length > 0 && // Ensure prompts object is populated
@@ -866,7 +968,7 @@ const NarrativeBuildContent: React.FC = () => {
     } else {
       console.log('%c[NarrativeBuild] SIMPLIFIED: Conditions for generation NOT met.', 'color: red; font-weight: bold;');
       console.log('[NarrativeBuild] Reason for NOT meeting conditions (Simplified):', {
-        promptsLoading,
+        
         avatarsSelected: !!(selectedCompanion && selectedChurchAvatar && selectedCommunityAvatar),
         researchSummaryPresentAndNotEmpty: !!(researchSummary && researchSummary.length > 0),
         attemptLimitReached: generationAttemptsRef.current >= maxGenerationAttempts,
@@ -877,7 +979,7 @@ const NarrativeBuildContent: React.FC = () => {
     selectedCompanion,
     selectedChurchAvatar,
     selectedCommunityAvatar,
-    promptsLoading,
+    
     prompts,
   ]);
 
@@ -1057,17 +1159,59 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
      if (!showAvatarModal && !avatarsLoading) setShowAvatarModal(true);
   }
 
-  return (
-      <div className="container mx-auto p-4 md:p-6 space-y-6">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Build your church's vocation</h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              Craft vocational statements and explore them through conversations reflecting different points of view.
-            </p>
+  // --- Modal for missing scenarios ---
+  if (showMissingScenariosModal) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full flex flex-col items-center">
+          <h2 className="text-xl font-bold mb-4">No Ministry Scenarios Found</h2>
+          <p className="mb-6 text-gray-700 text-center">You are missing possible ministry scenarios and ideas for sustainable ministries. Would you like to build scenarios now, or proceed without them?</p>
+          <div className="flex gap-4 w-full">
+            <Button className="flex-1" onClick={() => window.location.href = '/scenario'}>Go to Scenario Builder</Button>
+            <Button className="flex-1" variant="outline" onClick={() => setShowMissingScenariosModal(false)}>Proceed Anyway</Button>
           </div>
-          <Button onClick={() => setShowAvatarModal(true)} variant="outline">Manage Avatars</Button>
         </div>
+      </div>
+    );
+  }
+
+  // --- Modal for missing requirements ---
+  if (showMissingModal && missingRequirements.length > 0) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full flex flex-col items-center">
+          <h2 className="text-xl font-bold mb-4">Missing Required Information</h2>
+          <ul className="mb-6 text-left w-full list-disc pl-6">
+            {missingRequirements.map((item, i) => (
+              <li key={i} className="text-red-700 font-medium">{item}</li>
+            ))}
+          </ul>
+          <p className="mb-4 text-gray-600 text-sm">Please complete the above before proceeding.</p>
+          <Button onClick={() => setShowMissingModal(false)} className="w-full">Close</Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-4 md:p-6 space-y-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Build your church's vocation</h1>
+          {scenarioDetails && (
+            <div className="mb-4 bg-secondary/20 p-3 rounded-md">
+              <h2 className="text-lg font-medium">Active Scenario: {scenarioDetails.title}</h2>
+              {scenarioDetails.description && (
+                <p className="text-gray-600 text-sm">{scenarioDetails.description}</p>
+              )}
+            </div>
+          )}
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+            Craft vocational statements and explore them through conversations reflecting different points of view.
+          </p>
+        </div>
+        <Button onClick={() => setShowAvatarModal(true)} variant="outline">Manage Avatars</Button>
+      </div>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">

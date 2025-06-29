@@ -22,7 +22,7 @@ export function RoundtableContainer() {
 
   return (
     <div className="flex flex-col h-full max-h-[80vh] border rounded-lg overflow-hidden">
-      <RoundtableConversation messages={roundtableMessages} />
+      <RoundtableConversation messages={roundtableMessages} isGenerating={isProcessing} />
       <RoundtableInput 
         onSend={handleSendMessage} 
         isSending={isProcessing}

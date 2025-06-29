@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { MainLayout } from '@/components/MainLayout';
 import { AvatarSelectionPanel } from '@/components/AvatarSelectionPanel';
 import { ScenarioList } from '@/components/ScenarioList';
 import { useScenarioGenerator } from '@/hooks/useScenarioGenerator';
@@ -138,13 +137,19 @@ export default function ScenarioPage() {
       // but generateScenarios expects a type where role is the literal "church".
       const typedChurchAvatar = {
         ...churchAvatar, // Spread existing properties from the churchAvatar object
-        role: "church" as "church", // Explicitly set 'role' to the literal type "church"
+        role: "church" as const, // Explicitly set 'role' to the literal type "church"
+      };
+
+      // Create a properly typed communityAvatar
+      const typedCommunityAvatar = {
+        ...communityAvatar,
+        role: "community" as const, // Explicitly set 'role' to the literal type "community"
       };
 
       await generateScenarios(
         researchSummary,
         typedChurchAvatar, // Pass the new object with the correctly typed 'role'
-        communityAvatar,   // Assuming communityAvatar does not have the same issue, or it's handled if it does.
+        typedCommunityAvatar, // Pass the new object with the correctly typed 'role'
         selectedCompanion
       );
 
@@ -262,7 +267,7 @@ export default function ScenarioPage() {
   console.log('[ScenarioPage] Button disabled check: selectedCompanion:', selectedCompanion);
 
   return (
-    <MainLayout>
+    <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <AvatarSelectionPanel />
 
@@ -336,6 +341,6 @@ export default function ScenarioPage() {
           onSave={handleSaveEditedScenarios}
         />
       </div>
-    </MainLayout>
+    </>
   );
 }

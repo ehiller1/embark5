@@ -1,22 +1,33 @@
-import React, { useState, useEffect, ChangeEvent } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { useState, useEffect, ChangeEvent, ReactElement } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-
 import { useChurchProfile } from '@/hooks/useChurchProfile';
 import { supabase } from '@/integrations/lib/supabase';
 
-import { UploadCloud, Link, CheckCircle, AlertCircle, Database, Loader2, /* Info, */ Lightbulb, Users, Save } from 'lucide-react';
+// UI Components
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 
-import { ReactElement } from 'react';
+// Icons
+import { UploadCloud, Link, CheckCircle, AlertCircle, Database, Loader2, Lightbulb, Users, Save } from 'lucide-react';
+
+type SyncOptions = {
+  members: boolean;
+  groups: boolean;
+  events: boolean;
+  contributions: boolean;
+};
+
+type RealmIntegrationStatus = 'idle' | 'connecting' | 'syncing' | 'completed' | 'error';
 
 const CommunityProfilePage = (): ReactElement => {
+  const navigate = useNavigate();
   const { toast } = useToast();
 
   const { profile, churchId, loading: profileLoading, error: profileError, saveChurchProfile, uploadChurchData } = useChurchProfile();
@@ -39,13 +50,13 @@ const CommunityProfilePage = (): ReactElement => {
   const [realmApiKey, setRealmApiKey] = useState('');
   const [realmIntegrationStep, setRealmIntegrationStep] = useState(0);
   const [realmIntegrationProgress, setRealmIntegrationProgress] = useState(0);
-  const [syncOptions, setSyncOptions] = useState({
+  const [syncOptions, setSyncOptions] = useState<SyncOptions>({
     members: true,
     groups: true,
     events: true,
     contributions: false,
   });
-  const [realmIntegrationStatus, setRealmIntegrationStatus] = useState<'idle' | 'connecting' | 'syncing' | 'completed' | 'error'>('idle');
+  const [realmIntegrationStatus, setRealmIntegrationStatus] = useState<RealmIntegrationStatus>('idle');
   const [realmError, setRealmError] = useState<string | null>(null);
   
   // Type assertion to work around missing table types in Supabase
@@ -382,9 +393,14 @@ const CommunityProfilePage = (): ReactElement => {
 
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
         <header className="mb-10 pb-6 border-b border-gray-200">
-          <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl gradient-text">
-            Your Church & Community Profile
-          </h1>
+          <div className="flex justify-between items-center">
+            <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl gradient-text">
+              Your Church & Community Profile
+            </h1>
+            <Button variant="outline" onClick={() => navigate('/clergy-home')}>
+              Back to Home
+            </Button>
+          </div>
           <p className="mt-4 text-lg text-gray-600 max-w-3xl">
             This information helps us tailor the discernment journey to your unique context. 
             Your entries are saved locally as you type and will be submitted when you click 'Save Community Profile'.
@@ -544,20 +560,28 @@ const CommunityProfilePage = (): ReactElement => {
               </div>
             </CardContent>
           </Card>
+        </div>
 
-          <div className="flex justify-end pt-6">
-            <Button 
-              onClick={handleSave} 
-              disabled={saving}
-              size="lg" 
-              className="text-lg px-8 py-6 bg-gradient-journey hover:opacity-90 transition-opacity duration-300 shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
-            >
-              <Save className="mr-2 h-5 w-5" />
-              {saving ? 'Saving Profile...' : 'Save Community Profile'}
+        <div className="mt-12 flex justify-between items-center p-6 bg-gray-50 rounded-lg shadow-inner">
+          <div>
+            <Button variant="outline" className="mr-2" onClick={() => navigate('/survey-summary')}>
+              View Survey Summary
+            </Button>
+            <Button variant="outline" onClick={() => navigate('/community-research')}>
+              Start Research
             </Button>
           </div>
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            size="lg"
+            className="text-lg px-8 py-6 bg-gradient-journey hover:opacity-90 transition-opacity duration-300 shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
+          >
+            <Save className="mr-2 h-5 w-5" />
+            {saving ? 'Saving Profile...' : 'Save Community Profile'}
+          </Button>
         </div>
-      
+
       {/* Realm Integration Modal */}
       <Dialog open={realmModalOpen} onOpenChange={handleRealmClose}>
         <DialogContent className="sm:max-w-md">

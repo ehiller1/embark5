@@ -1,11 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getPromptByType as fetchPromptByType, Prompt, PromptType } from '@/utils/promptUtils';
 
-interface PromptResult {
-  success: boolean;
-  data?: Prompt;
-  error?: any;
-}
 
 interface PromptsData {
   prompts: { [key: string]: Prompt };

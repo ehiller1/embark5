@@ -81,10 +81,10 @@ export function useCardConversations(cardId: string, conversationType: 'interact
       
       if (conversationType === 'interaction') {
         // Simulate the card responding directly
-        responseContent = await generateCardResponse(card, content);
+        responseContent = await generateCardResponse(card);
       } else {
         // Simulate advisor giving advice about interacting with the card
-        responseContent = await generateAdvisoryResponse(card, content);
+        responseContent = await generateAdvisoryResponse(card);
       }
       
       // Add AI response to UI
@@ -131,7 +131,7 @@ export function useCardConversations(cardId: string, conversationType: 'interact
 }
 
 // Helper function to generate a response as if the card is speaking
-async function generateCardResponse(card: ImplementationCard | null, userMessage: string): Promise<string> {
+async function generateCardResponse(card: ImplementationCard | null): Promise<string> {
   // In a real implementation, this would call an AI service
   // For now, we'll generate a simple response based on the card data
   
@@ -154,7 +154,7 @@ async function generateCardResponse(card: ImplementationCard | null, userMessage
 }
 
 // Helper function to generate advisory response about interacting with the card
-async function generateAdvisoryResponse(card: ImplementationCard | null, userMessage: string): Promise<string> {
+async function generateAdvisoryResponse(card: ImplementationCard | null): Promise<string> {
   // In a real implementation, this would call an AI service
   // For now, we'll generate a simple response based on the card data
   

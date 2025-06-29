@@ -6,7 +6,7 @@ import { Prompt, addPromptToDb, deletePromptFromDb, createRequiredPrompts } from
  * Hook for prompt operations like adding, deleting and ensuring required prompts exist
  */
 export function usePromptsOperations() {
-  const { prompts, loading, error, refreshPrompts, getPromptByType } = usePromptsData();
+  const { prompts, error, refreshPrompts, getPromptByType } = usePromptsData();
 
   const addPrompt = async (newPrompt: Omit<Prompt, 'id' | 'created_at'>) => {
     const result = await addPromptToDb(newPrompt);
@@ -34,7 +34,7 @@ export function usePromptsOperations() {
 
   return {
     prompts,
-    loading,
+
     error,
     addPrompt,
     deletePrompt,

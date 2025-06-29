@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { MainLayout } from '@/components/MainLayout';
+// MainLayout is provided by router
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'; // TabsContent is unused
 import { Input } from '@/components/ui/input';
@@ -193,8 +193,8 @@ const MinistryIdeasPage = () => {
   });
   
   return (
-    <MainLayout>
-      <div className="space-y-6">
+    <>
+      <div className="container py-6 space-y-6">
         <div>
           <h1 className="text-3xl font-bold mb-2">Ministry Ideas</h1>
           <p className="text-muted-foreground">
@@ -277,7 +277,7 @@ const MinistryIdeasPage = () => {
           ))}
         </div>
       </div>
-    </MainLayout>
+    </>
   );
 };
 

@@ -50,7 +50,7 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
       const companionToSelect = companions.find(c => c.id === pendingSelectedCompanionId);
       if (companionToSelect) {
         console.log('[CompanionSelectionModalParish] Calling selectCompanion with:', companionToSelect);
-        selectCompanion(companionToSelect); // This is from useNarrativeAvatar hook
+        selectCompanion(companionToSelect.id); // This is from useNarrativeAvatar hook
         companionObjectToSave = companionToSelect;
       } else {
         console.warn('[CompanionSelectionModalParish] Pending companion ID not found in companions list. Deselecting.');

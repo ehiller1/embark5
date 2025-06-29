@@ -70,7 +70,7 @@ export function useScenarioRefinement() {
         .map(s => `${s.title}: ${s.description}`)
         .join("\n\n");
 
-      let finalPrompt = promptData.prompt
+      const finalPrompt = promptData.prompt
         .replace("$(messages)", conversationHistory)
         .replace("$(scenario description)", scenarioContext);
 

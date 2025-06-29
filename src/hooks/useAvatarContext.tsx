@@ -1,8 +1,7 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import { useNarrativeAvatar } from './useNarrativeAvatar';
 import { useSelectedCompanion } from './useSelectedCompanion';
-import { toast } from './use-toast';
 
 interface AvatarContextState {
   isLoading: boolean;
@@ -20,10 +19,10 @@ const AvatarContext = createContext<AvatarContextState | null>(null);
 
 export function AvatarProvider({ children }: { children: ReactNode }) {
   const { 
-    selectedChurchAvatar, 
-    selectedCommunityAvatar,
-    fetchChurchAvatars,
-    fetchCommunityAvatars
+    churchAvatar, 
+    communityAvatar,
+    churchAvatars,
+    communityAvatars
   } = useNarrativeAvatar();
   const { selectedCompanion } = useSelectedCompanion();
   const [isLoading, setIsLoading] = useState(true);
@@ -31,9 +30,9 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
   const [loadAttempts, setLoadAttempts] = useState(0);
 
   const missingAvatars = {
-    church: !selectedChurchAvatar,
-    community: !selectedCommunityAvatar,
-    companion: !selectedCompanion
+    church: !churchAvatar,
+    community: !communityAvatar,
+    companion: !selectedCompanion,
   };
 
   const avatarsReady = !missingAvatars.church && !missingAvatars.community && !missingAvatars.companion;
@@ -45,30 +44,27 @@ export function AvatarProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    const loadAvatars = async () => {
-      setIsLoading(true);
-      setError(null);
-      
+    const checkAvatars = async () => {
       try {
-        await Promise.all([
-          fetchChurchAvatars(),
-          fetchCommunityAvatars()
-        ]);
-        setIsLoading(false);
+        setIsLoading(true);
+        setError(null);
+        
+        // Avatars are loaded via the useNarrativeAvatar hook
+        // Just check if we have the data we need
+        if (churchAvatars.length === 0 || communityAvatars.length === 0) {
+          setError('Failed to load avatars. Please try again.');
+        }
+        
       } catch (err) {
-        console.error('[AvatarContext] Error loading avatars:', err);
+        console.error('Error checking avatars:', err);
         setError('Failed to load avatars. Please try again.');
+      } finally {
         setIsLoading(false);
-        toast({
-          title: "Error loading avatars",
-          description: "We couldn't load the avatar data. Please try again.",
-          variant: "destructive"
-        });
       }
     };
-
-    loadAvatars();
-  }, [loadAttempts, fetchChurchAvatars, fetchCommunityAvatars]);
+    
+    checkAvatars();
+  }, [churchAvatars, communityAvatars, loadAttempts]);
 
   return (
     <AvatarContext.Provider value={{

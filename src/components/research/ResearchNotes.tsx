@@ -1,8 +1,8 @@
 
-import React from 'react';
+
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Edit, Save } from "lucide-react";
 
@@ -35,7 +35,7 @@ export function ResearchNotes({
       <CardHeader>
         <CardTitle className="text-base font-medium">Research Notes</CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex flex-col space-y-4 min-h-0">
         <Textarea
           value={currentNote}
           onChange={(e) => onNoteChange(e.target.value)}
@@ -56,8 +56,8 @@ export function ResearchNotes({
           All notes are saved to local storage and will be used in the research summary.
         </p>
 
-        <ScrollArea className="h-[calc(100vh-35rem)]">
-          <div className="space-y-4">
+        <div className="max-h-[70vh] overflow-auto">
+          <div className="flex-1 min-h-0 overflow-auto space-y-4">
             {notes.length === 0 && (
               <p className="text-center text-muted-foreground py-4">
                 {activeCategory
@@ -86,7 +86,7 @@ export function ResearchNotes({
               </Card>
             ))}
           </div>
-        </ScrollArea>
+        </div>
       </CardContent>
     </Card>
   );
