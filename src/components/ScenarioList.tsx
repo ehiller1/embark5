@@ -71,7 +71,7 @@ export const ScenarioList: React.FC<ScenarioListProps> = ({
       console.error('Failed to generate scenarios:', error);
       toast({
         title: "Avatar Selection Required",
-        description: "Please ensure you have selected both a Church and Community avatar before generating scenarios.",
+        description: "Please ensure you have selected both a Community and Neighborhood avatars before generating scenarios.",
         variant: "destructive" // Changed from "warning" to "destructive"
       });
     }

@@ -45,11 +45,14 @@ import ConversationParishSurvey from './pages/Conversation_parish_survey';
 import CrowdfundingMarketplace from './pages/CrowdfundingMarketplace';
 import ConversationParish from './pages/Conversation_parish';
 import SurveySummary from './pages/survey_summary';
+import SurveyNeighborhoodBuild from './pages/SurveyNeighborhoodBuild';
+import NeighborhoodSurvey from './pages/NeighborhoodSurvey';
 import MinistryDetail from './pages/MinistryDetail';
 import InvestmentSuccess from './pages/InvestmentSuccess';
 import InvestmentDashboard from './pages/InvestmentDashboard';
 import Viability from './pages/Viability';
 import VocationalDiscernment from './pages/VocationalDiscernment';
+import SurveyBuild from './pages/SurveyBuild';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -133,8 +136,12 @@ const App = () => {
                       <Route path="/plan-build" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanBuilder /></ProtectedRoute>} />
                       <Route path="/plan-build/:scenarioId" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanBuilder /></ProtectedRoute>} />
                                             
-                      <Route path="/viability" element={<ProtectedRoute allowedRoles={['Clergy']}><Viability /></ProtectedRoute>} />
+                      <Route path="/viability" element={<Viability />} />
                       <Route path="/vocational-discernment" element={<ProtectedRoute allowedRoles={['Clergy']}><VocationalDiscernment /></ProtectedRoute>} />
+                      <Route path="/survey-build" element={<ProtectedRoute allowedRoles={['Clergy']}><SurveyBuild /></ProtectedRoute>} />
+                      <Route path="/survey-neighborhood-build" element={<ProtectedRoute allowedRoles={['Clergy']}><SurveyNeighborhoodBuild /></ProtectedRoute>} />
+                      <Route path="/neighborhood-survey" element={<ProtectedRoute allowedRoles={['Clergy']}><NeighborhoodSurvey /></ProtectedRoute>} />
+                      <Route path="/surveys/:id/summary" element={<ProtectedRoute allowedRoles={['Clergy']}><SurveySummary /></ProtectedRoute>} />
 
                       {/* Parish-only routes */}
                       <Route path="/conversation-parish-survey" element={<ProtectedRoute allowedRoles={['Parish']}><ConversationParishSurvey /></ProtectedRoute>} />

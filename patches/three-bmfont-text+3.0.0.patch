@@ -1,0 +1,13 @@
+diff --git a/package.json b/package.json
+index 123456..789012 100644
+--- a/package.json
++++ b/package.json
+@@ -2,7 +2,7 @@
+   "name": "three-bmfont-text",
+   "version": "3.0.0",
+   "description": "renders BMFont files in ThreeJS with word-wrapping",
+-  "main": "index.js",
++  "main": "./index.js",
+   "license": "MIT",
+   "author": {
+     "name": "Matt DesLauriers",

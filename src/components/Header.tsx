@@ -72,7 +72,7 @@ export function Header() {
   };
   
   return (
-    <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm">
+    <header className="border-b bg-white/80 backdrop-blur-sm sticky top-0 z-50 shadow-sm text-black">
       <div className="container mx-auto flex justify-between items-center py-4 px-4 relative">
         {/* Left side dropdown menu */}
         <div className="flex items-center">

@@ -76,9 +76,9 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="sm:max-w-xl md:max-w-2xl">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-2xl font-serif">Select Your Conversation Partner</AlertDialogTitle>
+          <AlertDialogTitle className="text-2xl font-serif">Select Your Conversation Companion</AlertDialogTitle>
           <AlertDialogDescription className="pt-2">
-            Choose a conversation partner that most closely represents the sentiment of your community.
+          As we begin your journey, you are asked to select a Conversation Companion. Your companion is most helpful when it represents the culture of your faith community. Our Conversation Companion provides you the ability to test your discernment throughout the process and gain helpful insights as you continue to journey forward.
           </AlertDialogDescription>
         </AlertDialogHeader>
         

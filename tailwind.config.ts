@@ -59,25 +59,23 @@ export default {
 					foreground: "hsl(var(--card-foreground))",
 				},
 				journey: {
-					pink: '#E9407A',
-					red: '#D62839',
-					lightPink: '#F8D8E3',
-					darkRed: '#831230',
-					blue: '#4A6FA5',
-					teal: '#3D8C91',
-					purple: '#6B4E71',
+					primary: '#47799f',
+					secondary: '#c46659',
+					blue: '#47799f',
+					yellow: '#f6cd7a',
+					green: '#90b4a3',
 					light: '#F5F7FA',
 					dark: '#2D3748'
 				},
 				sidebar: {
-					DEFAULT: '#F8D8E3',
-					foreground: '#831230',
-					primary: '#E9407A',
-					'primary-foreground': '#FFF',
-					accent: '#4A6FA5',
-					'accent-foreground': '#FFF',
-					border: '#E5E7EB',
-					ring: '#D1D5DB'
+					DEFAULT: '#f6cd7a',
+					foreground: '#d9b054',
+					primary: '#f6cd7a',
+					'primary-foreground': '#5a4a1e',
+					accent: '#f8d68e',
+					'accent-foreground': '#5a4a1e',
+					border: '#f8d68e',
+					ring: '#f6cd7a'
 				}
 			},
 			borderRadius: {
@@ -130,16 +128,21 @@ export default {
 				'bounce-subtle': 'bounce-subtle 2s ease-in-out infinite'
 			},
 			backgroundImage: {
-				'gradient-journey': 'linear-gradient(135deg, #E9407A 0%, #D62839 100%)',
-				'gradient-journey-light': 'linear-gradient(135deg, #F8D8E3 0%, #E9407A 100%)',
+				'gradient-journey': 'linear-gradient(135deg, #47799F 0%, #2A4E6E 100%)',
+				'gradient-journey-light': 'linear-gradient(135deg, #D6E4F0 0%, #47799F 100%)',
 				'gradient-journey-teal': 'linear-gradient(135deg, #3D8C91 0%, #4A6FA5 100%)',
-				'soft-light': 'linear-gradient(120deg, #fdfbfb 0%, #F8D8E3 100%)',
-				'soft-glow': 'radial-gradient(circle at center, rgba(233,64,122,0.2) 0%, rgba(255,255,255,0) 70%)'
+				'soft-light': 'linear-gradient(120deg, #fdfbfb 0%, #D6E4F0 100%)',
+				'soft-glow': 'radial-gradient(circle at center, rgba(71,121,159,0.2) 0%, rgba(255,255,255,0) 70%)',
+				'gradient-red-soft': 'linear-gradient(135deg, #f8d9d5 0%, #c46659 100%)',
+				'gradient-red-light': 'linear-gradient(135deg, #ffffff 0%, #f8d9d5 100%)',
+				'gradient-yellow': 'linear-gradient(135deg, #f6cd7a 0%, #d9b054 100%)',
+				'gradient-yellow-light': 'linear-gradient(135deg, #f8f2e0 0%, #f6cd7a 100%)',
+				'gradient-yellow-soft': 'linear-gradient(135deg, #ffffff 0%, #f8f2e0 100%)'
 			},
 			boxShadow: {
-				'journey': '0 4px 14px rgba(233, 64, 122, 0.15)',
-				'journey-md': '0 6px 20px rgba(233, 64, 122, 0.2)',
-				'journey-lg': '0 10px 30px rgba(233, 64, 122, 0.25)'
+				'journey': '0 4px 14px rgba(71, 121, 159, 0.15)',
+				'journey-md': '0 6px 20px rgba(71, 121, 159, 0.2)',
+				'journey-lg': '0 10px 30px rgba(71, 121, 159, 0.25)'
 			},
 			transitionProperty: {
 				'height': 'height',

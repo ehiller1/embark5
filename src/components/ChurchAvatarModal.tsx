@@ -62,7 +62,7 @@ export function ChurchAvatarModal({ open, onOpenChange, selectChurchAvatar }: Ch
     if (!avatarName.trim()) {
       toast({
         title: 'Name Required',
-        description: 'Please enter a name for your church avatar.',
+        description: 'Please enter a name for your faith community or organization avatar.',
         variant: 'destructive',
       });
       return;
@@ -141,7 +141,7 @@ export function ChurchAvatarModal({ open, onOpenChange, selectChurchAvatar }: Ch
       });
 
       if (!result.success) throw new Error('Save returned unsuccessful');
-      toast({ title: 'Avatar Saved', description: 'Your church avatar has been saved.' });
+      toast({ title: 'Avatar Saved', description: 'Your avatar has been saved.' });
       selectChurchAvatar(result.data as ChurchAvatar);
       onOpenChange(false);
     } catch (err) {

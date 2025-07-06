@@ -79,33 +79,42 @@ export function LandingHero() {
     <div className="relative flex items-start justify-center min-h-screen px-4 py-16 bg-soft-light">
       <div className="max-w-6xl w-full grid md:grid-cols-2 gap-12 items-center">
         <div className="space-y-6">
-          <h1 className="text-5xl font-bold text-journey-darkRed">
+          <h1 className="text-5xl font-bold text-[#c46659]">
             Reflective Spirit
           </h1>
-          <h2 className="text-2xl text-journey-red mb-4">
-            Reimagining faith communities for the future
+          <h2 className="text-2xl text-[#c46659] mb-4">
+            Equiping faith communities for the future
           </h2>
           <div className="space-y-4 text-gray-700">
             <p>
               Welcome! Reflective Spirit helps us journey through a process of discernment and renewal.
             </p>
             <p>
-              Through contemplative conversation and innovative thinking, you can help us build a discernment plan informed by our community and guided by God.
+              Through contemplative conversation and innovative thinking, you can help us build a discernment plan informed by your community and guided by God.
             </p>
           </div>
-          <Button 
-            onClick={handleStartJourney} 
-            className="mt-6 px-8 py-3 text-lg bg-journey-pink text-white hover:opacity-90 transition-all"
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <LoadingSpinner className="mr-2" />
-            ) : (
-              <>
-                {isAuthenticated ? "Begin" : "Where are you led?"} <ArrowRight className="ml-2" />
-              </>
-            )}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <Button 
+              onClick={handleStartJourney} 
+              className="px-8 py-3 text-lg bg-[#47799f] text-white hover:bg-[#47799f]/90 hover:shadow-lg transition-all"
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <LoadingSpinner className="mr-2" />
+              ) : (
+                <>
+                  {isAuthenticated ? "Begin" : "Ready to begin?"} <ArrowRight className="ml-2" />
+                </>
+              )}
+            </Button>
+            <Button 
+              onClick={() => navigate('/viability')} 
+              className="px-8 py-3 text-lg border border-[#47799f] text-[#47799f] bg-transparent hover:bg-[#47799f]/10 transition-all"
+              variant="outline"
+            >
+              Uncertain about starting?
+            </Button>
+          </div>
         </div>
         <div className="flex items-center justify-center p-4 bg-white rounded-lg shadow-lg">
           {imageLoading && <LoadingSpinner className="h-16 w-16" />}

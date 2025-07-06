@@ -1,12 +1,17 @@
 
 
-import { Sparkles } from 'lucide-react';
-
 export const AppLogo = () => {
   return (
-    <h1 className="text-xl font-bold flex items-center">
-      <Sparkles className="h-5 w-5 mr-2 text-journey-pink" />
-      <span className="gradient-text">Reflective Spirit</span>
+    <h1 className="text-xl font-bold flex items-center text-black">
+      <div className="flex-shrink-0 w-8 h-8 mr-2">
+        <img 
+          src="/images/EmbarkNow-whitescript-square copy.svg" 
+          alt="EmbarkNow Logo" 
+          className="w-full h-full" 
+          style={{ objectFit: 'contain' }} 
+        />
+      </div>
+      <span className="text-[#47799F]">Reflective Spirit</span>
     </h1>
   );
 };

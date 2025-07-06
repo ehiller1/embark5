@@ -55,7 +55,10 @@ export function ProtectedRoute({
 
   // If authenticated and role restrictions are specified, check for role-based access
   if (allowedRoles && allowedRoles.length > 0) {
-    if (!role || !allowedRoles.includes(role)) {
+    // DEVELOPMENT MODE: Allow access to survey-build regardless of role
+    if (location.pathname === '/survey-build') {
+      console.log(`%c[ProtectedRoute] DEV MODE: Bypassing role check for ${location.pathname}`, 'color: purple; font-weight: bold;');
+    } else if (!role || !allowedRoles.includes(role)) {
       console.log(`%c[ProtectedRoute] UNAUTHORIZED for ${location.pathname}. Role '${role}' not in allowed roles: [${allowedRoles.join(', ')}]`, 'color: orange; font-weight: bold;');
       return <Navigate to={unauthorizedPath} replace />;
     }

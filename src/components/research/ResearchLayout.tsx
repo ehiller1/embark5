@@ -11,9 +11,10 @@ interface ResearchStep {
 }
 
 const RESEARCH_STEPS: ResearchStep[] = [
-  { number: 1, title: "Search",         description: "Search and gather information from different sources" },
-  { number: 2, title: "Save Notes",     description: "Save important findings to your research notes" },
-  { number: 3, title: "Generate Summary", description: "Create a comprehensive research summary" }
+  { number: 1, title: "Select",         description: "Select a unique focus that will guide your conversation companion in clarifying your search results as you discern.." },
+  { number: 2, title: "Search",         description: "Enter specific search criteria that relates to your ongoing discernment - be as specific as possible so that your conversation companion can be most helpful." },
+  { number: 3, title: "Save Notes",     description: "You are encouraged to save important information as you continue to discern so that your research summary is comprehensive." },
+  { number: 4, title: "Generate Summary", description: "Create a comprehensive research summary based on your individual inquiries that is also informed by your community surveys." }
 ];
 
 interface ResearchLayoutProps {
@@ -47,7 +48,7 @@ export function ResearchLayout({
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="text-[#47799f] hover:text-[#3a6380]">
                 <HelpCircle className="h-5 w-5" />
               </Button>
             </TooltipTrigger>
@@ -59,24 +60,31 @@ export function ResearchLayout({
       </div>
 
       {/* Progress Steps */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/50 p-4 rounded-lg">
-        {RESEARCH_STEPS.map((step) => (
-          <div
-            key={step.number}
-            className="relative flex flex-col items-center p-4 bg-card rounded-lg border shadow-sm"
-          >
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
-              {step.number}
+      <div className="bg-gradient-to-r from-[#f8f2e0]/50 to-[#D6E4F0]/50 p-4 rounded-lg shadow-journey-sm">
+        <div className="grid grid-cols-4 gap-2">
+          {RESEARCH_STEPS.map((step) => (
+            <div
+              key={step.number}
+              className="group flex flex-col bg-white rounded-lg border border-[#47799f]/20 shadow-journey p-3 hover:shadow-md transition-shadow duration-200 cursor-pointer"
+            >
+              <div className="flex items-center gap-2 mb-1">
+                <div className="w-5 h-5 rounded-full bg-[#47799f] text-white flex items-center justify-center text-xs font-medium flex-shrink-0">
+                  {step.number}
+                </div>
+                <h3 className="font-medium text-sm truncate text-[#47799f]">{step.title}</h3>
+              </div>
+              <div className="relative">
+                <p className="text-xs text-muted-foreground line-clamp-2 group-hover:line-clamp-none transition-all duration-200">
+                  {step.description}
+                </p>
+                <div className="absolute bottom-0 right-0 bg-gradient-to-l from-white to-transparent w-8 h-full pointer-events-none"></div>
+              </div>
             </div>
-            <h3 className="mt-2 font-medium text-base">{step.title}</h3>
-            <p className="text-sm text-muted-foreground text-center mt-1">
-              {step.description}
-            </p>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      {/* Main Content: two equal columns on md+ */}
-      <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 min-h-0 w-full">
+      {/* Main Content */}
+      <div className="flex-1 min-h-0 w-full">
         {children}
       </div>
     </div>

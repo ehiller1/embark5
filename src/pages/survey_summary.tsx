@@ -2,13 +2,20 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/lib/supabase';
 import { useUser } from '@/hooks/useUser';
 import { useOpenAI } from '@/hooks/useOpenAI';
+import { useNavigate, Link } from 'react-router-dom';
 
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertCircle, Loader2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Loader2, X } from 'lucide-react';
 import { checkChurchProfileExists } from '@/utils/dbUtils';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 
 interface Message {
   id: string;
@@ -30,6 +37,7 @@ interface ConversationHistory {
   conversation_history?: {
     messages: Message[];
   };
+  text_field_responses?: Record<string, string>; // Add text field responses
 }
 
 interface SurveySummary {
@@ -60,21 +68,30 @@ interface Prompt {
   created_at: string;
 }
 
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
-
-const SurveySummaryPage: React.FC = () => {
+const SurveySummaryPage = () => {
   const { user } = useUser();
   const { generateResponse } = useOpenAI();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationHistory[]>([]);
-  // Using setSurveyPrompt but not directly using the surveyPrompt state variable
-  // Instead we pass the prompt text directly to generateSurveySummary
-  const [, setSurveyPrompt] = useState<Prompt | null>(null);
   const [summaryData, setSummaryData] = useState<SurveySummary | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<boolean>(false);
-  
+  const [selectedConversation, setSelectedConversation] = useState<ConversationHistory | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Function to handle opening the response modal
+  const handleOpenResponseModal = (conversation: ConversationHistory) => {
+    setSelectedConversation(conversation);
+    setIsModalOpen(true);
+  };
+
+  // Function to handle closing the response modal
+  const handleCloseResponseModal = () => {
+    setIsModalOpen(false);
+    setSelectedConversation(null);
+  };
+
   // Define the fetchConversationHistory function
   const fetchConversationHistory = useCallback(async (churchId: string): Promise<ConversationHistory[]> => {
     if (!churchId) {
@@ -84,12 +101,12 @@ const SurveySummaryPage: React.FC = () => {
 
     try {
       console.log('[SurveySummary] ---- DIAGNOSTICS START ----');
-      
+
       // First check if the table exists and is accessible
       const { count: tableCount, error: tableError } = await supabase
         .from('conversation_history')
         .select('*', { count: 'exact', head: true });
-      
+
       console.log('[SurveySummary] Table access check:', {
         success: !tableError,
         error: tableError,
@@ -103,21 +120,21 @@ const SurveySummaryPage: React.FC = () => {
         email: currentUser?.email,
         isAuthenticated: !!currentUser
       });
-      
+
       // Super important: Check ALL conversation pages in the system
       console.log('[SurveySummary] Checking ALL conversation_pages in the database...');
       const { data: conversationPages, error: pagesError } = await supabase
         .from('conversation_history')
         .select('conversation_page')
-        .limit(100);  // Get a good sample
-        
+        .limit(100); // Get a good sample
+
       if (pagesError) {
         console.error('[SurveySummary] Error checking conversation pages:', pagesError);
       } else {
         // Extract unique conversation page values
         const uniquePages = [...new Set(conversationPages?.map(p => p.conversation_page))];
         console.log('[SurveySummary] Available conversation_page values:', uniquePages);
-        
+
         // If we found any pages, try querying each one specifically
         if (uniquePages.length > 0) {
           for (const pageName of uniquePages) {
@@ -128,12 +145,12 @@ const SurveySummaryPage: React.FC = () => {
               .eq('church_id', churchId)
               .eq('conversation_page', pageName)
               .limit(3);
-              
+
             console.log(`[SurveySummary] Results for page "${pageName}":`, {
               found: (pageData && pageData.length > 0) || false,
               count: pageData?.length || 0
             });
-            
+
             if (pageData && pageData.length > 0) {
               console.log(`[SurveySummary] Found data with conversation_page="${pageName}"!`);
               console.log('[SurveySummary] Sample:', pageData[0]);
@@ -145,7 +162,7 @@ const SurveySummaryPage: React.FC = () => {
           }
         }
       }
-      
+
       // 1. Try with ONLY church_id filter
       console.log('[SurveySummary] Trying query with ONLY church_id...');
       const { data: churchData, error: churchError } = await supabase
@@ -153,14 +170,14 @@ const SurveySummaryPage: React.FC = () => {
         .select('id, church_id, conversation_page, created_at')
         .eq('church_id', churchId)
         .order('created_at', { ascending: false });
-      
+
       console.log('[SurveySummary] Church ID only query:', {
         success: !churchError,
         error: churchError,
         count: churchData?.length || 0,
         sample: churchData?.slice(0, 2) || []
       });
-      
+
       // 2. Try with no filters (get all records)
       console.log('[SurveySummary] Trying query with NO filters to see all accessible records...');
       const { data: allRecords, error: allError, count: recordCount } = await supabase
@@ -168,7 +185,7 @@ const SurveySummaryPage: React.FC = () => {
         .select('id, church_id, conversation_page, created_at', { count: 'exact' })
         .order('created_at', { ascending: false })
         .limit(10);
-      
+
       console.log('[SurveySummary] All records query:', {
         success: !allError,
         error: allError,
@@ -177,19 +194,19 @@ const SurveySummaryPage: React.FC = () => {
         uniquePages: allRecords ? [...new Set(allRecords.map(r => r.conversation_page))] : [],
         uniqueChurches: allRecords ? [...new Set(allRecords.map(r => r.church_id))] : [],
       });
-      
+
       // 3. Try with exact parameters we need but with case variations
       console.log('[SurveySummary] Trying direct query with exact parameters...');
-      
+
       // Log the exact values we're using for the query
       console.log('[SurveySummary] Query parameters:', {
         churchId,
         conversationPage: 'parish_survey'
       });
-      
+
       // Try several variations of conversation_page
       const pageVariations = ['parish_survey', 'Parish_Survey', 'Parish Survey', 'PARISH_SURVEY', 'parish survey'];
-      
+
       for (const pageVar of pageVariations) {
         console.log(`[SurveySummary] Trying with conversation_page = "${pageVar}"`);
         const { data: varData, error: varError } = await supabase
@@ -198,34 +215,34 @@ const SurveySummaryPage: React.FC = () => {
           .eq('church_id', churchId)
           .eq('conversation_page', pageVar)
           .order('created_at', { ascending: false });
-        
+
         console.log(`[SurveySummary] Result for "${pageVar}":`, {
           success: !varError,
           error: varError,
           count: varData?.length || 0,
           found: (varData && varData.length > 0) || false
         });
-        
+
         if (varData && varData.length > 0) {
           console.log(`[SurveySummary] Found data with conversation_page="${pageVar}"!`);
           console.log('[SurveySummary] ---- DIAGNOSTICS END ----');
           return varData as ConversationHistory[];
         }
       }
-      
+
       // If we have any data from general queries, return that instead of empty
       if (churchData && churchData.length > 0) {
         console.log('[SurveySummary] Falling back to church_id only filter data');
         console.log('[SurveySummary] ---- DIAGNOSTICS END ----');
         return churchData as ConversationHistory[];
       }
-      
+
       if (allRecords && allRecords.length > 0) {
         console.log('[SurveySummary] Falling back to all available records');
         console.log('[SurveySummary] ---- DIAGNOSTICS END ----');
         return allRecords as ConversationHistory[];
       }
-      
+
       console.log('[SurveySummary] No data found with any query variation');
       console.log('[SurveySummary] ---- DIAGNOSTICS END ----');
       return [];
@@ -234,7 +251,7 @@ const SurveySummaryPage: React.FC = () => {
       throw error;
     }
   }, []);
-  
+
   // Function to fetch survey prompt
   const fetchSurveyPrompt = useCallback(async () => {
     try {
@@ -244,57 +261,71 @@ const SurveySummaryPage: React.FC = () => {
         .select('*')
         .eq('prompt_type', 'survey_summary')
         .single();
-      
+
       if (error) {
         console.error('[SurveySummary] Error fetching survey prompt:', error);
         throw error;
       }
-      
+
       if (!data) {
         console.error('[SurveySummary] No survey_summary prompt found');
         throw new Error('Survey prompt not found');
       }
-      
+
       // Log the entire prompt object to see its structure
       console.log('[SurveySummary] Successfully retrieved prompt:', data);
-      
+
       // Check which property contains the prompt text
       if (!data.prompt_text && data.prompt) {
         console.log('[SurveySummary] Using prompt property instead of prompt_text');
         data.prompt_text = data.prompt; // Copy prompt to prompt_text for consistent API
       }
-      
+
       return data as Prompt;
     } catch (err) {
       console.error('[SurveySummary] Error in fetchSurveyPrompt:', err);
       throw err;
     }
   }, []);
-  
+
   // Function to generate summary
   const generateSurveySummary = useCallback(async (conversations: ConversationHistory[], promptText: string) => {
     try {
       setIsGeneratingSummary(true);
-      
-      // Format conversation data for the prompt
-      let conversationData = conversations.map(c => {
-        // Check both possible locations for messages
+
+      // Extract both conversation messages and text field responses from all conversations
+      const surveyData = conversations.map(c => {
+        // Get conversation messages
         const messages = c.conversation_history?.messages || c.messages || [];
-        // Only include user messages for the prompt, handling both 'role' and 'sender' fields
         console.log('[SurveySummary] Messages format sample:', messages.length > 0 ? JSON.stringify(messages[0]).substring(0, 100) : 'No messages');
-        
+
         const userMessages = messages
           .filter(m => m.role === 'user' || m.sender === 'user') // Handle both formats
           .map(m => `${m.content}`) // Just the content
-        
+
+        const conversationData = userMessages.join('\n');
         console.log('[SurveySummary] Found ' + userMessages.length + ' user messages in conversation');
-        return userMessages.join('\n');
+
+        // Get text field responses if available
+        let textFieldData = '';
+        if (c.text_field_responses) {
+          textFieldData = Object.entries(c.text_field_responses)
+            .map(([questionId, response]) => `Question ID: ${questionId}, Response: ${response}`)
+            .join('\n');
+          console.log('[SurveySummary] Found text field responses:', Object.keys(c.text_field_responses).length);
+        }
+
+        // Combine both types of data
+        return `--- Response ID: ${c.id} ---\n${textFieldData ? '\nText Field Responses:\n' + textFieldData + '\n' : ''}\nConversation Data:\n${conversationData}`;
       }).join('\n\n');
-      
-      // If conversation data is empty, provide a placeholder message
-      if (!conversationData || conversationData.trim() === '') {
-        console.log('[SurveySummary] Warning: No user messages found in conversations, using placeholder');
-        conversationData = "No survey responses have been recorded yet.";
+
+      // If survey data is empty, provide a placeholder message
+      const finalSurveyData = (!surveyData || surveyData.trim() === '') 
+        ? "No survey responses have been recorded yet."
+        : surveyData;
+        
+      if (!surveyData || surveyData.trim() === '') {
+        console.log('[SurveySummary] Warning: No survey responses found, using placeholder');
       }
       
       // Populate the prompt with conversation data
@@ -305,13 +336,13 @@ const SurveySummaryPage: React.FC = () => {
       
       // Log the prompt text for debugging
       console.log('[SurveySummary] Original prompt text starts with:', promptText.substring(0, 100) + '...');
-      console.log('[SurveySummary] Conversation data sample:', conversationData.substring(0, 100) + '...');
+      console.log('[SurveySummary] Survey data sample:', finalSurveyData.substring(0, 100) + '...');
       
       // Replace both possible placeholder formats
       const populatedPrompt = promptText
-        .replace('{conversation_data}', conversationData)
-        .replace('$(message history)', conversationData) // Old format with space
-        .replace('$(message_history)', conversationData); // New format with underscore
+        .replace('{conversation_data}', finalSurveyData)
+        .replace('$(message history)', finalSurveyData) // Old format with space
+        .replace('$(message_history)', finalSurveyData); // New format with underscore
       
       console.log('[SurveySummary] Looking for placeholders: {conversation_data}, $(message history), $(message_history)');
       
@@ -387,14 +418,38 @@ const SurveySummaryPage: React.FC = () => {
           return;
         }
         
-        // Fetch conversation history
+        // Fetch conversation history and survey responses
         const conversations = await fetchConversationHistory(user.church_id);
-        setConversations(conversations);
+        
+        // Fetch text field responses for each conversation if available
+        const enhancedConversations = await Promise.all(conversations.map(async (conversation) => {
+          try {
+            // Query the survey_responses table to get text field responses
+            const { data: responses } = await supabase
+              .from('survey_responses')
+              .select('response_data')
+              .eq('user_id', conversation.user_id)
+              .eq('church_id', user.church_id)
+              .maybeSingle();
+              
+            if (responses && responses.response_data) {
+              return {
+                ...conversation,
+                text_field_responses: responses.response_data
+              };
+            }
+            return conversation;
+          } catch (err) {
+            console.error('[SurveySummary] Error fetching text field responses:', err);
+            return conversation;
+          }
+        }));
+        
+        setConversations(enhancedConversations);
         
         if (conversations.length > 0) {
           // Fetch survey prompt
           const surveyPrompt = await fetchSurveyPrompt();
-          setSurveyPrompt(surveyPrompt);
           
           // Use either prompt_text or prompt property as available
           const promptToUse = surveyPrompt.prompt_text || surveyPrompt.prompt || '';
@@ -493,21 +548,19 @@ const SurveySummaryPage: React.FC = () => {
     );
   }
 
-  const navigate = useNavigate();
-
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-4 pt-2 flex items-center">
+    <div className="container mx-auto p-4 pb-12">
+      <div className="mb-6 flex items-center">
         <Button 
           variant="ghost" 
           size="sm" 
-          onClick={() => navigate('/clergyHomePage')}
+          onClick={() => navigate('/clergy-home')}
           className="flex items-center gap-1 text-journey-pink hover:bg-journey-lightPink/20"
         >
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
       </div>
-        <h1 className="text-3xl font-bold mb-6">Parish Survey Summary</h1>
+      <h1 className="text-3xl font-bold mb-6">Survey Summary</h1>
         
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -681,7 +734,11 @@ const SurveySummaryPage: React.FC = () => {
           <h2 className="text-2xl font-semibold mb-4">Recent Responses</h2>
           
           {conversations.slice(0, 5).map((conversation) => (
-            <Card key={conversation.id}>
+            <Card 
+              key={conversation.id} 
+              className="cursor-pointer hover:shadow-md transition-shadow duration-200"
+              onClick={() => handleOpenResponseModal(conversation)}
+            >
               <CardHeader>
                 <div className="flex justify-between items-center">
                   <CardTitle>Response #{conversation.id}</CardTitle>
@@ -701,11 +758,71 @@ const SurveySummaryPage: React.FC = () => {
                       </div>
                     ))}
                 </div>
+                <div className="mt-4 text-sm text-blue-600 flex items-center justify-end">
+                  <span>Click to view full response</span>
+                </div>
               </CardContent>
             </Card>
           ))}
         </div>
-      </div>
+      
+      {/* Modal rendered conditionally below */}
+      {isModalOpen && (
+        <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center justify-between">
+                <span>Survey Response Details</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCloseResponseModal}
+                  className="h-8 w-8 rounded-full"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </DialogTitle>
+            </DialogHeader>
+            
+            {selectedConversation && (
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Response ID: {selectedConversation?.id}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Submitted on: {selectedConversation?.created_at ? new Date(selectedConversation.created_at).toLocaleString() : 'Unknown'}
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="space-y-6">
+                  <h3 className="text-lg font-medium">Survey Conversation</h3>
+                  
+                  {selectedConversation?.conversation_history?.messages?.map((message, index) => (
+                    <div 
+                      key={index} 
+                      className={`p-4 rounded-lg ${message.role === 'user' ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-gray-50 border-l-4 border-gray-300'}`}
+                    >
+                      <p className="font-medium mb-2">
+                        {message.role === 'user' ? 'Respondent' : 'Survey System'}
+                      </p>
+                      <p className="whitespace-pre-wrap">{message.content}</p>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {message.timestamp ? new Date(message.timestamp).toLocaleString() : 'Unknown time'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                
+                <DialogFooter>
+                  <Button onClick={handleCloseResponseModal}>Close</Button>
+                </DialogFooter>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      )}
+    </div>
   );
 };
 

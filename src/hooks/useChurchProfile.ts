@@ -8,6 +8,9 @@ import { Database } from '@/types/supabase';
 // Type for the church_profile row
 type ChurchProfileRow = Database['public']['Tables']['church_profile']['Row'];
 
+// File types for church data uploads
+export type ChurchDataFileType = 'email_list_upload' | 'parochial_report_upload' | 'financial_report_upload';
+
 type SaveResult<T = any> = {
   success: boolean;
   error?: string;
@@ -212,7 +215,7 @@ export function useChurchProfile() {
 
   // Upload file to church_data table and storage
   const uploadChurchData = useCallback(
-    async (fileType: 'email_list_upload' | 'parochial_report_upload', file: File) => {
+    async (fileType: ChurchDataFileType, file: File) => {
       try {
         // Ensure we have a valid session before proceeding
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -379,7 +382,8 @@ export function useChurchProfile() {
         // with a `type` field indicating the document type.
         const dataTypeMap: { [key: string]: string } = {
           'email_list_upload': 'email list',
-          'parochial_report_upload': 'parochial report'
+          'parochial_report_upload': 'parochial report',
+          'financial_report_upload': 'financial_report'
         };
         const dataType = dataTypeMap[fileType] || fileType;
 

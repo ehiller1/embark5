@@ -77,6 +77,110 @@ export interface Database {
           // If church_profile.id (numeric) is the PK, then church_data.church_id should align or use a different FK.
         ];
       };
+      survey_templates: {
+        Row: {
+          id: string;
+          title: string;
+          description: string | null;
+          created_by: string | null;
+          church_id: string;
+          survey_type: string;
+          template_data: Json;
+          is_active: boolean;
+          public_url: string | null;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description?: string | null;
+          created_by?: string | null;
+          church_id: string;
+          survey_type: string;
+          template_data: Json;
+          is_active?: boolean;
+          public_url?: string | null;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<{
+          id: string;
+          title: string;
+          description: string | null;
+          created_by: string | null;
+          church_id: string;
+          survey_type: string;
+          template_data: Json;
+          is_active: boolean;
+          public_url: string | null;
+          created_at: string;
+          updated_at: string | null;
+        }>;
+        Relationships: [
+          {
+            foreignKeyName: "survey_templates_created_by_fkey";
+            columns: ["created_by"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "survey_templates_church_id_fkey";
+            columns: ["church_id"];
+            referencedRelation: "church_profile";
+            referencedColumns: ["church_id"];
+          }
+        ];
+      };
+      survey_responses: {
+        Row: {
+          id: string;
+          survey_template_id: string;
+          user_id: string | null;
+          church_id: string;
+          response_data: Json;
+          created_at: string;
+          updated_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          survey_template_id: string;
+          user_id?: string | null;
+          church_id: string;
+          response_data: Json;
+          created_at?: string;
+          updated_at?: string | null;
+        };
+        Update: Partial<{
+          id: string;
+          survey_template_id: string;
+          user_id: string | null;
+          church_id: string;
+          response_data: Json;
+          created_at: string;
+          updated_at: string | null;
+        }>;
+        Relationships: [
+          {
+            foreignKeyName: "survey_responses_survey_template_id_fkey";
+            columns: ["survey_template_id"];
+            referencedRelation: "survey_templates";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "survey_responses_user_id_fkey";
+            columns: ["user_id"];
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "survey_responses_church_id_fkey";
+            columns: ["church_id"];
+            referencedRelation: "church_profile";
+            referencedColumns: ["church_id"];
+          }
+        ];
+      };
       // ... other tables from your Supabase schema can be added here
     };
     Views: {

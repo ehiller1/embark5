@@ -21,7 +21,7 @@ export function AssessmentSidebar({ children }: AssessmentSidebarProps) {
   return (
     <SidebarProvider defaultOpen={false} open={open} onOpenChange={setOpen}>
       <div className="flex w-full min-h-screen">
-        <Sidebar variant="inset" collapsible="offcanvas" className="border-r">
+        <Sidebar variant="inset" collapsible="offcanvas" className="border-r w-64">
           <SidebarContent>
             <div className="px-2 py-3 text-sm text-center font-medium text-journey-darkRed border-b border-journey-pink/20">
               <div className="flex items-center justify-center space-x-1.5">

@@ -29,17 +29,17 @@ export const AssessmentSidebarContent: React.FC<AssessmentSidebarContentProps> =
   const displayAvatar = pageAvatar || conversationAvatar;
 
   return (
-    <div className="space-y-6 h-full bg-pink-100 rounded-xl border border-pink-200 p-2" key={refreshKey}>
+    <div className="space-y-6 bg-gradient-to-b from-[#f8f2e0] to-[#f6cd7a]/30 rounded-xl border border-[#f6cd7a] p-4" key={refreshKey}>
       <PageAvatarDisplay
         sectionAvatar={displayAvatar}
         selectedCompanion={selectedCompanion}
-        className="ml-10"
+        className="mx-auto"
       />
       <ResearchCategories
         pageType={pageType}
         activeCategory={activeCategory}
         onSelectCategory={onSelectCategory}
-        className="ml-10"
+        className="mx-auto"
       />
     </div>
   );

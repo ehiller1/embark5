@@ -1,15 +1,8 @@
-
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { HelpCircle, List } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { List } from "lucide-react";
 import { useResearchCategories, ResearchCategory } from '@/hooks/useResearchCategories';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
@@ -124,23 +117,14 @@ const DEFAULT_SEARCH_PROMPTS: Record<string, Record<string, string>> = {
 
   return (
     <Card className={`h-full ${className || ''}`}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-base font-medium flex items-center gap-1">
-          <List className="h-4 w-4" />
-          Categories
-        </CardTitle>
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-5 w-5">
-                <HelpCircle className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p>Select a category to begin your research</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+      <CardHeader className="pb-2">
+        <div className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base font-medium flex items-center gap-1">
+            <List className="h-4 w-4" />
+            Focus
+          </CardTitle>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">Select a category to begin your research</p>
       </CardHeader>
       <CardContent>
         <ScrollArea className="h-[calc(100vh-16rem)]">

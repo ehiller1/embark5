@@ -42,6 +42,7 @@ const CommunityProfilePage = (): ReactElement => {
   const [pledgingMembers, setPledgingMembers] = useState('');
   const [emailListFile, setEmailListFile] = useState<File | null>(null);
   const [parochialReportFile, setParochialReportFile] = useState<File | null>(null);
+  const [financialReportFile, setFinancialReportFile] = useState<File | null>(null);
 
   // Realm Integration States
   const [realmModalOpen, setRealmModalOpen] = useState(false);
@@ -188,6 +189,27 @@ const CommunityProfilePage = (): ReactElement => {
         );
       }
 
+      if (financialReportFile) {
+        console.log('[CommunityProfilePage] Queueing financial report for upload:', financialReportFile.name);
+        uploadPromises.push(
+          uploadChurchData('parochial_report_upload', financialReportFile)
+            .then(result => {
+              console.log('[CommunityProfilePage] Financial report upload result:', result);
+              if (result.success) {
+                setFinancialReportFile(null);
+                toast({
+                  title: 'Success',
+                  description: 'Financial report uploaded successfully',
+                  variant: 'default'
+                });
+              } else {
+                throw new Error(result.error || 'Failed to upload financial report');
+              }
+              return result;
+            })
+        );
+      }
+
       // Save profile data
       console.log('[CommunityProfilePage] Saving profile data...');
       const profileResult = await saveChurchProfile({
@@ -234,6 +256,11 @@ const CommunityProfilePage = (): ReactElement => {
         description: "Profile and documents saved successfully",
         variant: "default" 
       });
+      
+      // Navigate back to clergy home page after a short delay to show the success message
+      setTimeout(() => {
+        navigate('/clergy-home');
+      }, 1000);
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
@@ -395,15 +422,18 @@ const CommunityProfilePage = (): ReactElement => {
         <header className="mb-10 pb-6 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl gradient-text">
-              Your Church & Community Profile
+              Your Community Profile
             </h1>
             <Button variant="outline" onClick={() => navigate('/clergy-home')}>
               Back to Home
             </Button>
           </div>
-          <p className="mt-4 text-lg text-gray-600 max-w-3xl">
-            This information helps us tailor the discernment journey to your unique context. 
+          <p className="text-gray-600 mb-8">
+            Share information about your faith community to help us better understand your context and needs.
+          </p>
+          <p className="mt-4 text-lg text-gray-600">
             Your entries are saved locally as you type and will be submitted when you click 'Save Community Profile'.
+            In addition to these key attributes, please upload a copy of your most recent parochial report or financial statement so that we can best understand your community's current realities.
           </p>
           {profileLoading && (
             <div className="mt-4 flex items-center text-blue-600">
@@ -414,19 +444,19 @@ const CommunityProfilePage = (): ReactElement => {
         </header>
         
 
-        <div className="space-y-10 max-w-3xl mx-auto">
+        <div className="space-y-10 w-full max-w-7xl mx-auto">
           <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
             <CardHeader>
               <CardTitle className="flex items-center text-2xl font-semibold">
                 <Lightbulb className="mr-3 h-7 w-7 text-primary" /> Community Insights
               </CardTitle>
               <CardDescription className="text-md">
-                Describe your church's aspirations and the unique characteristics of your surrounding community.
+                Describe your community's aspirations and the unique characteristics of your surrounding neighborhood.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-4">
               <div>
-                <Label htmlFor="accomplish" className="text-md font-medium">What does your church hope to accomplish?</Label>
+                <Label htmlFor="accomplish" className="text-md font-medium">What does your community hope to accomplish?</Label>
                 <Textarea
                   id="accomplish"
                   value={accomplishDescription}
@@ -437,7 +467,7 @@ const CommunityProfilePage = (): ReactElement => {
                 />
               </div>
               <div>
-                <Label htmlFor="community" className="text-md font-medium">Tell us about your community</Label>
+                <Label htmlFor="community" className="text-md font-medium">Tell us about your neighborhood</Label>
                 <Textarea
                   id="community"
                   value={communityDescription}
@@ -448,7 +478,7 @@ const CommunityProfilePage = (): ReactElement => {
                 />
               </div>
               <div>
-                <Label htmlFor="dream" className="text-md font-medium">Describe your hopes and dreams for this process, and your church</Label>
+                <Label htmlFor="dream" className="text-md font-medium">Describe your hopes and dreams for this process, and for your community</Label>
                 <Textarea
                   id="dream"
                   value={dreamDescription}
@@ -467,7 +497,7 @@ const CommunityProfilePage = (): ReactElement => {
                 <Users className="mr-3 h-7 w-7 text-primary" /> Membership Details
               </CardTitle>
               <CardDescription className="text-md">
-                Provide a snapshot of your church's active membership.
+                Provide a snapshot of your community's active membership.
               </CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 gap-x-6 gap-y-8 sm:grid-cols-2 pt-4">
@@ -537,7 +567,7 @@ const CommunityProfilePage = (): ReactElement => {
             </CardHeader>
             <CardContent className="space-y-6 pt-4">
               <div>
-                <Label htmlFor="emailListFile" className="text-md font-medium">Email List (.csv, .txt)</Label>
+                <Label htmlFor="emailListFile" className="text-md font-medium">MemberEmail List (.csv, .txt)</Label>
                 <Input
                   id="emailListFile"
                   type="file"
@@ -558,19 +588,22 @@ const CommunityProfilePage = (): ReactElement => {
                 />
                 {parochialReportFile && <p className="mt-2 text-sm text-green-600">Selected: {parochialReportFile.name}</p>}
               </div>
+              <div>
+                <Label htmlFor="financialReport" className="text-md font-medium">Financial Report (.pdf)</Label>
+                <Input
+                  id="financialReport"
+                  type="file"
+                  onChange={handleFileChange(setFinancialReportFile)}
+                  accept=".pdf"
+                  className="mt-2 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer border-gray-300 focus:border-primary focus:ring-primary"
+                />
+                {financialReportFile && <p className="mt-2 text-sm text-green-600">Selected: {financialReportFile.name}</p>}
+              </div>
             </CardContent>
           </Card>
         </div>
 
-        <div className="mt-12 flex justify-between items-center p-6 bg-gray-50 rounded-lg shadow-inner">
-          <div>
-            <Button variant="outline" className="mr-2" onClick={() => navigate('/survey-summary')}>
-              View Survey Summary
-            </Button>
-            <Button variant="outline" onClick={() => navigate('/community-research')}>
-              Start Research
-            </Button>
-          </div>
+        <div className="mt-12 flex justify-end p-6">
           <Button
             onClick={handleSave}
             disabled={saving}
@@ -742,8 +775,7 @@ const CommunityProfilePage = (): ReactElement => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      </div>
-
+    </div>
   );
 };
 

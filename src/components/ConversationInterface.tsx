@@ -1,251 +1,315 @@
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Input } from "@/components/ui/input";
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
-import { useSelectedCompanion } from "@/hooks/useSelectedCompanion";
-import { useSectionAvatars } from "@/hooks/useSectionAvatars";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertCircle } from "lucide-react";
 import { useOpenAI } from "@/hooks/useOpenAI";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "@/components/ui/use-toast";
 
-interface Message {
+export interface Message {
   text: string;
   isUser: boolean;
-  button?: {
-    text: string;
-    action: () => void;
-  };
+  id?: string;
+  isLoading?: boolean;
+  error?: string;
 }
 
 interface ConversationInterfaceProps {
   messages?: Message[];
-  onSendMessage?: (newMessageContent: string) => Promise<void>;
-  isLoading?: boolean;
-  selectedCompanion?: any;
+  onMessageUpdate?: (messages: Message[]) => void;
+  className?: string;
+  systemPrompt?: string;
+  initialMessage?: string;
+  onError?: (error: Error) => void;
 }
 
 export const ConversationInterface = ({
   messages: externalMessages,
-  onSendMessage: externalSendMessage,
-  isLoading: externalLoading,
-  selectedCompanion: externalCompanion
-}: ConversationInterfaceProps = {}) => {
-  const [internalMessages, setInternalMessages] = useState<Message[]>([]);
-  const messages = externalMessages || internalMessages;
+  onMessageUpdate,
+  className = '',
+  systemPrompt = 'You are a helpful assistant that helps create effective surveys.',
+  initialMessage = "Let's begin creating your survey. What would you like to learn about your community?",
+  onError
+}: ConversationInterfaceProps) => {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [internalThinking, setInternalThinking] = useState(false);
-  const isThinking = externalLoading !== undefined ? externalLoading : internalThinking;
-  const { selectedCompanion: internalCompanion, hasSelectedCompanion } = useSelectedCompanion();
-  const companion = externalCompanion || internalCompanion;
-  const { getAvatarForPage } = useSectionAvatars();
-  const sectionAvatar = getAvatarForPage("conversation");
-  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const { generateResponse } = useOpenAI();
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Helper function to get initials for avatar fallback
-  const getInitial = (name?: string): string => {
-    return name && name.length > 0 ? name[0].toUpperCase() : 'C';
-  };
-
-  // Set initial message only when component mounts or when companion changes
+  // Set initial message when component mounts
   useEffect(() => {
-    // Skip initialization if external messages are provided
-    if (externalMessages) return;
-    console.log('[ConversationInterface] Setting up initial message, selected companion:', companion?.companion);
-    
-    // Clear previous messages
-    setInternalMessages([]);
-    
-    // Set the initial welcome message
-    const initialMessage = {
-      text: "What do you think?  What will work?  What is the challenge?",
-      isUser: false
-    };
-    
-    setInternalMessages([initialMessage]);
-
-    // If a companion is selected, add their specific message
-    if (companion) {
-      const companionMessage = {
-        text: "Let's begin the discernment journey. What is on your mind? What concerns do you have? What questions should we address?",
-        isUser: false,
-        button: {
-          text: "Start the assessment process",
-          action: () => {
-            navigate("/community_assessment");
-          }
-        }
+    if (externalMessages && externalMessages.length > 0) {
+      setMessages(externalMessages);
+    } else if (messages.length === 0) {
+      const initialBotMessage = {
+        id: 'initial',
+        text: initialMessage,
+        isUser: false
       };
-      setInternalMessages([...internalMessages, companionMessage]);
+      setMessages([initialBotMessage]);
     }
-  }, [companion, externalMessages, navigate]);
+  }, [externalMessages, initialMessage]);
 
-  const handleSendMessage = async () => {
-    // If external handler provided, use it instead
-    if (externalSendMessage) {
-      await externalSendMessage(newMessage);
-      setNewMessage("");
-      return;
-    }
-    if (!newMessage.trim() || !(externalCompanion || hasSelectedCompanion())) return;
+  const formatMessagesForAPI = useCallback((messages: Message[]) => {
+    return messages.map(msg => ({
+      role: msg.isUser ? 'user' : 'assistant',
+      content: msg.text
+    }));
+  }, []);
+
+  const handleSendMessage = useCallback(async () => {
+    if (!newMessage.trim() || isLoading) return;
     
-    const userMessage = {
-      text: newMessage,
+    const userMessage: Message = {
+      id: `msg-${Date.now()}`,
+      text: newMessage.trim(),
       isUser: true,
     };
 
-    setInternalMessages([...internalMessages, userMessage]);
+    // Add user message to the conversation
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
+    onMessageUpdate?.(updatedMessages);
     setNewMessage("");
-    setInternalThinking(true);
+    setIsLoading(true);
+    
+    // Add a temporary loading message
+    const loadingMessage: Message = {
+      id: `loading-${Date.now()}`,
+      text: '',
+      isUser: false,
+      isLoading: true
+    };
+    
+    const messagesWithLoading = [...updatedMessages, loadingMessage];
+    setMessages(messagesWithLoading);
+    
+    // Cancel any pending requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller for this request
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     
     try {
-      // Create the system prompt using companion context
-      const systemPrompt = `You are ${companion?.name || companion?.companion}, a ${companion?.companion_type}. 
-        Your characteristics include: ${companion?.traits}.
-        You communicate with these speech patterns: ${companion?.speech_pattern}.
-        Your knowledge domains are: ${companion?.knowledge_domains}.
-        Maintain this perspective in your responses.`;
-
-      // Generate AI response
+      // Prepare messages for the API
+      const apiMessages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...formatMessagesForAPI(updatedMessages.filter(m => !m.isLoading && !m.error))
+      ];
+      
+      // Call OpenAI API
       const response = await generateResponse({
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: newMessage }
-        ],
-        temperature: 0.7,
-        maxTokens: 250
+        messages: apiMessages,
+        maxTokens: 1000,
+        signal: controller.signal
       });
-
+      
       if (response.error) {
         throw new Error(response.error);
       }
-
-      // Assuming the response has a text property with the AI's response
-      const trimmedText = response.text || "I'm thinking about that...";
-
-      setInternalMessages([...internalMessages, userMessage, {
-        text: trimmedText,
-        isUser: false,
-      }]);
-    } catch (error) {
-      console.error('Error generating response:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate a response. Please try again.",
-        variant: "destructive"
-      });
       
-      // Remove the "Thinking..." message if there was an error
-      setInternalMessages(internalMessages.filter(msg => msg.text !== "Thinking..."));
+      // Update the loading message with the actual response
+      const botMessage: Message = {
+        id: `msg-${Date.now()}`,
+        text: response.text,
+        isUser: false
+      };
+      
+      const finalMessages = [...updatedMessages, botMessage];
+      setMessages(finalMessages);
+      onMessageUpdate?.(finalMessages);
+      
+    } catch (error) {
+      if (controller.signal.aborted) {
+        console.log('Request was aborted');
+        return;
+      }
+      
+      console.error("Error in conversation:", error);
+      
+      // Show error message
+      const errorMessage: Message = {
+        id: `error-${Date.now()}`,
+        text: 'Sorry, I encountered an error. Please try again.',
+        isUser: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      };
+      
+      const finalMessages = [...updatedMessages, errorMessage];
+      setMessages(finalMessages);
+      onMessageUpdate?.(finalMessages);
+      
+      // Notify parent component of error
+      if (onError) {
+        onError(error instanceof Error ? error : new Error(String(error)));
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to get a response. Please try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setInternalThinking(false);
+      setIsLoading(false);
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
     }
-  };
+  }, [newMessage, messages, isLoading, systemPrompt, onMessageUpdate, onError, generateResponse, formatMessagesForAPI]);
+  
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  }, [handleSendMessage]);
+  
+  const handleStopGeneration = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+      setIsLoading(false);
+    }
+  }, []);
+
+  // Auto-scroll to bottom when messages change
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (scrollAreaRef.current) {
+      scrollAreaRef.current.scrollTo({
+        top: scrollAreaRef.current.scrollHeight,
+        behavior: 'smooth'
+      });
+    }
+  }, [messages]);
 
   return (
-    <div className="flex flex-col h-full p-4">
-      <ScrollArea className="flex-1 mb-4">
-        <div className="space-y-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={`flex items-start gap-2 ${
-                message.isUser ? "flex-row-reverse" : ""
-              }`}
-            >
-              {!message.isUser && (
-                <div className="flex -space-x-2">
-                  {sectionAvatar && (
-                    <Avatar className="h-8 w-8 border-2 border-white">
-                      <AvatarImage
-                        src={sectionAvatar.avatar_url || ""}
-                        alt={sectionAvatar.name || "Information Gatherer"}
-                      />
-                      <AvatarFallback>{getInitial(companion?.name)}</AvatarFallback>
-                    </Avatar>
-                  )}
-                  {companion && !message.text.includes("Click on a companion") && (
-                    <Avatar className="h-8 w-8 border-2 border-white">
-                      <AvatarImage
-                        src={companion?.image_url || companion?.avatar_url || ""}
-                        alt={companion?.name || "Companion"}
-                      />
-                      <AvatarFallback>
-                        {getInitial(companion?.name)}
-                      </AvatarFallback>
-                    </Avatar>
+    <div className={`flex flex-col h-full ${className}`}>
+      <div className="flex-1 overflow-auto" ref={scrollAreaRef}>
+        <ScrollArea className="h-full">
+        <div className="p-4">
+          <div className="space-y-4">
+            {messages.map((msg) => (
+              <div
+                key={msg.id || msg.text}
+                className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
+              >
+                <div
+                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                    msg.isUser
+                      ? 'bg-primary text-white rounded-br-none'
+                      : msg.error
+                      ? 'bg-red-50 text-red-800 border border-red-200 rounded-bl-none'
+                      : 'bg-gray-100 text-gray-800 rounded-bl-none'
+                  }`}
+                >
+                  {msg.isLoading ? (
+                    <div className="flex items-center space-x-2">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Thinking...</span>
+                    </div>
+                  ) : msg.error ? (
+                    <div className="flex items-start space-x-2">
+                      <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                      <div>
+                        <p>{msg.text}</p>
+                        <p className="text-xs mt-1 opacity-75">{msg.error}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    msg.text
                   )}
                 </div>
-              )}
-              <div
-                className={`rounded-lg px-3 py-2 max-w-[80%] ${
-                  message.isUser
-                    ? "bg-primary text-primary-foreground ml-auto"
-                    : "bg-muted"
-                }`}
-              >
-                <div>{message.text}</div>
-                {message.button && (
-                  <Button
-                    onClick={message.button.action}
-                    className="mt-2"
-                    variant="secondary"
-                  >
-                    {message.button.text}
-                  </Button>
-                )}
               </div>
-            </div>
-          ))}
-          {isThinking && (
-            <div className="flex items-center gap-2">
-              <div className="flex -space-x-2">
-                {sectionAvatar && (
-                  <Avatar className="h-8 w-8 border-2 border-white">
-                    <AvatarImage
-                      src={sectionAvatar.avatar_url || ""}
-                      alt={sectionAvatar.name || "Information Gatherer"}
-                    />
-                    <AvatarFallback>{getInitial(companion?.name)}</AvatarFallback>
-                  </Avatar>
-                )}
-                {companion && (
-                  <Avatar className="h-8 w-8 border-2 border-white">
-                    <AvatarImage
-                      src={companion?.image_url || companion?.avatar_url || ""}
-                      alt={companion?.name || "Companion"}
-                    />
-                    <AvatarFallback>
-                      {getInitial(companion?.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                )}
-              </div>
-              <div className="bg-muted rounded-lg px-3 py-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-              </div>
-            </div>
-          )}
+            ))}
+          </div>
         </div>
       </ScrollArea>
-
-      <div className="flex gap-2">
-        <Input
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
-          placeholder="Type your message..."
-          className="flex-1"
-        />
-        <Button 
-          onClick={handleSendMessage} 
-          disabled={!companion || !newMessage.trim()}
+      </div>
+      
+      <div className="border-t p-4 bg-white">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSendMessage();
+          }}
+          className="flex space-x-2"
         >
-          Send
-        </Button>
+          <div className="relative flex-1">
+            <textarea 
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type your message..."
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm pr-12"
+              disabled={isLoading}
+              rows={1}
+              style={{
+                minHeight: '40px',
+                maxHeight: '200px',
+                resize: 'none',
+                overflowY: 'hidden',
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                target.style.height = `${Math.min(target.scrollHeight, 200)}px`;
+              }}
+            />
+            {isLoading && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                onClick={handleStopGeneration}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                </svg>
+              </Button>
+            )}
+          </div>
+          
+          <Button 
+            type="submit" 
+            disabled={!newMessage.trim() || isLoading}
+            className="bg-primary hover:bg-primary/90 h-10 px-4 py-2"
+          >
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <span>Send</span>
+            )}
+          </Button>
+        </form>
+        
+        <div className="mt-2 text-xs text-gray-500 text-center">
+          {isLoading ? (
+            <button 
+              onClick={handleStopGeneration}
+              className="text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              Stop generating
+            </button>
+          ) : (
+            <span>Press Enter to send, Shift+Enter for new line</span>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -283,10 +283,10 @@ export function ChurchResearchInterface({ activeCategory, searchPrompt, onNext }
 
       {/* 3) Actions row */}
       <div className="flex justify-between">
-        <Button variant="outline" onClick={saveAllNotes} size="lg" className="px-8">
+        <Button variant="outline" onClick={saveAllNotes} size="lg" className="px-8 border-[#47799f] text-[#47799f] hover:bg-[#47799f]/10">
           <Save className="mr-2 h-4 w-4" /> Save All Notes
         </Button>
-        <Button onClick={handleNext} disabled={totalNoteCount === 0} size="lg" className="px-8">
+        <Button onClick={handleNext} disabled={totalNoteCount === 0} size="lg" className="px-8 bg-[#47799f] hover:bg-[#47799f]/90">
           Next: Research Summary <ArrowRight className="ml-2 h-4 w-4" />
         </Button>
       </div>

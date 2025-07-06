@@ -1,0 +1,11 @@
+{
+  "name": "three-bmfont-text",
+  "version": "3.0.0",
+  "description": "Local fallback for three-bmfont-text",
+  "main": "index.js",
+  "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Fallback Implementation"
+  }
+}

@@ -35,7 +35,7 @@ const ChurchResearch: React.FC = () => {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gradient-to-b from-white to-gray-50">
       <header className="bg-white shadow-sm py-4 px-6 border-b">
         <div className="flex items-center space-x-4">
           <Button 
@@ -47,7 +47,7 @@ const ChurchResearch: React.FC = () => {
             <ArrowLeft className="h-4 w-4" />
             Back
           </Button>
-          <h1 className="text-2xl font-semibold text-gray-900">Church Research</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Assessing Your Community</h1>
         </div>
       </header>
       

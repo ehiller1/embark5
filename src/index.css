@@ -15,8 +15,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 342 50% 18%;
 
-    --primary: 342 80% 55%;
-    --primary-foreground: 350 30% 98%;
+    --primary: 35 90% 72%; /* #f6cd7a */
+    --primary-foreground: 0 0% 0%; /* Black text for better contrast */
 
     --secondary: 350 65% 38%;
     --secondary-foreground: 350 30% 98%;
@@ -56,8 +56,8 @@
     --popover: 342 50% 8%;
     --popover-foreground: 350 30% 98%;
 
-    --primary: 342 80% 55%;
-    --primary-foreground: 342 50% 15%;
+    --primary: 35 90% 72%; /* #f6cd7a */
+    --primary-foreground: 0 0% 0%; /* Black text for better contrast */
 
     --secondary: 350 65% 38%;
     --secondary-foreground: 350 30% 98%;
@@ -156,7 +156,7 @@
   }
   
   .pink-glass {
-    @apply bg-journey-lightPink/30 backdrop-blur-sm border border-journey-pink/10 shadow-sm;
+    @apply bg-pink-100/30 backdrop-blur-sm border border-pink-200/10 shadow-sm;
   }
   
   .shimmer-effect {

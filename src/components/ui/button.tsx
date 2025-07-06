@@ -9,14 +9,14 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-gradient-journey text-primary-foreground hover:shadow-journey hover:-translate-y-0.5",
+        default: "bg-primary text-white hover:bg-primary/90 hover:shadow-md hover:-translate-y-0.5",
+        gradient: "bg-gradient-to-r from-journey-blue to-journey-darkBlue text-white hover:shadow-md hover:-translate-y-0.5",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 hover:shadow-md",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground hover:shadow-sm",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80 hover:shadow-sm",
-        ghost: "hover:bg-journey-lightPink/30 hover:text-journey-darkRed",
-        link: "text-journey-pink underline-offset-4 hover:underline",
-        subtle: "bg-journey-lightPink/30 text-journey-darkRed hover:bg-journey-lightPink/50",
-        teal: "bg-gradient-journey-teal text-white hover:shadow-md hover:-translate-y-0.5",
+        outline: "border border-input bg-background text-journey-blue hover:bg-accent hover:shadow-sm",
+        secondary: "bg-secondary text-white hover:bg-secondary/80 hover:shadow-sm",
+        ghost: "text-journey-blue hover:bg-accent hover:text-journey-blue/90",
+        link: "text-journey-blue underline-offset-4 hover:underline",
+        subtle: "bg-accent text-journey-blue hover:bg-accent/70"
       },
       size: {
         default: "h-10 px-4 py-2",

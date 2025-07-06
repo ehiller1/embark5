@@ -12,6 +12,7 @@ import { usePrompts } from "@/hooks/usePrompts";
 import { EditNoteModal } from "./EditNoteModal";
 import { ResearchSearch } from "./research/ResearchSearch";
 import { ResearchNotes } from "./research/ResearchNotes";
+import { ResearchLayout } from "./research/ResearchLayout";
 import { SearchResult, Note } from '@/types/research';
 
 interface CommunityResearchInterfaceProps {
@@ -20,6 +21,7 @@ interface CommunityResearchInterfaceProps {
   onNext?: () => void;
 }
 
+// Updated to make functions accessible from parent component
 export function CommunityResearchInterface({ activeCategory, searchPrompt, onNext }: CommunityResearchInterfaceProps) {
   const { profile, isLoading: isProfileLoading } = useUserProfile();
   const [location, setLocation] = useState(localStorage.getItem('user_location') || '');
@@ -222,31 +224,33 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
   };
 
   return (
-    <div className="space-y-6 h-full flex flex-col">
-      <Card className="w-full">
-        <CardContent>
+    <ResearchLayout title="Community Research">
+      {/* 1) Location Input Card - Moved above research components as requested */}
+      <Card className="w-full mb-6">
+        <CardContent className="pt-4">
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-1 block">
                 Location <span className="text-red-500">*</span>
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-2 w-full">
                 <Input
                   value={location}
                   onChange={e => setLocation(e.target.value)}
                   placeholder="City, state, region"
-                  className={!location && validationError ? 'border-red-500' : ''}
+                  className={`flex-1 ${!location && validationError ? 'border-red-500' : ''}`}
                   required
                 />
                 <Button 
                   onClick={onSaveLocation}
                   disabled={!location}
+                  className="bg-[#47799f] hover:bg-[#47799f]/90 whitespace-nowrap"
                 >
                   Save
                 </Button>
               </div>
               {validationError && (
-                <div className="mt-2 text-red-500 text-sm">
+                <div className="px-4 pb-2 text-red-500 text-sm">
                   {validationError}
                 </div>
               )}
@@ -254,63 +258,49 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
           </div>
         </CardContent>
       </Card>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1">
-        <ResearchSearch
-          query={inputQuery}
-          onQueryChange={setInputQuery}
-          onSearch={handleSearch}
-          results={searchResults}
-          isLoading={isLoading}
-          onSaveResult={saveNoteFromResult}
-          activeCategory={activeCategory}
-          hasValidationError={!!validationError}
-          pageType="community_research"
-        />
-        <ResearchNotes
-          notes={notes[activeCategory] || []}
-          currentNote={currentNote}
-          onNoteChange={setCurrentNote}
-          onSaveNote={saveNote}
-          onEditNote={setEditingNote}
-          activeCategory={activeCategory}
-        />
+      
+      {/* 2) Inner two-column grid for Search + Notes */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0 w-full">
+        <div className="h-full min-h-0 w-full">
+          <ResearchSearch
+            query={inputQuery}
+            onQueryChange={setInputQuery}
+            onSearch={handleSearch}
+            results={searchResults}
+            isLoading={isLoading}
+            onSaveResult={saveNoteFromResult}
+            activeCategory={activeCategory}
+            hasValidationError={!!validationError}
+            pageType="community_research"
+          />
+        </div>
+        <div className="h-full min-h-0 w-full">
+          <ResearchNotes
+            notes={notes[activeCategory] || []}
+            currentNote={currentNote}
+            onNoteChange={setCurrentNote}
+            onSaveNote={saveNote}
+            onEditNote={setEditingNote}
+            activeCategory={activeCategory}
+          />
+        </div>
       </div>
 
-      <div className="flex justify-between pt-4 border-t">
-        <Button 
-          variant="outline" 
-          onClick={saveAllNotes} 
-          size="lg" 
-          className="px-8"
-        >
-          <Save className="mr-2 h-4 w-4" />
-          Save All Notes
-        </Button>
-        {onNext && (
-          <Button 
-            onClick={handleNext} 
-            disabled={totalNoteCount === 0} 
-            size="lg" 
-            className="px-8"
-          >
-            Next: Church Assessment <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        )}
-      </div>
+      {/* Action buttons have been moved to the main page */}
 
+      {/* 4) Edit Note modal */}
       {editingNote && (
         <EditNoteModal
           open
           initialContent={editingNote.content}
           onClose={() => setEditingNote(null)}
-          onSave={content => { 
-            updateNote(editingNote.id, content); 
-            setEditingNote(null); 
+          onSave={(content) => {
+            updateNote(editingNote.id, content);
+            setEditingNote(null);
           }}
           title={`Edit Note in ${editingNote.category}`}
         />
       )}
-    </div>
+    </ResearchLayout>
   );
 }

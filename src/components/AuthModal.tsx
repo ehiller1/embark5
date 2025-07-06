@@ -453,7 +453,7 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
                   <Input
                     id="churchName"
                     type="text"
-                    placeholder="your church name"
+                    placeholder="your church, faith community or organization name"
                     value={churchName}
                     onChange={(e) => setChurchName(e.target.value)}
                     disabled={isLoading}

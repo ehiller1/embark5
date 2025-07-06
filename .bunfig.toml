@@ -1,0 +1,11 @@
+[install]
+optional = true
+
+[install.scopes]
+dmarcos = { token = "", registry = "https://registry.npmjs.org/" }
+
+[install.cache]
+disable = false
+
+[install.lockfile]
+save = true

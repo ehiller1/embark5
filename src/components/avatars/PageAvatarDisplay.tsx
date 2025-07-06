@@ -1,6 +1,6 @@
 import { SectionAvatarCard } from './SectionAvatarCard';
-import { CompanionCard } from './CompanionCard';
 import { CompanionsList } from '@/components/CompanionsList';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface PageAvatarDisplayProps {
   sectionAvatar: any;
@@ -22,7 +22,23 @@ export function PageAvatarDisplay({
       )}
       
       {selectedCompanion && !showCompanionsList && (
-        <CompanionCard companion={selectedCompanion} />
+        <div className="flex items-center gap-3 p-2 rounded-md border border-muted bg-card/50">
+          <Avatar className="h-10 w-10 border-2 border-journey-pink ring-2 ring-journey-pink/20">
+            {selectedCompanion.avatar_url && (
+              <AvatarImage 
+                src={selectedCompanion.avatar_url}
+                alt={selectedCompanion.name || "Companion"}
+              />
+            )}
+            <AvatarFallback>
+              {selectedCompanion.name ? selectedCompanion.name.charAt(0).toUpperCase() : "C"}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-medium text-sm">{selectedCompanion.name || "Unnamed Companion"}</p>
+            <p className="text-xs text-muted-foreground">{selectedCompanion.companion_type || "Helper"}</p>
+          </div>
+        </div>
       )}
       
       {showCompanionsList && (

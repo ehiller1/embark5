@@ -9,7 +9,9 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest"
+    "test": "vitest",
+    "postinstall": "node resolve-deps.mjs",
+    "resolve-deps": "node resolve-deps.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
@@ -103,6 +105,7 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.0.1",
     "vite": "^5.4.1",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "patch-package": "^8.0.0"
   }
 }
