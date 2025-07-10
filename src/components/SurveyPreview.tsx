@@ -21,9 +21,9 @@ interface SurveyPreviewProps {
     questions: Question[];
   };
   onClose: () => void;
-  onSave?: (updatedSurvey: any) => Promise<void>;
+  onSave?: (updatedSurvey: any) => Promise<{success: boolean}>;
   surveyId?: string;
-  churchId?: string | null;
+  churchId?: string | undefined;
   isEditable?: boolean;
 }
 
@@ -541,25 +541,7 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
               ))}
             </div>
             
-            <div className="mt-8 flex justify-end space-x-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                disabled={isSubmitting}
-                asChild={false}
-              >
-                <span>Close</span>
-              </Button>
-              <Button
-                type="submit"
-                disabled={isSubmitting}
-                className="bg-blue-600 hover:bg-blue-700"
-                asChild={false}
-              >
-                <span>{isSubmitting ? 'Submitting...' : 'Submit Responses'}</span>
-              </Button>
-            </div>
+            {/* Removed buttons as per requirements */}
           </form>
         )}
       </div>

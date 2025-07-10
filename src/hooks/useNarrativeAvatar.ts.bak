@@ -100,7 +100,7 @@ export function useNarrativeAvatar() {
     try {
       const savedChurchAvatar = localStorage.getItem('selected_church_avatar');
       const savedCommunityAvatar = localStorage.getItem('selected_community_avatar');
-      const savedCompanionId = localStorage.getItem('selected_companion_id');
+      // Use selectedCompanion from the centralized store instead of localStorage
       const savedTasks = localStorage.getItem('completed_tasks');
       
       if (savedChurchAvatar) {
@@ -436,9 +436,9 @@ export function useNarrativeAvatar() {
     setSelectedCompanionId(companionId);
     
     if (companionId) {
-      localStorage.setItem('selected_companion_id', companionId);
+      // Use selectCompanion(companionId) from the centralized store
     } else {
-      localStorage.removeItem('selected_companion_id');
+      // Use clearSelectedCompanion() from the centralized store
     }
   }, []);
 

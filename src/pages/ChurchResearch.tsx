@@ -1,4 +1,5 @@
 // src/pages/ChurchResearch.tsx
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
@@ -51,10 +52,10 @@ const ChurchResearch: React.FC = () => {
         </div>
       </header>
       
-      <div className="flex-1 flex flex-col overflow-visible min-h-0">
+      <div className="flex-1 flex flex-col overflow-x-auto min-h-0">
         <AssessmentSidebar>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-full">
-            <aside className="col-span-1 h-full overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 h-full max-w-6xl mx-auto w-full px-4">
+            <aside className="col-span-1 h-full overflow-y-auto w-full max-w-xs">
               <AssessmentSidebarContent
                 pageType="church-research"
                 activeCategory={activeCategory}
@@ -62,14 +63,12 @@ const ChurchResearch: React.FC = () => {
                 refreshKey={refreshKey}
               />
             </aside>
-            <section className="col-span-3 flex flex-col overflow-auto p-4 pb-12 min-h-0">
-              <div className="max-w-4xl mx-auto">
-                <ChurchResearchInterface
-                  activeCategory={activeCategory || ""}
-                  searchPrompt={searchPrompt || ""}
-                  onNext={handleNext}
-                />
-              </div>
+            <section className="col-span-3 flex flex-col overflow-auto p-4 pb-12 min-h-0 w-full max-w-5xl mx-auto">
+              <ChurchResearchInterface
+                activeCategory={activeCategory || ""}
+                searchPrompt={searchPrompt || ""}
+                onNext={handleNext}
+              />
             </section>
           </div>
         </AssessmentSidebar>

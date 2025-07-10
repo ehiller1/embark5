@@ -229,6 +229,22 @@ export default function ConversationParishSurvey(): JSX.Element {
   const [selectedCompanion, setSelectedCompanion] = useState<ParishCompanion | null>(null);
   const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
+  
+  // State for text inputs
+  const [textInputs, setTextInputs] = useState({
+    input1: '',
+    input2: '',
+    input3: '',
+    input4: ''
+  });
+
+  // Handle text input changes
+  const handleInputChange = (field: keyof typeof textInputs, value: string) => {
+    setTextInputs(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   // Conversation state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -634,7 +650,7 @@ export default function ConversationParishSurvey(): JSX.Element {
 
   // Handlers
   const handleSendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, inputs?: { input1: string; input2: string; input3: string; input4: string }) => {
       const trimmed = text.trim();
       if (!trimmed || !churchId) return;
       if (!selectedCompanion) {
@@ -786,18 +802,68 @@ export default function ConversationParishSurvey(): JSX.Element {
   const renderCurrentSection = () => {
     if (!surveyStructure) {
       return (
-        <div className="h-[500px] bg-white rounded-xl shadow-sm border overflow-hidden">
-          {loadingPrompt ? (
-            <div className="flex items-center justify-center h-full">Loading...</div>
-          ) : (
-            <ControlledConversationInterface
-              messages={messages}
-              isLoading={loadingConversation || loadingPrompt}
-              onSendMessage={handleSendMessage}
-              placeholderText={selectedCompanion ? `Message ${selectedCompanion.name}...` : 'Select a companion to begin...'}
-            />
-          )}
-        </div>
+        <>
+          {/* TEXT INPUT BOXES */}
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 border rounded-lg shadow-sm bg-white">
+              <h3 className="font-medium text-lg mb-2">Parish History</h3>
+              <Textarea 
+                id="parishInput1" 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="Share information about your parish's history and founding..."
+                value={textInputs.input1}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input1', e.target.value)}
+              />
+            </div>
+            <div className="p-4 border rounded-lg shadow-sm bg-white">
+              <h3 className="font-medium text-lg mb-2">Community Demographics</h3>
+              <Textarea 
+                id="parishInput2" 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="Describe the demographics of your parish community..."
+                value={textInputs.input2}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input2', e.target.value)}
+              />
+            </div>
+            <div className="p-4 border rounded-lg shadow-sm bg-white">
+              <h3 className="font-medium text-lg mb-2">Current Ministries</h3>
+              <Textarea 
+                id="parishInput3" 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="List your parish's current ministries and programs..."
+                value={textInputs.input3}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input3', e.target.value)}
+              />
+            </div>
+            <div className="p-4 border rounded-lg shadow-sm bg-white">
+              <h3 className="font-medium text-lg mb-2">Future Vision</h3>
+              <Textarea 
+                id="parishInput4" 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="Describe your vision for the parish's future..."
+                value={textInputs.input4}
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input4', e.target.value)}
+              />
+            </div>
+          </div>
+          
+          <div className="h-[500px] bg-white rounded-xl shadow-sm border overflow-hidden">
+            {loadingPrompt ? (
+              <div className="flex items-center justify-center h-full">Loading...</div>
+            ) : (
+              <ControlledConversationInterface
+                messages={messages}
+                isLoading={loadingConversation || loadingPrompt}
+                onSendMessage={handleSendMessage}
+                placeholderText={selectedCompanion ? `Message ${selectedCompanion.name}...` : 'Select a companion to begin...'}
+              />
+            )}
+          </div>
+        </>
       );
     }
 

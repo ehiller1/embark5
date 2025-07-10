@@ -1,22 +1,19 @@
 // src/pages/ClergyHomePage.tsx
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '@/integrations/lib/auth/AuthProvider';
-import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
-import { Link } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-import { useCardStates } from '@/hooks/useCardStates';
-import { CompanionSelectionModal } from '@/components/CompanionSelectionModal';
-import { Button } from '@/components/ui/button';
+import { useAuth } from '../integrations/lib/auth/AuthProvider';
+import { useUserProfile } from '../integrations/lib/auth/UserProfileProvider';
+import { useNavigate, Link } from 'react-router-dom';
+import { useCardStates } from '../hooks/useCardStates';
+import { Button } from '../components/ui/button';
 import {
   Accordion,
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-} from '@/components/ui/accordion';
+} from '../components/ui/accordion';
 import { CircularProgress } from '../components/ui/circular-progress';
 import { motion } from 'framer-motion';
 import {
-  BookOpen,
   Users,
   BarChart3,
   Book,
@@ -32,6 +29,8 @@ import {
   Briefcase,
   LampDesk,
   Link as LinkIcon,
+  DollarSign,
+  // Removed unused imports
 } from 'lucide-react';
 
 const PHASES = [
@@ -57,6 +56,7 @@ const PHASES = [
         icon: <BarChart3 className="h-5 w-5" />,
         color: ['#FCA5A5', '#B91C1C'],
       },
+
     ],
   },
   {
@@ -85,15 +85,10 @@ const PHASES = [
     ],
   },
   {
-    title: 'Researching Your Community',
+    title: 'Assessing Leadership',
     desc: "Provide additional information on your community's capacity.",
     steps: [
-      {
-        key: 'communityResearch',
-        label: 'Researching Your Community',
-        icon: <BookOpen className="h-5 w-5" />,
-        color: ['#FCE7F3', '#DB2777'],
-      },
+
       {
         key: 'churchAssessment',
         label: 'Assessing Your Community',
@@ -104,19 +99,13 @@ const PHASES = [
   },
   {
     title: 'Articulating Your Vocation and Ministry Opportunities',
-    desc: "Synthesize your research, define your community's vocation, and create a plan for beginning a discernment proce.",
+    desc: "Synthesize your research, define your community's mission, and create a plan for beginning a discernment proce.",
     steps: [
       {
         key: 'researchSummary',
-        label: 'Summarizing the Research',
+        label: 'Summarizing the Combined Research',
         icon: <FileText className="h-5 w-5" />,
         color: ['#E0E7FF', '#4338CA'],
-      },
-      {
-        key: 'vocationalStatement',
-        label: 'Proposing a Community Mission or Vocation',
-        icon: <Compass className="h-5 w-5" />,
-        color: ['#BFDBFE', '#2563EB'],
       },
       {
         key: 'scenarioBuilding',
@@ -124,6 +113,13 @@ const PHASES = [
         icon: <GitBranch className="h-5 w-5" />,
         color: ['#DBEAFE', '#0EA5E9'],
       },
+      {
+        key: 'vocationalStatement',
+        label: 'Proposing a Community Mission or Vocation',
+        icon: <Compass className="h-5 w-5" />,
+        color: ['#BFDBFE', '#2563EB'],
+      },
+
     ],
   },
   {
@@ -134,13 +130,37 @@ const PHASES = [
         key: 'discernmentPlan',
         label: 'Planning the Discernment Process',
         icon: <PenTool className="h-5 w-5" />,
-        color: ['#FEF3C7', '#D97706'],
+        color: ['#E0F2FE', '#0EA5E9'],
       },
       {
         key: 'implementationTesting',
-        label: 'Practice Engaging the Parish',
+        label: 'Practice Talking with Your Community',
         icon: <Briefcase className="h-5 w-5" />,
         color: ['#FDE68A', '#EA580C'],
+      },
+    ],
+  },
+  {
+    title: 'Funding your Ministry',
+    desc: 'Explore funding opportunities for your ministry.',
+    steps: [
+      {
+        key: 'fundraising',
+        label: 'Fundraising',
+        icon: <PenTool className="h-5 w-5" />,
+        color: ['#FEF3C7', '#D97706'],
+      },
+      {
+        key: 'accounting',
+        label: 'Financial Management',
+        icon: <DollarSign className="h-5 w-5" />,
+        color: ['#DCFCE7', '#16A34A'],
+      },
+      {
+        key: 'sharedResources',
+        label: 'Shared Resources',
+        icon: <Briefcase className="h-5 w-5" />,
+        color: ['#BBF7D0', '#10B981'],
       },
     ],
   },
@@ -162,7 +182,7 @@ const PHASES = [
       },
       {
         key: 'connectWithChurches',
-        label: 'Connect with Churches Like Yous',
+        label: 'Connect with Churches Like Yours',
         icon: <LinkIcon className="h-5 w-5" />,
         color: ['#E0E7FF', '#4338CA'],
       },
@@ -171,6 +191,24 @@ const PHASES = [
 ];
 
 const CARD_META: Record<string, any> = {
+  fundraising: {
+    desc: 'Explore funding opportunities and connect with potential investors for your ministry',
+    action: 'Visit Portal',
+    view: 'Open Portal',
+    link: '/clergy/marketplace',
+  },
+  accounting: {
+    desc: 'Manage Ministry finances, connect bank accounts, and generate financial reports',
+    action: 'Open Accounting',
+    view: 'View Accounting',
+    link: '/accounting',
+  },
+  sharedResources: {
+    desc: 'Access shared services including music, bulletin design, and program materials from trusted vendors',
+    action: 'Explore Services',
+    view: 'Browse Services',
+    link: '/services-marketplace',
+  },
   churchProfile: {
     desc: 'Document your community\'s demographics, key characteristics, and current opportunities and challenges',
     action: 'Create Profile',
@@ -198,15 +236,10 @@ const CARD_META: Record<string, any> = {
   communityAssessment: {
     desc: "Collaborate with your Conversation Companion, providing your perspective on your neighborhood.",
     action: 'Start Assessment',
-    view: 'View Assessment',
+    view: 'Provide Your Assessment',
     link: '/community-assessment',
   },
-  churchResearch: {
-    desc: "Consolidate information on your community from sources on the Web.",
-    action: 'Start Research',
-    view: 'View Research',
-    link: '/church-research',
-  },
+  // churchResearch card removed
   churchAssessment: {
     desc: "Collaborate with your Conversation Companion to provide your assessment of your community.",
     action: 'Start Assessment',
@@ -214,22 +247,22 @@ const CARD_META: Record<string, any> = {
     link: '/church-assessment',
   },
   researchSummary: {
-    desc: "Synthesize all of the information to provide a starting point for your discernment.",
+    desc: "Gather and summarize neighborhood and community research for on-going discernment.",
     action: 'Create Summary',
     view: 'View Research Summary',
     link: '/research-summary',
   },
   vocationalStatement: {
-    desc: "Articulate your church's calling; build a defining mission for the discernment process.",
+    desc: "Clarifying your community's call by building a defining mission for your discernment.",
     action: 'Create Statement',
     view: 'View Vocational Statement',
     link: '/narrative-build',
   },
   scenarioBuilding: {
-    desc: "Create future ministry scenario opportunities.",
-    action: 'Build Scenarios',
+    desc: "Explore Ministry Opportunities.",
+    action: 'Explore Ministries',
     view: 'View Scenarios',
-    link: '/scenario-building',
+    link: '/scenario',
   },
   discernmentPlan: {
     desc: "Create your plan for taking your community through a discernment process.",
@@ -238,7 +271,7 @@ const CARD_META: Record<string, any> = {
     link: '/plan-build',
   },
   implementationTesting: {
-    desc: 'Plan introducing the discernment journey by virtual interaction with members of your community.',
+    desc: 'Plan the introduction the discernment journey by virtual interaction with members of your community.',
     action: 'Start Testing',
     view: 'View Test Results',
     link: '/implementation',
@@ -263,24 +296,27 @@ const CARD_META: Record<string, any> = {
   },
   neighborhoodSurvey: {
     desc: 'Get help in creating surveys to gather insights from your neighborhood',
-    action: 'Create Survey',
+    action: 'Create A Survey',
     view: 'View Survey',
     link: '/survey-neighborhood-build',
+  },
+  marketplace: {
+    desc: 'Explore funding opportunities and connect with potential investors',
+    action: 'Visit Marketplace',
+    view: 'Start Your Funding Journey',
+    link: '/clergy/marketplace',
   },
 };
 
 const ClergyHomePage: React.FC = () => {
   // All hooks at the top of the component
-  const [showCompanionModal, setShowCompanionModal] = useState(false);
   const navigate = useNavigate();
   const { user, session, loading: authLoading } = useAuth();
   const { profile, isLoading: profileLoading } = useUserProfile();
   const { cardStates: hookStates } = useCardStates();
-  const [userName, setUserName] = useState('there');
+  const [churchName, setChurchName] = useState('there');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [selectedCard, setSelectedCard] = useState<string | null>(null);
-  const [showModal, setShowModal] = useState(false);
 
   // Extract card completion
   const cardStates: Record<string, boolean> = {};
@@ -292,54 +328,131 @@ const ClergyHomePage: React.FC = () => {
   const done = Object.values(cardStates).filter(Boolean).length;
   const progress = total ? (done / total) * 100 : 0;
   
+  //Flowcode
   // Card click handler
   const onCardClick = (key: string, link?: string) => {
-    // If card has a direct link, navigate to it
-    if (link) {
-      navigate(link);
+    // Just navigate to the link or default location
+    navigate(CARD_META[key]?.link || link || '#');
+    
+    /*
+    //Flowcode - Original click logic commented out
+    // For certain cards, always allow navigation regardless of state
+    if (key === 'accounting' || key === 'resourceLibrary' || key === 'ministryInsights' || key === 'connectWithChurches') {
+      navigate(key === 'accounting' ? '/accounting' : 
+               key === 'resourceLibrary' ? '/resource-library' : 
+               CARD_META[key]?.link || '#');
       return;
     }
     
-    // Allow clicking on completed cards for specific pages
-    if (cardStates[key] && ['churchProfile', 'generateSurvey', 'surveySummary'].includes(key)) {
-      // For completed cards that should be directly clickable, navigate directly
+    // For ResearchSummary, VocationalStatement, and ScenarioBuilder, use standard navigation
+    // but only if previous steps are completed
+    if (key === 'researchSummary') {
+      // Check if previous steps are completed
+      if (cardStates['churchProfile'] && cardStates['generateSurvey'] && cardStates['surveySummary'] && 
+          cardStates['communityResearch'] && cardStates['communityAssessment'] && cardStates['neighborhoodSurvey'] && 
+          cardStates['churchAssessment']) {
+        navigate('/research-summary');
+      }
+      return;
+    }
+    
+    if (key === 'vocationalStatement') {
+      // Check if previous steps are completed
+      if (cardStates['researchSummary'] && cardStates['scenarioBuilding']) {
+        navigate('/narrative-build');
+      }
+      return;
+    }
+    
+    if (key === 'scenarioBuilding') {
+      // Check if previous steps are completed
+      if (cardStates['researchSummary']) {
+        navigate('/scenario');
+      }
+      return;
+    }
+    
+    // If card has a direct link, check if previous steps are completed
+    if (link) {
+      // Get the current phase and step index
+      const currentPhaseIndex = PHASES.findIndex(phase => 
+        phase.steps.some(step => step.key === key)
+      );
+      
+      const currentStepIndex = PHASES[currentPhaseIndex]?.steps.findIndex(step => 
+        step.key === key
+      );
+      
+      // Check if this is the first step in the first phase
+      if (currentPhaseIndex === 0 && currentStepIndex === 0) {
+        navigate(link);
+        return;
+      }
+      
+      // Check if previous step is completed
+      let previousStepCompleted = false;
+      
+      if (currentStepIndex > 0) {
+        // Previous step in the same phase
+        const previousStepKey = PHASES[currentPhaseIndex].steps[currentStepIndex - 1].key;
+        previousStepCompleted = cardStates[previousStepKey];
+      } else if (currentPhaseIndex > 0) {
+        // Last step of the previous phase
+        const previousPhase = PHASES[currentPhaseIndex - 1];
+        const previousStepKey = previousPhase.steps[previousPhase.steps.length - 1].key;
+        previousStepCompleted = cardStates[previousStepKey];
+      } else {
+        // First step of first phase is always accessible
+        previousStepCompleted = true;
+      }
+      
+      // If previous step is completed or this step is already completed, allow navigation
+      if (previousStepCompleted || cardStates[key]) {
+        navigate(link);
+      }
+      return;
+    }
+    
+    // For completed cards, allow navigation to review
+    if (cardStates[key]) {
       navigate(CARD_META[key]?.link || '#');
       return;
     }
     
-    // For incomplete cards, check if companion has already been selected
-    if (!cardStates[key]) {
-      const hasSelectedCompanion = localStorage.getItem('selected_companion_id');
-      
-      if (hasSelectedCompanion) {
-        // If companion already selected, navigate directly
-        navigate(CARD_META[key]?.link || '#');
-      } else {
-        // Only show companion selection modal if no companion has been selected yet
-        setSelectedCard(key);
-        setShowModal(true);
-      }
+    // For incomplete cards, check if previous step is completed
+    const currentPhaseIndex = PHASES.findIndex(phase => 
+      phase.steps.some(step => step.key === key)
+    );
+    
+    const currentStepIndex = PHASES[currentPhaseIndex]?.steps.findIndex(step => 
+      step.key === key
+    );
+    
+    let previousStepCompleted = false;
+    
+    if (currentStepIndex > 0) {
+      // Previous step in the same phase
+      const previousStepKey = PHASES[currentPhaseIndex].steps[currentStepIndex - 1].key;
+      previousStepCompleted = cardStates[previousStepKey];
+    } else if (currentPhaseIndex > 0) {
+      // Last step of the previous phase
+      const previousPhase = PHASES[currentPhaseIndex - 1];
+      const previousStepKey = previousPhase.steps[previousPhase.steps.length - 1].key;
+      previousStepCompleted = cardStates[previousStepKey];
+    } else {
+      // First step of first phase is always accessible
+      previousStepCompleted = true;
     }
+    
+    if (previousStepCompleted) {
+      navigate(CARD_META[key]?.link || '#');
+    }
+    */
   };
 
-  // Modal completion handler
-  const onModalComplete = () => {
-    setShowCompanionModal(false);
-    setShowModal(false);
-    if (selectedCard) {
-      navigate(CARD_META[selectedCard].link);
-    }
-  };
+  // No longer need navigation handler for modal
 
-  // Check for companion selection when component mounts
-  useEffect(() => {
-    // Only check after authentication is complete
-    if (!authLoading && !profileLoading && user && session) {
-      const hasSelectedCompanion = localStorage.getItem('selected_companion_id');
-      // Only show the modal if no companion has been selected
-      setShowCompanionModal(!hasSelectedCompanion);
-    }
-  }, [authLoading, profileLoading, user, session]);
+  // No longer checking for companion selection on mount
 
   // Get first name
   useEffect(() => {
@@ -349,12 +462,10 @@ const ClergyHomePage: React.FC = () => {
       return;
     }
     try {
-      const first =
-        profile?.name?.split(' ')[0] ||
-        user.user_metadata?.full_name?.split(' ')[0] ||
-        user.email?.split('@')[0] ||
-        'there';
-      setUserName(first);
+      const church = 
+        profile?.church_name ||
+        'your church';
+      setChurchName(church);
       setIsLoading(false);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Unknown error occurred'));
@@ -400,22 +511,14 @@ const ClergyHomePage: React.FC = () => {
 
   return (
     <>
-      {/* CompanionSelectionModal - always render but only show when needed */}
-      <CompanionSelectionModal
-        open={showCompanionModal}
-        onOpenChange={setShowCompanionModal}
-        onSelectionComplete={onModalComplete}
-      />
-      
-      {/* Main dashboard - only show when not showing companion modal */}
-      {!showCompanionModal && (
+      {/* Main dashboard */}
         <div className="min-h-screen bg-gradient-to-br from-white via-[#D6E4F0] to-[#EAF2F8] pb-16">
           <div className="container mx-auto px-4 py-8">
             {/* Hero */}
             <div className="flex items-center justify-between mb-12">
               <div>
                 <h1 className="text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-[#47799F] to-[#6A9BC2]">
-                  Welcome, {userName}!
+                  Welcome, {churchName}
                 </h1>
                 <p className="text-lg text-gray-600 mt-2">
                   Let's continue your journey of discernment and planning.
@@ -436,10 +539,10 @@ const ClergyHomePage: React.FC = () => {
               <div className="flex flex-col lg:flex-row gap-8 items-center">
                 <div className="flex-1">
                   <h2 className="text-3xl font-bold text-ministry mb-4">
-                  Planning with Purpose: Structuring the Discernment Journey for Building New Ministries
+                  Planning with Purpose: Structuring the Discernment Journey for Building Innovative Ministries
                   </h2>
                   <p className="text-gray-700 mb-4">
-                    Welcome to your Reflective Spirit journey, where vision meets action. This step-by-step guide is designed to support clergy and faith leaders in thoughtfully transforming underutilized church property into vibrant, mission-driven ministries. Through community connection, deep reflection, and structured planning, you'll uncover new possibilities rooted in your congregation's gifts and your neighborhood's needs.
+                    Welcome to the journey of discernment, where vision meets action. This step-by-step guide is designed to support clergy and faith leaders in thoughtfully transforming underutilized church property into vibrant, mission-driven ministries. Through community connection, deep reflection, and structured planning, you'll uncover new possibilities rooted in your congregation's gifts and your neighborhood's needs.
                   </p>
                   <p className="text-gray-700 font-medium italic mb-8">
                     Let this journey inspire you to listen, imagine, and act—together.
@@ -451,7 +554,7 @@ const ClergyHomePage: React.FC = () => {
                   <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-6">
                     <li>Understand the heartbeat of your congregation and their dreams for ministry.</li>
                     <li>Explore your neighborhood to discover unmet needs and surprising opportunities.</li>
-                    <li>Envision creative, sustainable uses for your church's property through inclusive planning.</li>
+                    <li>Envision creative, sustainable uses for your community's assets through inclusive planning.</li>
                     <li>Define a shared mission and vision that reflects both faith and practicality.</li>
                     <li>Design and test ideas with real-world feedback and community engagement.</li>
                     <li>Access curated resources to guide every stage of your transformation journey.</li>
@@ -486,25 +589,29 @@ const ClergyHomePage: React.FC = () => {
                       {phase.steps.map(({ key, label, icon, color, link }) => {
                         const completed = cardStates[key];
                         const meta = CARD_META[key];
+                        // All cards should be clickable now
+                        const isReadOnly = false;
+                        
                         return (
                           <motion.div
                             key={key}
-                            whileHover={!completed ? { scale: 1.03 } : {}}
+                            whileHover={!isReadOnly && !completed ? { scale: 1.03 } : {}}
                             className={`
                               relative overflow-hidden rounded-2xl border border-gray-200
                               transition-all duration-300
-                              ${completed && !['churchProfile', 'generateSurvey', 'surveySummary'].includes(key) ? 'opacity-90' : 'hover:shadow-2xl cursor-pointer'}
+                              ${completed && !['churchProfile', 'generateSurvey', 'surveySummary'].includes(key) ? 'opacity-90' : ''}
+                              ${!isReadOnly ? 'hover:shadow-2xl cursor-pointer' : ''}
                             `}
                             style={{
                               background: `linear-gradient(145deg, ${color[0]}, ${color[1]})`,
                               backgroundBlendMode: 'multiply',
                               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
                             }}
-                            onClick={() => onCardClick(key, link)}
-                            role="button"
-                            aria-pressed={completed}
-                            tabIndex={0}
-                            onKeyDown={(e: React.KeyboardEvent) => (e.key === 'Enter' && onCardClick(key))}
+                            onClick={!isReadOnly ? () => onCardClick(key, link) : undefined}
+                            role={!isReadOnly ? "button" : undefined}
+                            aria-pressed={!isReadOnly ? completed : undefined}
+                            tabIndex={!isReadOnly ? 0 : -1}
+                            onKeyDown={!isReadOnly ? (e: React.KeyboardEvent) => (e.key === 'Enter' && onCardClick(key)) : undefined}
                           >
                             {completed && (
                               <div className="absolute top-4 right-4 p-1 bg-white/80 rounded-full">
@@ -523,16 +630,21 @@ const ClergyHomePage: React.FC = () => {
                                   </div>
                                 </div>
                               </div>
-                              <div className="px-6 pb-6 mt-auto">
-                                <Button
-                                  variant={completed ? 'outline' : 'default'}
-                                  disabled={completed && !['churchProfile', 'generateSurvey', 'surveySummary'].includes(key)}
-                                  className={`w-full font-medium ${completed ? 'bg-white/90 text-gray-800 hover:bg-white' : 'shadow-md'}`}
-                                >
-                                  {completed ? meta.view : meta.action}
-                                  <ArrowRight className="ml-2 h-4 w-4" />
-                                </Button>
-                              </div>
+                              {/* Action button */}
+                              {meta && (
+                                <div className="p-4 pt-0">
+                                  <Button 
+                                    variant="outline" 
+                                    className="w-full bg-white/70 hover:bg-white text-gray-800 border-gray-300"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onCardClick(key, meta.link);
+                                    }}
+                                  >
+                                    {completed ? meta.view : meta.action}
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           </motion.div>
                         );
@@ -543,15 +655,9 @@ const ClergyHomePage: React.FC = () => {
               ))}
             </Accordion>
 
-            {/* Companion Modal for card clicks */}
-            <CompanionSelectionModal
-              open={showModal}
-              onOpenChange={setShowModal}
-              onSelectionComplete={onModalComplete}
-            />
+            {/* No companion modal */}
           </div>
         </div>
-      )}
     </>
   );
 };

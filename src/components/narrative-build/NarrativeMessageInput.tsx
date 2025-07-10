@@ -56,7 +56,7 @@ export const NarrativeMessageInput: React.FC<NarrativeMessageInputProps> = ({
         <Alert className="mb-4 bg-accent/10 border-accent/20">
           <Sparkles className="h-4 w-4 text-accent" />
           <AlertDescription>
-            Chat with your avatars to help define your church's vocation. Use @churchname or @communityname to direct a message to a specific avatar.
+            Continue to refine your mission statement using the text box below.
           </AlertDescription>
         </Alert>
       )}
@@ -100,7 +100,7 @@ export const NarrativeMessageInput: React.FC<NarrativeMessageInputProps> = ({
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyDown={onKeyDown}
-              placeholder="Type your message or use @name to direct your question..."
+              placeholder="Type your message here."
               className="flex-1 resize-none min-h-[60px] max-h-[120px]"
             />
             

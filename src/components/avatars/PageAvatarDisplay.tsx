@@ -27,15 +27,15 @@ export function PageAvatarDisplay({
             {selectedCompanion.avatar_url && (
               <AvatarImage 
                 src={selectedCompanion.avatar_url}
-                alt={selectedCompanion.name || "Companion"}
+                alt={(selectedCompanion.companion || selectedCompanion.name) || "Companion"}
               />
             )}
             <AvatarFallback>
-              {selectedCompanion.name ? selectedCompanion.name.charAt(0).toUpperCase() : "C"}
+              {(selectedCompanion.companion || selectedCompanion.name) ? (selectedCompanion.companion || selectedCompanion.name).charAt(0).toUpperCase() : "C"}
             </AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-medium text-sm">{selectedCompanion.name || "Unnamed Companion"}</p>
+            <p className="font-medium text-sm">{selectedCompanion.companion || selectedCompanion.name || "Unnamed Companion"}</p>
             <p className="text-xs text-muted-foreground">{selectedCompanion.companion_type || "Helper"}</p>
           </div>
         </div>

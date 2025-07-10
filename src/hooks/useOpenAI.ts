@@ -133,9 +133,38 @@ export const useOpenAI = () => {
         content
       }));
       
+      // Extract system message and user message for Edge Function
+      let systemPrompt = options.systemPrompt || 'You are a helpful assistant.';
+      let prompt = '';
+      
+      // If no explicit systemPrompt was provided, look for a system message
+      if (!options.systemPrompt) {
+        const systemMessage = cleanedMessages.find(m => m.role === 'system');
+        if (systemMessage) {
+          systemPrompt = systemMessage.content;
+        }
+      }
+      
+      // Get the first user message as the prompt
+      const userMessage = cleanedMessages.find(m => m.role === 'user');
+      if (userMessage) {
+        prompt = userMessage.content;
+      } else if (cleanedMessages.length > 0) {
+        // Fallback: use the first message regardless of role
+        prompt = cleanedMessages[0].content;
+      }
+      
+      // Log the extracted prompts
+      console.log('[useOpenAI] Extracted prompts:', {
+        systemPrompt: systemPrompt?.substring(0, 100) + '...',
+        prompt: prompt?.substring(0, 100) + '...'
+      });
+      
       const requestOptions = {
         body: {
-          messages: cleanedMessages,
+          messages: cleanedMessages, // Keep this for backward compatibility
+          prompt: prompt,            // Add explicit prompt field for Edge Function
+          systemPrompt: systemPrompt, // Add explicit systemPrompt field for Edge Function
           maxTokens,
           temperature
         },

@@ -85,6 +85,40 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
               </div>
             ) : (
               <div className="space-y-6 pb-4">
+                {/* Hardcoded instruction message at the beginning */}
+                <div className="flex justify-start mb-6">
+                  <div className="max-w-[90%] rounded-lg p-4 bg-white border border-journey-lightPink/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      {selectedCompanion && (
+  <Avatar className="h-6 w-6">
+    <AvatarImage
+      src={selectedCompanion.avatar_url || '/default-avatar.png'}
+      alt={selectedCompanion.companion}
+    />
+    <AvatarFallback>
+      {selectedCompanion.companion?.[0] || 'C'}
+    </AvatarFallback>
+  </Avatar>
+)}
+                      {selectedCompanion && (
+  <span className="text-xs font-medium">
+    {selectedCompanion.companion}
+  </span>
+) }
+                    </div>
+                    <p className="text-sm md:text-base whitespace-pre-wrap break-words leading-relaxed">
+                      <strong>Community Assessment</strong><br />
+                      Please share information about your local community to help us understand its demographics, needs, and opportunities. Your responses will guide our assessment and help us provide tailored recommendations for community engagement.
+                    </p>
+                    <div className="text-xs mt-2 opacity-70">
+                      {new Date().toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </div>
+                  </div>
+                </div>
+                
                 {messages.map(msg => (
                   <div
                     key={msg.id}
@@ -104,19 +138,8 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
                               src={informationGathererAvatar?.avatar_url}
                               alt={informationGathererAvatar?.name}
                             />
-                            <AvatarFallback>IG</AvatarFallback>
+                            <AvatarFallback>{informationGathererAvatar?.name?.[0] || 'IG'}</AvatarFallback>
                           </Avatar>
-                          {selectedCompanion && (
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage
-                                src={selectedCompanion.avatar_url}
-                                alt={selectedCompanion.companion}
-                              />
-                              <AvatarFallback>
-                                {selectedCompanion.companion?.[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
                           <span className="text-xs font-medium">
                             {informationGathererAvatar?.name}
                             {selectedCompanion && ` & ${selectedCompanion.companion}`}

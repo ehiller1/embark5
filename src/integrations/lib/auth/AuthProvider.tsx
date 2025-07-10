@@ -8,6 +8,7 @@ import { supabase } from '@/integrations/lib/supabase';
 interface SignUpUserData {
   firstName: string;
   lastName: string;
+  preferredName?: string;
   email: string;
   churchName: string;
   address: string;
@@ -159,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             first_name: userData.firstName,
             last_name: userData.lastName,
+            preferred_name: userData.preferredName || null,
             church_name: userData.churchName,
             address: userData.address,
             city: userData.city,

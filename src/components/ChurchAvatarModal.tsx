@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -71,7 +70,7 @@ export function ChurchAvatarModal({ open, onOpenChange, selectChurchAvatar }: Ch
     setIsGenerating(true);
     try {
       // Get the church avatar generation prompt from the database
-      const { data: promptData, error: promptError } = await getPromptByType('church_avatar_prompt');
+      const { data: promptData, error: promptError } = await getPromptByType('church_avatars');
       if (promptError || !promptData?.prompt) {
         throw new Error('Failed to retrieve church avatar generation prompt');
       }
@@ -166,10 +165,7 @@ export function ChurchAvatarModal({ open, onOpenChange, selectChurchAvatar }: Ch
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Church Avatar</DialogTitle>
-          <DialogDescription>
-            Select or create a church avatar that represent your church.
-          </DialogDescription>
+          <DialogTitle>Guiding Aspiration</DialogTitle>
         </DialogHeader>
 
         <Tabs
@@ -178,8 +174,8 @@ export function ChurchAvatarModal({ open, onOpenChange, selectChurchAvatar }: Ch
           className="w-full"
         >
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="select">Select Avatar</TabsTrigger>
-            <TabsTrigger value="create">Create Avatar</TabsTrigger>
+            <TabsTrigger value="select">Choose an Aspration</TabsTrigger>
+            <TabsTrigger value="create">Create your own Aspiration</TabsTrigger>
           </TabsList>
 
           {/* Select Tab */}

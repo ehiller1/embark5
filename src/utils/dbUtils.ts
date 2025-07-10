@@ -411,3 +411,139 @@ export const updateAllCardStates = async (churchId: string): Promise<Record<Card
 
   return states as Record<CardType, boolean>;
 };
+
+/**
+ * Saves scenario details to localStorage and the resource_library table
+ * @param scenarioContent The scenario content to save
+ * @param userId The user ID
+ * @returns Promise resolving to the saved resource ID
+ */
+export async function saveScenarioDetails(
+  scenarioContent: string | any | any[],
+  userId: string
+): Promise<string | null> {
+  try {
+    // Format the content based on the input type
+    let formattedContent: string;
+    
+    if (typeof scenarioContent === 'string') {
+      // If it's already a string, use it directly
+      formattedContent = scenarioContent;
+    } else if (Array.isArray(scenarioContent)) {
+      // If it's an array of scenarios, format them
+      formattedContent = scenarioContent
+        .map(s => `${s.title}: ${s.description}`)
+        .join('\n\n');
+    } else {
+      // If it's a single scenario object
+      formattedContent = `${scenarioContent.title}: ${scenarioContent.description}`;
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('scenario_details', formattedContent);
+    
+    // Save to database
+    const { data, error } = await supabase
+      .from('resource_library')
+      .insert({
+        user_id: userId,
+        content: formattedContent,
+        resource_type: 'scenario_details',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+      
+    if (error) {
+      console.error('Error saving scenario details to database:', error);
+      return null;
+    }
+    
+    return data.id;
+  } catch (error) {
+    console.error('Error in saveScenarioDetails:', error);
+    return null;
+  }
+}
+
+/**
+ * Saves vocational statement to localStorage and the resource_library table in a standardized JSON format
+ * @param vocationalStatement The vocational statement content to save (string, object, or VocationalStatement)
+ * @param userId The user ID
+ * @returns Promise resolving to the saved resource ID
+ */
+export async function saveVocationalStatement(
+  vocationalStatement: string | any,
+  userId: string
+): Promise<string | null> {
+  try {
+    // Standardize the format to JSON
+    let formattedContent: string;
+    let vocationalObject: any;
+    
+    // Step 1: Convert input to a standard object format
+    if (typeof vocationalStatement === 'string') {
+      try {
+        // Try to parse as JSON first
+        vocationalObject = JSON.parse(vocationalStatement);
+      } catch (e) {
+        // If not valid JSON, create a simple object with the string as mission_statement
+        vocationalObject = {
+          mission_statement: vocationalStatement
+        };
+      }
+    } else {
+      // It's already an object
+      vocationalObject = vocationalStatement;
+    }
+    
+    // Step 2: Ensure the object has required fields
+    if (!vocationalObject.mission_statement) {
+      // If no mission_statement field, try to use other fields or create a default
+      if (vocationalObject.statement) {
+        vocationalObject.mission_statement = vocationalObject.statement;
+      } else if (vocationalObject.content) {
+        vocationalObject.mission_statement = vocationalObject.content;
+      } else {
+        vocationalObject.mission_statement = 'Untitled Vocational Statement';
+      }
+    }
+    
+    // Step 3: Convert to JSON string for storage
+    formattedContent = JSON.stringify(vocationalObject);
+    
+    // Save to localStorage in standardized JSON format
+    localStorage.setItem('vocational_statement', formattedContent);
+    
+    // Derive a title for the database entry
+    let title = vocationalObject.mission_statement;
+    if (title.length > 100) {
+      title = title.substring(0, 97) + '...';
+    }
+    
+    // Save to database
+    const { data, error } = await supabase
+      .from('resource_library')
+      .insert({
+        user_id: userId,
+        title: title,
+        content: formattedContent,
+        resource_type: 'vocational_statement',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select('id')
+      .single();
+      
+    if (error) {
+      console.error('Error saving vocational statement to database:', error);
+      return null;
+    }
+    
+    return data.id;
+  } catch (error) {
+    console.error('Error in saveVocationalStatement:', error);
+    return null;
+  }
+}

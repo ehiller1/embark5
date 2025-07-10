@@ -1,10 +1,9 @@
 // src/components/CommunityResearchInterface.tsx
 import { useState, useEffect } from "react";
 import { useUserProfile } from "@/integrations/lib/auth/UserProfileProvider";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent} from "@/components/ui/card";
-import { Save, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useSerpApi } from "@/hooks/useSerpApi";
 import { useOpenAI } from "@/hooks/useOpenAI";
@@ -218,13 +217,14 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
     });
   };
 
-  const handleNext = () => {
+  // Handle saving notes and navigation
+  const saveAndNavigate = () => {
     saveAllNotes();
     onNext?.();
   };
 
   return (
-    <ResearchLayout title="Community Research">
+    <ResearchLayout title="Collect Web Research About Your Neighborhood">
       {/* 1) Location Input Card - Moved above research components as requested */}
       <Card className="w-full mb-6">
         <CardContent className="pt-4">

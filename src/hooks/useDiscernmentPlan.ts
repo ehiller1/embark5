@@ -76,7 +76,12 @@ export const useDiscernmentPlan = () => {
       const fullPrompt = template
         .replace(/\$\(\s*ResearchSummary\s*\)/g, researchSummary)
         .replace(/\$\(\s*vocational_statement\s*\)/g, narrative)
-        .replace(/\$\(\s*companion_avatar\s*\)/g, JSON.stringify(companionAvatar))
+        .replace(/\$\(\s*companion_name\s*\)/g, companionAvatar.name || '')
+        .replace(/\$\(\s*companion_type\s*\)/g, companionAvatar.companion_type || '')
+        .replace(/\$\(\s*traits\s*\)/g, companionAvatar.traits || '')
+        .replace(/\$\(\s*speech_pattern\s*\)/g, companionAvatar.speech_pattern || '')
+        .replace(/\$\(\s*knowledge_domains\s*\)/g, companionAvatar.knowledge_domains || '')
+        .replace(/\$\(\s*avatar_url\s*\)/g, companionAvatar.avatar_url || '')
         .replace(/\$\(\s*church_avatar\s*\)/g, churchAvatarInfo)
         .replace(/\$\(\s*community_avatar\s*\)/g, communityAvatarInfo);
 

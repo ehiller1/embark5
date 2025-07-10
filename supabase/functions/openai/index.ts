@@ -94,7 +94,7 @@ serve(async (req) => {
       // Add retries for network issues and rate limits
       let retries = 3;
       let response;
-      let errorMessages = [];
+      const errorMessages = [];
       
       while (retries >= 0) {
         try {
@@ -127,8 +127,8 @@ serve(async (req) => {
             }
             
             // Get retry-after header or default to increasing backoff
-            let retryAfter = response.headers.get("retry-after");
-            let waitTime = retryAfter ? parseInt(retryAfter) * 1000 : (5000 * Math.pow(2, 3-retries));
+            const retryAfter = response.headers.get("retry-after");
+            const waitTime = retryAfter ? parseInt(retryAfter) * 1000 : (5000 * Math.pow(2, 3-retries));
             
             errorMessages.push(`Attempt ${3-retries}: Rate limit (429) - waiting ${waitTime}ms`);
             
@@ -270,7 +270,7 @@ serve(async (req) => {
 
     // Get appropriate status code based on error
     let statusCode = 500;
-    let errorMessage = error.message || 'An unexpected error occurred';
+    const errorMessage = error.message || 'An unexpected error occurred';
     
     // Handle rate limiting errors specially
     if (errorMessage.includes('rate limit')) {

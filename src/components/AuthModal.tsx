@@ -40,6 +40,7 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
   const [signinPassword, setSigninPassword] = useState('');
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [preferredName, setPreferredName] = useState('');
   const [role, setRole] = useState<'Clergy' | 'Parish'>('Clergy');
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
@@ -84,6 +85,7 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
       setSigninPassword('');
       setFirstName('');
       setLastName('');
+      setPreferredName('');
       setEmail('');
       setPassword('');
       setAddress('');
@@ -205,6 +207,7 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
         email, 
         firstName, 
         lastName, 
+        preferredName, 
         churchName, 
         address, 
         city, 
@@ -212,7 +215,6 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
         phone, 
         role, 
         church_id,
- 
       });
       
       if (error) {
@@ -345,6 +347,17 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
                     onChange={(e) => setLastName(e.target.value)}
                     disabled={isLoading}
                     required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="preferredName">Preferred Name</Label>
+                  <Input
+                    id="preferredName"
+                    type="text"
+                    placeholder="How you'd like to be addressed (optional)"
+                    value={preferredName}
+                    onChange={(e) => setPreferredName(e.target.value)}
+                    disabled={isLoading}
                   />
                 </div>
                 <div className="space-y-2">

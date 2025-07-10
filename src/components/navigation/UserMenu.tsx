@@ -69,12 +69,35 @@ export const UserMenu = ({ onLogout }: UserMenuProps) => {
     return null;
   }
 
-  // Get the user's name from profile, user_metadata, or email
-  const userName = profile?.name || 
-                 user.user_metadata?.full_name ||
-                 user.user_metadata?.name || 
-                 user.email?.split('@')[0] || 
-                 'User';
+  // Get the user's name based on role
+  let userName = 'User';
+  
+  if (profile?.role === 'Clergy') {
+    // For Clergy, use church_name if available
+    userName = profile?.church_name || 
+              profile?.name || 
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name || 
+              user.email?.split('@')[0] || 
+              'User';
+  } else if (profile?.preferred_name) {
+    // For users with preferred_name, use that
+    userName = profile.preferred_name;
+  } else {
+    // Default: first name + last initial
+    const firstName = profile?.first_name || user.user_metadata?.firstName || user.user_metadata?.first_name || '';
+    const lastName = profile?.last_name || user.user_metadata?.lastName || user.user_metadata?.last_name || '';
+    
+    if (firstName && lastName) {
+      userName = `${firstName} ${lastName.charAt(0)}.`;
+    } else {
+      userName = profile?.name || 
+                user.user_metadata?.full_name ||
+                user.user_metadata?.name || 
+                user.email?.split('@')[0] || 
+                'User';
+    }
+  }
   
   // Logging removed to reduce console noise
 

@@ -56,6 +56,9 @@ export const ScenarioDetailDialog: React.FC<ScenarioDetailDialogProps> = ({
             <DialogTitle id={titleId} className="text-2xl font-bold">
               {scenario.title}
             </DialogTitle>
+            <p id={descriptionId} className="mt-2 text-base text-muted-foreground">
+              {scenario.description}
+            </p>
           </div>
         </DialogHeader>
 

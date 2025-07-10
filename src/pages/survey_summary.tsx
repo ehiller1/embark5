@@ -535,15 +535,144 @@ const SurveySummaryPage = () => {
 
   // Show empty state if no conversations
   if (conversations.length === 0) {
+    // Fallback summary data for sustainable ministry repurposing
+    const fallbackSummary: SurveySummary = {
+      summary: {
+        key_themes: [
+          'Sustainability and environmental stewardship',
+          'Community engagement and outreach',
+          'Financial viability and resource sharing',
+          'Preserving spiritual mission while adapting space'
+        ],
+        sentiment: {
+          overall: 'mostly positive',
+          summary_text: 'The congregation is optimistic about repurposing church properties into sustainable ministries, with enthusiasm for environmental projects and community partnerships, though some express concerns about losing traditional identity.'
+        },
+        potential_risks: {
+          items: [
+            'Loss of historical or spiritual identity',
+            'Insufficient funding or volunteer support',
+            'Community resistance to change',
+            'Regulatory or zoning challenges'
+          ],
+          number_of_persons_identifying_risks: 7
+        },
+        potential_opportunities: {
+          items: [
+            'Creation of community gardens and food programs',
+            'Hosting sustainability workshops and events',
+            'Partnerships with local nonprofits and schools',
+            'Improved use of underutilized property spaces'
+          ],
+          number_of_persons_identifying_opportunities: 15
+        },
+        dreams_and_aspirations: [
+          'To become a model for green ministry in the region',
+          'To offer shelter and resources to those in need',
+          'To engage youth in environmental projects',
+          'To create an inclusive space for all community members'
+        ],
+        fears_and_concerns: [
+          'That the church will lose its traditional character',
+          'That projects will not be financially sustainable',
+          'That older members may feel left out of new initiatives',
+          'That partnerships may dilute the church’s mission'
+        ]
+      }
+    };
+    setSummaryData(fallbackSummary);
     return (
       <div className="container mx-auto py-8 px-4">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data</AlertTitle>
           <AlertDescription>
-            No survey data found for your church.
+            No survey data found for your church. Displaying example summary:
           </AlertDescription>
         </Alert>
+        {/* Render fallback summary cards */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-bold mb-4">Example: Community Opinion on Sustainable Ministry Repurposing</h2>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <Card>
+              <CardHeader>
+                <CardTitle>Key Themes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside text-base">
+                  {fallbackSummary.summary.key_themes.map((theme, idx) => (
+                    <li key={idx}>{theme}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Sentiment</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="mb-2 font-semibold">Overall: {fallbackSummary.summary.sentiment.overall}</div>
+                <div>{fallbackSummary.summary.sentiment.summary_text}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Opportunities</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside text-base">
+                  {fallbackSummary.summary.potential_opportunities.items.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  {fallbackSummary.summary.potential_opportunities.number_of_persons_identifying_opportunities} identified
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Risks</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside text-base">
+                  {fallbackSummary.summary.potential_risks.items.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+                <div className="mt-2 text-xs text-muted-foreground">
+                  {fallbackSummary.summary.potential_risks.number_of_persons_identifying_risks} identified
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Dreams & Aspirations</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside text-base">
+                  {fallbackSummary.summary.dreams_and_aspirations.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Fears & Concerns</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="list-disc list-inside text-base">
+                  {fallbackSummary.summary.fears_and_concerns.map((item, idx) => (
+                    <li key={idx}>{item}</li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     );
   }

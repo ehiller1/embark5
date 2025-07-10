@@ -6,6 +6,7 @@ import { validateMessage } from "@/utils/messageUtils";
 import { toast } from "@/hooks/use-toast";
 
 import { PromptType } from '@/utils/promptUtils';
+import { Companion } from "@/hooks/useSelectedCompanion";
 
 
 export interface Message {
@@ -19,22 +20,55 @@ export interface Message {
 
 const STORAGE_KEY = 'church_assessment_messages';
 
+interface TextInputs {
+  input1: string;
+  input2: string;
+  input3: string;
+  input4: string;
+}
+
+// Function to get companion from companions_cache in localStorage
+const getCachedCompanion = (): Companion | null => {
+  try {
+    const cachedData = localStorage.getItem('companions_cache');
+    if (cachedData) {
+      const companions = JSON.parse(cachedData);
+      // Find the selected companion (usually the first one in the cache)
+      if (Array.isArray(companions) && companions.length > 0) {
+        return companions[0];
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('[useChurchAssessmentMessages] Error getting cached companion:', error);
+    return null;
+  }
+};
+
 export function useChurchAssessmentMessages(
   churchName: string,
   location: string,
   selectedCompanion: any,
-  displayAvatar: any
+  displayAvatar: any,
+  textInputs?: TextInputs
 ) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
   const [isInitialMessageGenerated, setIsInitialMessageGenerated] = useState(false);
   const initialMessageInProgressRef = useRef(false);
+  const [cachedCompanion, setCachedCompanion] = useState<Companion | null>(null);
 
   const { generateResponse, isLoading } = useOpenAI();
   const { getAndPopulatePrompt } = usePrompts();
   const { getAvatarForPage } = useSectionAvatars();
 
-  const companionAvatar = selectedCompanion?.avatar_url;
+  // Load cached companion on mount
+  useEffect(() => {
+    setCachedCompanion(getCachedCompanion());
+  }, []);
+
+  // Always use the cached companion's avatar_url if available
+  const companionAvatar = cachedCompanion?.avatar_url || selectedCompanion?.avatar_url;
   const sectionAvatar = displayAvatar?.avatar_url || getAvatarForPage('church-assessment')?.avatar_url;
 
   // Load stored messages
@@ -66,7 +100,7 @@ export function useChurchAssessmentMessages(
     setAutoScroll(atBottom);
   };
 
-  // Generate initial system prompt
+  // Generate initial system prompt - now just shows a welcome message without calling OpenAI
   const generateInitialMessage = async () => {
     // Skip if already generated or in progress
     if (isInitialMessageGenerated || initialMessageInProgressRef.current || messages.length > 0) {
@@ -74,81 +108,38 @@ export function useChurchAssessmentMessages(
       return;
     }
 
-    // Set both flags before any async operations
-    initialMessageInProgressRef.current = true;
-    setIsInitialMessageGenerated(true);
-    
-    console.log('[useChurchAssessmentMessages] Starting initial message generation');
-
-    const loadingMsg: Message = {
-      id: Date.now(),
-      sender: "assistant",
-      content: "Thinking...",
-      timestamp: new Date(),
-      companionAvatar,
-      sectionAvatar
-    };
-    setMessages([loadingMsg]);
-
     try {
-      const { success, data, error } = await getAndPopulatePrompt(
-        'church_assessment' as PromptType,
-        {
-          companion_avatar: selectedCompanion?.avatar_url ?? '',
-          church_name: churchName ?? '',
-          location: location ?? '',
-          companion_name: selectedCompanion?.companion ?? '',
-          companion_type: selectedCompanion?.companion_type ?? '',
-          companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : '',
-          companion_speech_pattern: selectedCompanion?.speech_pattern ?? '',
-          companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
-          church_avatar_name: displayAvatar?.name ?? '',
-          church_avatar_description: displayAvatar?.description ?? ''
-        }
-      );
-
-      if (!success || !data) {
-        throw new Error(error as string || 'Failed to get prompt');
-      }
-
-      const apiMessages = [
-        { role: 'system', content: data.prompt },
-        { role: 'user', content: 'Kick off the conversation by raising potential areas to explore in a conversational format.' }
-      ];
+      // Set flag to indicate initial message is in progress
+      initialMessageInProgressRef.current = true;
       
-      const res = await generateResponse({
-        messages: apiMessages,
-        maxTokens: 500,
-        temperature: 0.7
-      });
+      console.log('[useChurchAssessmentMessages] Showing initial welcome message');
 
-      if (!res.text) {
-        throw new Error(res.error || 'Failed to generate response');
-      }
-
-      const aiMsg: Message = {
-        id: loadingMsg.id,
+      const welcomeMessage: Message = {
+        id: Date.now(),
         sender: "assistant",
-        content: validateMessage(res.text),
+        content: "Hello! I'm here to help you assess your faith community. Please share your thoughts about your community's strengths, challenges, and opportunities. What would you like to discuss?",
         timestamp: new Date(),
         companionAvatar,
         sectionAvatar
       };
-      setMessages([aiMsg]);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([aiMsg]));
-
+      
+      setMessages([welcomeMessage]);
+      setIsInitialMessageGenerated(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[useChurchAssessmentMessages] Error generating initial message:', msg);
+      
       const errorMsg: Message = {
-        id: loadingMsg.id,
+        id: Date.now(),
         sender: "assistant",
         content: "I apologize, but I encountered an error while generating the initial assessment. Please try again.",
         timestamp: new Date(),
         companionAvatar,
         sectionAvatar
       };
+      
       setMessages([errorMsg]);
+      
       toast({
         title: "AI Response Error",
         description: "Failed to generate the initial assessment. Please try again.",
@@ -159,22 +150,26 @@ export function useChurchAssessmentMessages(
     }
   };
 
-  // Handle follow-up messages
-  const sendMessage = async (userInput: string) => {
-    if (isLoading) return; // Prevent multiple simultaneous requests
+  // Send a message to the assistant
+  const sendMessage = async (content: string) => {
+    if (!content.trim()) return;
 
+    // Add user message
     const userMsg: Message = {
-      id: messages.length + 1,
+      id: Date.now(),
       sender: "user",
-      content: userInput,
-      timestamp: new Date()
+      content: content.trim(),
+      timestamp: new Date(),
+      companionAvatar,
+      sectionAvatar
     };
-    
-    const newMessages = [...messages, userMsg];
-    setMessages(newMessages);
 
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
+    
+    // Add loading message
     const loadingMsg: Message = {
-      id: messages.length + 2,
+      id: Date.now() + 1,
       sender: "assistant",
       content: "Thinking...",
       timestamp: new Date(),
@@ -182,71 +177,128 @@ export function useChurchAssessmentMessages(
       sectionAvatar
     };
     
-    setMessages([...newMessages, loadingMsg]);
+    // Show loading message immediately
+    setMessages([...updatedMessages, loadingMsg]);
 
     try {
-      console.log('[useChurchAssessmentMessages] Sending message:', userInput);
-      
-      const { success, data, error } = await getAndPopulatePrompt(
-        'church_assessment' as PromptType,
-        {
-          companion_avatar: selectedCompanion?.avatar_url ?? '',
-          church_name: churchName ?? '',
-          location: location ?? '',
-          companion_name: selectedCompanion?.companion ?? '',
-          companion_type: selectedCompanion?.companion_type ?? '',
-          companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : '',
-          companion_speech_pattern: selectedCompanion?.speech_pattern ?? '',
-          companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
-          church_avatar_name: displayAvatar?.name ?? '',
-          church_avatar_description: displayAvatar?.description ?? ''
+      // Only call OpenAI if this is the first user message or we have a conversation history
+      if (updatedMessages.filter(m => m.sender === 'user').length === 1) {
+        // First user message - get the initial response
+        const { success, data, error } = await getAndPopulatePrompt(
+          'church_assessment' as PromptType,
+          {
+            companion_avatar: selectedCompanion?.avatar_url ?? '',
+            church_name: churchName ?? '',
+            location: location ?? '',
+            companion_name: selectedCompanion?.companion ?? '',
+            companion_type: selectedCompanion?.companion_type ?? '',
+            companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : '',
+            companion_speech_pattern: selectedCompanion?.speech_pattern ?? '',
+            companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
+            church_avatar_name: displayAvatar?.name ?? '',
+            church_avatar_description: displayAvatar?.description ?? '',
+            // Include text inputs if available
+            church_input1: textInputs?.input1 ?? '',
+            church_input2: textInputs?.input2 ?? '',
+            church_input3: textInputs?.input3 ?? '',
+            church_input4: textInputs?.input4 ?? '',
+            // Include the user's first message
+            user_message: content.trim()
+          }
+        );
+
+        if (!success || !data) {
+          throw new Error(error as string || 'Failed to get prompt');
         }
-      );
 
-      if (!success || !data) {
-        console.error('[useChurchAssessmentMessages] Failed to get and populate prompt:', {
-          success,
-          error,
-          data
+        const apiMessages = [
+          { role: 'system', content: data.prompt },
+          { role: 'user', content: content.trim() }
+        ];
+        
+        const res = await generateResponse({
+          messages: apiMessages,
+          maxTokens: 500,
+          temperature: 0.7
         });
-        throw new Error(typeof error === 'string' ? error : String(error));
-      }
 
-      const apiMessages = [
-        { role: 'system', content: data.prompt },
-        ...messages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.content })),
-        { role: 'user', content: userInput }
-      ];
+        if (!res.text) {
+          throw new Error(res.error || 'Failed to generate response');
+        }
 
-      const res = await generateResponse({
-        messages: apiMessages,
-        maxTokens: 500,
-        temperature: 0.7
-      });
+        // Update loading message with AI response
+        const aiMsg: Message = {
+          id: loadingMsg.id,
+          sender: "assistant",
+          content: validateMessage(res.text),
+          timestamp: new Date(),
+          companionAvatar,
+          sectionAvatar
+        };
+        
+        setMessages([...updatedMessages, aiMsg]);
+      } else {
+        // For subsequent messages, use the conversation history
+        const { success, data, error } = await getAndPopulatePrompt(
+          'church_assessment' as PromptType,
+          {
+            companion_avatar: selectedCompanion?.avatar_url ?? '',
+            church_name: churchName ?? '',
+            location: location ?? '',
+            companion_name: selectedCompanion?.companion ?? '',
+            companion_type: selectedCompanion?.companion_type ?? '',
+            companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : '',
+            companion_speech_pattern: selectedCompanion?.speech_pattern ?? '',
+            companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
+            church_avatar_name: displayAvatar?.name ?? '',
+            church_avatar_description: displayAvatar?.description ?? '',
+            // Include text inputs if available
+            church_input1: textInputs?.input1 ?? '',
+            church_input2: textInputs?.input2 ?? '',
+            church_input3: textInputs?.input3 ?? '',
+            church_input4: textInputs?.input4 ?? ''
+          }
+        );
 
-      if (!res.text) {
-        console.error('[useChurchAssessmentMessages] Failed to generate response:', {
-          error: res.error,
-          response: res
+        if (!success || !data) {
+          throw new Error(error as string || 'Failed to get prompt');
+        }
+
+        // Prepare conversation history for API
+        const conversationHistory = updatedMessages
+          .filter(msg => msg.content !== 'Thinking...')
+          .map(msg => ({
+            role: msg.sender === 'user' ? 'user' : 'assistant',
+            content: msg.content
+          }));
+
+        const apiMessages = [
+          { role: 'system', content: data.prompt },
+          ...conversationHistory
+        ];
+        
+        const res = await generateResponse({
+          messages: apiMessages,
+          maxTokens: 500,
+          temperature: 0.7
         });
-        throw new Error(res.error || 'Failed to generate response');
+
+        if (!res.text) {
+          throw new Error(res.error || 'Failed to generate response');
+        }
+
+        // Update loading message with AI response
+        const aiMsg: Message = {
+          id: loadingMsg.id,
+          sender: "assistant",
+          content: validateMessage(res.text),
+          timestamp: new Date(),
+          companionAvatar,
+          sectionAvatar
+        };
+        
+        setMessages([...updatedMessages, aiMsg]);
       }
-
-      console.log('[useChurchAssessmentMessages] Successfully generated follow-up response');
-
-      const aiReply: Message = {
-        id: loadingMsg.id,
-        sender: "assistant",
-        content: validateMessage(res.text),
-        timestamp: new Date(),
-        companionAvatar,
-        sectionAvatar
-      };
-      
-      const updatedMessages = [...newMessages, aiReply];
-      setMessages(updatedMessages);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedMessages));
-
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[useChurchAssessmentMessages] Error generating response:', msg);
@@ -258,7 +310,7 @@ export function useChurchAssessmentMessages(
         companionAvatar,
         sectionAvatar
       };
-      setMessages([...newMessages, errorMsg]);
+      setMessages([...updatedMessages, errorMsg]);
       toast({
         title: "AI Response Error",
         description: "Failed to generate a response. Please try again.",

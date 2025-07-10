@@ -8,15 +8,46 @@ import { useSelectedCompanion } from "@/hooks/useSelectedCompanion";
 import { useSectionAvatars } from "@/hooks/useSectionAvatars";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { useChurchAssessmentMessages } from '@/hooks/useChurchAssessmentMessages';
+import { Companion } from '@/hooks/useSelectedCompanion';
 
 const CHURCH_NAME_KEY = 'church_name';
 
 interface ChurchAssessmentInterfaceProps {
   disableNext?: boolean;
+  textInputs?: {
+    input1: string;
+    input2: string;
+    input3: string;
+    input4: string;
+  };
 }
+
+// Function to get companion from companions_cache in localStorage
+const getCachedCompanion = (): Companion | null => {
+  try {
+    const cachedData = localStorage.getItem('companions_cache');
+    if (cachedData) {
+      const companions = JSON.parse(cachedData);
+      // Find the selected companion (usually the first one in the cache)
+      if (Array.isArray(companions) && companions.length > 0) {
+        return companions[0];
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting cached companion:', error);
+    return null;
+  }
+};
 
 export function ChurchAssessmentInterface({
   disableNext = false,
+  textInputs = {
+    input1: '',
+    input2: '',
+    input3: '',
+    input4: ''
+  },
 }: ChurchAssessmentInterfaceProps) {
   const { selectedCompanion } = useSelectedCompanion();
   const { getAvatarForPage } = useSectionAvatars();
@@ -30,6 +61,12 @@ export function ChurchAssessmentInterface({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const [autoScroll, setAutoScroll] = useState(true);
+  const [cachedCompanion, setCachedCompanion] = useState<Companion | null>(null);
+
+  // Load cached companion on mount
+  useEffect(() => {
+    setCachedCompanion(getCachedCompanion());
+  }, []);
 
   const informationGathererAvatar = getAvatarForPage("church-assessment");
 
@@ -42,7 +79,8 @@ export function ChurchAssessmentInterface({
     churchName,
     location,
     selectedCompanion,
-    informationGathererAvatar
+    informationGathererAvatar,
+    textInputs
   );
 
   // Scroll to bottom when messages change
@@ -61,12 +99,13 @@ export function ChurchAssessmentInterface({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Kick off first message
+  // Show initial hardcoded message as a message bubble
   useEffect(() => {
     if (messages.length === 0) {
+      // Initial message is now handled by the useChurchAssessmentMessages hook
       generateInitialMessage();
     }
-  }, [messages.length, generateInitialMessage]);
+  }, [selectedCompanion, informationGathererAvatar]);
 
   // Track user scroll to toggle autoScroll
   const handleScroll = useCallback(() => {
@@ -115,61 +154,52 @@ export function ChurchAssessmentInterface({
               </div>
             ) : (
               <div className="space-y-6 pb-4">
+                {/* Initial message is now handled by the first useEffect */}
+                
                 {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${
-                      msg.sender === "user"
-                        ? "justify-end"
-                        : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[90%] rounded-lg p-4 ${
-                        msg.sender === "user"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-white border border-journey-lightPink/20"
-                      }`}
-                    >
-                      {msg.sender === "assistant" && (
-                        <div className="flex items-center gap-2 mb-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage
-                              src={informationGathererAvatar?.avatar_url}
-                              alt={informationGathererAvatar?.name}
-                            />
-                            <AvatarFallback>IG</AvatarFallback>
-                          </Avatar>
-                          {selectedCompanion && (
-                            <Avatar className="h-6 w-6">
-                              <AvatarImage
-                                src={selectedCompanion.avatar_url}
-                                alt={selectedCompanion.companion}
-                              />
-                              <AvatarFallback>
-                                {selectedCompanion.companion?.[0]}
-                              </AvatarFallback>
-                            </Avatar>
-                          )}
-                          <span className="text-xs font-medium">
-                            {informationGathererAvatar?.name}
-                            {selectedCompanion &&
-                              ` & ${selectedCompanion.companion}`}
-                          </span>
-                        </div>
-                      )}
-                      <p className="text-sm md:text-base whitespace-pre-wrap break-words leading-relaxed">
-                        {msg.content}
-                      </p>
-                      <div className="text-xs mt-2 opacity-70">
-                        {msg.timestamp.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+  <div
+    key={msg.id}
+    className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+  >
+    <div className="flex flex-col max-w-[90%]">
+      {msg.sender === "assistant" && (
+        <div className="flex items-center gap-2 mb-1">
+          <Avatar className="h-6 w-6">
+            <AvatarImage src={selectedCompanion?.avatar_url} />
+            <AvatarFallback>
+              {selectedCompanion?.companion?.charAt(0).toUpperCase() || 'C'}
+            </AvatarFallback>
+          </Avatar>
+          <span className="text-sm font-medium">
+            {selectedCompanion?.companion || 'Companion'}
+          </span>
+        </div>
+      )}
+      <div className="flex items-end gap-2">
+        {msg.sender === "assistant" && (
+          <div className="w-6 flex-shrink-0"></div>
+        )}
+        <div
+          className={`rounded-2xl p-4 ${
+            msg.sender === "user"
+              ? "bg-primary text-primary-foreground"
+              : "bg-white border border-journey-lightPink/20"
+          }`}
+        >
+          <p className="whitespace-pre-wrap break-words">
+            {msg.content}
+          </p>
+          <div className="text-xs mt-2 opacity-70">
+            {msg.timestamp.toLocaleTimeString([], {
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+))}
                 <div ref={messagesEndRef} />
               </div>
             )}
@@ -198,14 +228,20 @@ export function ChurchAssessmentInterface({
             </Button>
           </div>
           
-          <div className="flex justify-end mt-2">
+          <div className="flex justify-between mt-2">
             <Button 
               variant="outline" 
-              disabled={disableNext}
-              onClick={() => console.log('Next step clicked')}
-              className="px-6"
+              onClick={() => window.location.href = '/clergy-home'}
+              className="px-6 bg-gray-100 hover:bg-gray-200"
             >
-              Next Step
+              Home
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => window.location.href = '/research-summary'}
+              className="px-6 bg-journey-blue text-white hover:bg-journey-blue/90"
+            >
+              Next Step <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>

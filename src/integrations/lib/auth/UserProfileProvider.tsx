@@ -208,12 +208,25 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
   }, []);
 
   useEffect(() => {
+    // Enhanced debug logging for profile state
+    console.log(`%c[UserProfileProvider] Profile State Debug:`, 'color: green; font-weight: bold;', {
+      userId: user?.id,
+      profileFetchAttempted: profileState.profileFetchAttempted,
+      hasProfile: !!profileState.profile,
+      profileId: profileState.profile?.id,
+      profileRole: profileState.profile?.role,
+      isLoading: profileState.isLoading,
+      timestamp: new Date().toISOString(),
+    });
+    
     // Fetch profile only if we have a user and haven't tried fetching yet.
     if (user && !profileState.profileFetchAttempted) {
+      console.log(`%c[UserProfileProvider] Initiating profile fetch for user ${user.id}`, 'color: green; font-weight: bold;');
       fetchProfile(user);
     } 
     // Reset profile state if user logs out.
     else if (!user && profileState.profile) {
+      console.log(`%c[UserProfileProvider] User logged out, resetting profile state`, 'color: green; font-weight: bold;');
       resetProfileState();
     }
   }, [user, profileState.profileFetchAttempted, profileState.profile, fetchProfile, resetProfileState]);

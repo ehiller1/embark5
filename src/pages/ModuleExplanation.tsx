@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Users, ChartBar, FileText, Layers } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { CompanionSelectionModal } from '@/components/CompanionSelectionModal';
 import { toast } from "@/hooks/use-toast";
 
 const ModuleStep = ({ number, title, description, icon: Icon }: {
@@ -28,7 +27,6 @@ const ModuleStep = ({ number, title, description, icon: Icon }: {
 
 export default function ModuleExplanation() {
   const navigate = useNavigate();
-  const [showCompanionModal, setShowCompanionModal] = useState(false);
 
   const steps = [
     {
@@ -68,11 +66,6 @@ export default function ModuleExplanation() {
       title: "Leading your church through discernment",
       description: "Navigating to conversation interface...",
     });
-    // navigate('/viability'); // Navigation will now happen after companion selection
-    setShowCompanionModal(true);
-  };
-
-  const handleCompanionSelectionComplete = () => {
     navigate('/community-profile');
   };
 
@@ -117,11 +110,6 @@ export default function ModuleExplanation() {
           </div>
         </div>
       </div>
-      <CompanionSelectionModal
-        open={showCompanionModal}
-        onOpenChange={setShowCompanionModal}
-        onSelectionComplete={handleCompanionSelectionComplete}
-      />
     </>
   );
 }

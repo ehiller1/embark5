@@ -11,7 +11,7 @@ export const AppLogo = () => {
           style={{ objectFit: 'contain' }} 
         />
       </div>
-      <span className="text-[#47799F]">Reflective Spirit</span>
+      <span className="text-[#47799F]">EmbarkNow</span>
     </h1>
   );
 };

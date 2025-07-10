@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Copy, Check } from 'lucide-react';
+import { Loader2, Copy, Check, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/lib/supabase';
 import { useOpenAI } from '@/hooks/useOpenAI';
 
@@ -183,10 +183,23 @@ const NeighborhoodSurvey = () => {
 
   if (!surveyData) {
     return (
-      <div className="container mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-md p-6 text-center">
-          <h2 className="text-2xl font-bold mb-4">No Survey Data</h2>
-          <p className="mb-4">We couldn't generate a survey from the conversation.</p>
+      <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto space-y-8">
+          {/* Back button above the header */}
+          <div className="mb-2 -ml-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/clergy-home')}
+              className="text-journey-pink hover:bg-journey-lightPink/20"
+            >
+              <ArrowLeft className="h-4 w-4 mr-1" /> Back to Home
+            </Button>
+          </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold mb-2">Your Survey is Ready!</h1>
+            <p className="text-gray-600">Share this survey with your community to gather responses.</p>
+          </div>
           <Button onClick={() => navigate('/survey-neighborhood-build')}>
             Back to Survey Builder
           </Button>
@@ -196,24 +209,35 @@ const NeighborhoodSurvey = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
-      <div className="space-y-8">
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto space-y-8">
+        {/* Back button above the header */}
+        <div className="mb-2 -ml-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/clergy-home')}
+            className="text-journey-pink hover:bg-journey-lightPink/20"
+          >
+            <ArrowLeft className="h-4 w-4 mr-1" /> Back to Home
+          </Button>
+        </div>
         <div className="text-center">
           <h1 className="text-3xl font-bold mb-2">Your Survey is Ready!</h1>
           <p className="text-gray-600">Share this survey with your community to gather responses.</p>
         </div>
-
         <Card>
           <CardHeader>
-            <CardTitle>{surveyData.title}</CardTitle>
-            <CardDescription>{surveyData.description}</CardDescription>
+            <CardTitle>Survey Questions</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-6">
+            <div className="space-y-4">
               {surveyData.questions.map((q, index) => (
                 <div key={q.id} className="space-y-2">
                   <Label>
-                    {index + 1}. {q.question} {q.required && <span className="text-red-500">*</span>}
+                    <>
+                      {index + 1}. {q.question} {q.required && <span className="text-red-500">*</span>}
+                    </>
                   </Label>
                   {q.type === 'text' && (
                     <Input type="text" placeholder="Your answer" disabled />
@@ -269,13 +293,18 @@ const NeighborhoodSurvey = () => {
           </CardContent>
         </Card>
 
-        <div className="flex justify-end space-x-4">
-          <Button variant="outline" onClick={() => navigate('/survey-neighborhood-build')}>
-            Back to Builder
+        <div className="flex justify-between space-x-4">
+          <Button variant="secondary" onClick={() => navigate('/clergy-home')}>
+            Back to Home
           </Button>
-          <Button onClick={() => window.open(surveyUrl, '_blank')}>
-            View Live Survey
-          </Button>
+          <div className="flex space-x-4">
+            <Button variant="outline" onClick={() => navigate('/survey-neighborhood-build')}>
+              Back to Builder
+            </Button>
+            <Button onClick={() => window.open(surveyUrl, '_blank')}>
+              View Live Survey
+            </Button>
+          </div>
         </div>
       </div>
     </div>

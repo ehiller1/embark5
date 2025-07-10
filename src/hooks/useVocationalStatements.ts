@@ -99,6 +99,18 @@ export function useVocationalStatements(avatarRole: 'church' | 'community' | 'co
             throw new Error(`Invalid avatar role '${avatarRole}' provided for statement generation.`);
         }
 
+        // Check if scenario_details are available in local storage
+        let scenarioDetails = '';
+        try {
+          const storedScenarioDetails = localStorage.getItem('scenario_details');
+          if (storedScenarioDetails) {
+            scenarioDetails = storedScenarioDetails;
+            console.log(`[useVocationalStatements] Found scenario_details in local storage.`);
+          }
+        } catch (e) {
+          console.warn('[useVocationalStatements] Error accessing scenario_details from local storage:', e);
+        }
+
         // 1) fetch the single 'narrative_build' template
         const getPromptRes = await getPromptByType(promptType);
         if (!getPromptRes.success || !getPromptRes.data) {
@@ -112,7 +124,8 @@ export function useVocationalStatements(avatarRole: 'church' | 'community' | 'co
         // $(church_avatar|community_avatar|companion_avatar, companion_type, companion_traits, companion_speech_pattern.)
         template = template
           .replace(/\$\((?:research_summary|researchSummary)\)/gi, researchSummary) // Keep this flexible for research_summary or ResearchSummary
-          .replace(/\$\(church_avatar\|community_avatar\|companion_avatar, companion_type, companion_traits, companion_speech_pattern\.\)/gi, avatarSpecificContext);
+          .replace(/\$\(church_avatar\|community_avatar\|companion_avatar, companion_type, companion_traits, companion_speech_pattern\.\)/gi, avatarSpecificContext)
+          .replace(/\$\((?:scenario_details)\)/gi, scenarioDetails || 'No scenario details available'); // Add scenario_details replacement
         
         // Log the template being sent to OpenAI for the specific role
         console.log(`[useVocationalStatements] Template for ${avatarRole}:`, template);

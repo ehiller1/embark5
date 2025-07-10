@@ -1,5 +1,5 @@
 // src/components/ScenarioDiscussionInterface.tsx
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Message, Companion } from '@/types/NarrativeTypes';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Card, CardContent } from '@/components/ui/card';
@@ -19,6 +19,24 @@ interface ScenarioDiscussionInterfaceProps {
   onRefineScenarios: () => void;
   showRefineButton: boolean;
 }
+
+// Function to get companion from companions_cache in localStorage
+const getCachedCompanion = (): Companion | null => {
+  try {
+    const cachedData = localStorage.getItem('companions_cache');
+    if (cachedData) {
+      const companions = JSON.parse(cachedData);
+      // Find the selected companion (usually the first one in the cache)
+      if (Array.isArray(companions) && companions.length > 0) {
+        return companions[0];
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting cached companion:', error);
+    return null;
+  }
+};
 
 const getAvatarInitials = (name?: string) => {
   if (!name) return 'U';
@@ -41,6 +59,12 @@ export const ScenarioDiscussionInterface: React.FC<ScenarioDiscussionInterfacePr
   showRefineButton,
 }) => {
   const scrollAreaRef = React.useRef<HTMLDivElement>(null);
+  const [cachedCompanion, setCachedCompanion] = useState<Companion | null>(null);
+  
+  // Load cached companion on mount
+  useEffect(() => {
+    setCachedCompanion(getCachedCompanion());
+  }, []);
 
   React.useEffect(() => {
     if (scrollAreaRef.current) {
@@ -73,8 +97,12 @@ export const ScenarioDiscussionInterface: React.FC<ScenarioDiscussionInterfacePr
             >
               {msg.role !== 'user' && (
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={undefined /* Companion type does not have image_url, add other avatar images if available */} />
-                  <AvatarFallback>{getAvatarInitials(msg.name)}</AvatarFallback>
+                  <AvatarImage src={cachedCompanion?.avatar_url} />
+                  <AvatarFallback>
+                    {cachedCompanion?.companion 
+                      ? getAvatarInitials(cachedCompanion.companion)
+                      : getAvatarInitials(msg.name)}
+                  </AvatarFallback>
                 </Avatar>
               )}
               <div
@@ -89,8 +117,14 @@ export const ScenarioDiscussionInterface: React.FC<ScenarioDiscussionInterfacePr
               </div>
               {msg.role === 'user' && (
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={undefined /* Companion type does not have image_url */} />
-                  <AvatarFallback>{getAvatarInitials(identity?.companion || 'You')}</AvatarFallback>
+                  <AvatarImage src={identity?.avatar_url || cachedCompanion?.avatar_url} />
+                  <AvatarFallback>
+                    {identity?.companion 
+                      ? getAvatarInitials(identity.companion)
+                      : cachedCompanion?.companion
+                        ? getAvatarInitials(cachedCompanion.companion)
+                        : getAvatarInitials('You')}
+                  </AvatarFallback>
                 </Avatar>
               )}
             </div>

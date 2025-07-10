@@ -180,6 +180,15 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
     }
   }, []);
 
+  // Persist selectedCompanionId to localStorage whenever it changes
+  useEffect(() => {
+    if (selectedCompanionId) {
+      localStorage.setItem('selected_companion_id', selectedCompanionId);
+    } else {
+      localStorage.removeItem('selected_companion_id');
+    }
+  }, [selectedCompanionId]);
+
   const fetchChurchAvatars = useCallback(async () => {
     // First check if we have local storage data - use as fallback immediately
     try {
@@ -622,9 +631,9 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
     setSelectedCompanionId(companionId);
     
     if (companionId) {
-      localStorage.setItem('selected_companion_id', companionId);
+      localStorage.setItem('selection_companion_id', companionId);
     } else {
-      localStorage.removeItem('selected_companion_id');
+      localStorage.removeItem('selection_companion_id');
     }
   }, []);
 

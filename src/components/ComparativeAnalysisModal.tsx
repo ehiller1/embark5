@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -6,10 +6,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useForm } from 'react-hook-form';
 import { useOpenAI } from '@/hooks/useOpenAI';
 import { useToast } from '@/hooks/use-toast';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { Loader2, Save, BarChart2, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/integrations/lib/supabase';
 // Recharts imports
-import { BarChart, PieChart, CartesianGrid, XAxis, YAxis, Tooltip, Legend, Bar, Cell } from 'recharts';
+import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, PieChart, Pie } from 'recharts';
 // Form components
 import { Form, FormField, FormItem, FormLabel, FormControl } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -22,43 +23,89 @@ import Tiptap from '@/components/ui/tiptap';
 
 // Chart configuration and data
 const chartConfig = {
-  growth: { height: 300, width: '100%' },
-  demographic: { height: 300, width: '100%' },
-  engagement: { height: 300, width: '100%' }
+  growth: { 
+    height: 300, 
+    width: '100%',
+    margin: { top: 20, right: 30, left: 20, bottom: 20 }
+  },
+  demographic: { 
+    height: 300, 
+    width: '100%',
+    margin: { top: 20, right: 30, left: 20, bottom: 20 }
+  },
+  engagement: { 
+    height: 300, 
+    width: '100%',
+    margin: { top: 20, right: 30, left: 20, bottom: 20 }
+  }
 };
 
 // Chart colors
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+const COLORS = {
+  yourChurch: '#4F46E5',    // Indigo-600
+  similarChurches: '#10B981', // Emerald-500
+  denominationAvg: '#8B5CF6', // Violet-500
+  others: [
+    '#F59E0B', // Amber-500
+    '#EF4444', // Red-500
+    '#EC4899', // Pink-500
+    '#14B8A6', // Teal-500
+    '#F97316'  // Orange-500
+  ]
+};
 
-// Sample data for charts
+// Sample data for charts - enhanced with more realistic data
 const attendanceData = [
-  { name: 'Church A', value: 420 },
-  { name: 'Church B', value: 320 },
-  { name: 'Church C', value: 180 },
-  { name: 'Church D', value: 240 }
+  { name: 'Your Church', value: 420, fill: '#4F46E5' },
+  { name: 'Similar Church A', value: 380, fill: '#10B981' },
+  { name: 'Similar Church B', value: 290, fill: '#F59E0B' },
+  { name: 'Similar Church C', value: 210, fill: '#EF4444' },
+  { name: 'Denomination Avg', value: 320, fill: '#8B5CF6' }
 ];
 
 const growthRateData = [
-  { name: '2019', church_a: 2.1, church_b: 1.2 },
-  { name: '2020', church_a: -0.5, church_b: -1.8 },
-  { name: '2021', church_a: 0.8, church_b: 0.2 },
-  { name: '2022', church_a: 1.5, church_b: 0.9 }
+  { name: '2019', yourChurch: 2.1, similarChurches: 1.8, denominationAvg: 1.5 },
+  { name: '2020', yourChurch: -0.5, similarChurches: -1.2, denominationAvg: -2.1 },
+  { name: '2021', yourChurch: 0.8, similarChurches: 0.5, denominationAvg: 0.3 },
+  { name: '2022', yourChurch: 1.5, similarChurches: 1.1, denominationAvg: 0.9 },
+  { name: '2023', yourChurch: 2.3, similarChurches: 1.7, denominationAvg: 1.4 }
 ];
 
 const demographicData = [
-  { name: '18-24', church_a: 15, church_b: 22 },
-  { name: '25-34', church_a: 20, church_b: 28 },
-  { name: '35-44', church_a: 25, church_b: 20 },
-  { name: '45-54', church_a: 18, church_b: 15 },
-  { name: '55+', church_a: 22, church_b: 15 }
+  { name: 'Under 18', yourChurch: 18, similarChurches: 22, denominationAvg: 20 },
+  { name: '18-24', yourChurch: 12, similarChurches: 15, denominationAvg: 14 },
+  { name: '25-34', yourChurch: 20, similarChurches: 25, denominationAvg: 22 },
+  { name: '35-44', yourChurch: 18, similarChurches: 15, denominationAvg: 16 },
+  { name: '45-54', yourChurch: 15, similarChurches: 12, denominationAvg: 13 },
+  { name: '55-64', yourChurch: 10, similarChurches: 7, denominationAvg: 8 },
+  { name: '65+', yourChurch: 7, similarChurches: 4, denominationAvg: 7 }
 ];
 
 const engagementData = [
-  { name: 'Sunday Service', church_a: 85, church_b: 78 },
-  { name: 'Small Groups', church_a: 42, church_b: 65 },
-  { name: 'Volunteering', church_a: 28, church_b: 35 },
-  { name: 'Online Content', church_a: 35, church_b: 48 }
+  { name: 'Weekly Attendance', yourChurch: 85, similarChurches: 78, denominationAvg: 72 },
+  { name: 'Small Groups', yourChurch: 42, similarChurches: 58, denominationAvg: 52 },
+  { name: 'Volunteering', yourChurch: 28, similarChurches: 35, denominationAvg: 32 },
+  { name: 'Online Engagement', yourChurch: 65, similarChurches: 48, denominationAvg: 55 },
+  { name: 'Giving', yourChurch: 38, similarChurches: 42, denominationAvg: 40 },
+  { name: 'Missions', yourChurch: 15, similarChurches: 12, denominationAvg: 18 }
 ];
+
+// Custom tooltip component
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-lg">
+        <p className="font-semibold">{label}</p>
+        {payload.map((entry: any, index: number) => (
+          <p key={`tooltip-${index}`} style={{ color: entry.color }}>
+            {entry.name}: {entry.value}%
+          </p>
+        ))}
+      </div>
+    );
+  }
+  return null;
+};
 
 interface ComparativeAnalysisModalProps {
   open: boolean;
@@ -82,6 +129,8 @@ interface AnalysisState {
 export function ComparativeAnalysisModal({ open, onClose, summaryContent }: ComparativeAnalysisModalProps) {
   const { generateResponse } = useOpenAI();
   const { toast } = useToast();
+  const { profile } = useUserProfile();
+  const chartsRef = useRef<HTMLDivElement>(null);
 
   const [state, setState] = useState<AnalysisState>({
     analysis: '',
@@ -93,7 +142,7 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
     editing: false,
     error: false,
     title: '',
-    activeTab: 'narrative' as 'narrative' | 'statistics',
+    activeTab: 'statistics' as 'narrative' | 'statistics',
   });
 
   const form = useForm({ defaultValues: { title: 'Comparative Analysis' } });
@@ -103,6 +152,56 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
       loadData();
     }
   }, [open]);
+
+  // Effect to force rerender charts when tab changes to statistics
+  useEffect(() => {
+    if (state.activeTab === 'statistics' && chartsRef.current) {
+      console.log('[ComparativeAnalysisModal] Tab changed to statistics, preparing to render charts');
+      
+      // Trigger a window resize event to help Recharts recalculate dimensions
+      const triggerResize = () => {
+        window.dispatchEvent(new Event('resize'));
+        console.log('[ComparativeAnalysisModal] Triggered window resize event');
+      };
+      
+      // Use setTimeout to ensure the DOM has fully updated
+      setTimeout(() => {
+        if (chartsRef.current) {
+          // Force reflow of the charts container
+          const container = chartsRef.current;
+          
+          // First hide the container
+          container.style.visibility = 'hidden';
+          
+          // Force a reflow
+          void container.offsetHeight;
+          
+          // Make visible again after a short delay and trigger resize
+          setTimeout(() => {
+            if (chartsRef.current) {
+              chartsRef.current.style.visibility = 'visible';
+              triggerResize();
+              console.log('[ComparativeAnalysisModal] Charts should now be visible');
+            }
+          }, 100);
+        }
+      }, 200);
+    }
+  }, [state.activeTab]);
+  
+  // Add a resize listener to handle window size changes
+  useEffect(() => {
+    const handleResize = () => {
+      if (state.activeTab === 'statistics' && chartsRef.current) {
+        console.log('[ComparativeAnalysisModal] Window resized, refreshing charts');
+        // Force a reflow on resize
+        void chartsRef.current.offsetHeight;
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [state.activeTab]);
 
   const loadData = () => {
     console.log('[ComparativeAnalysisModal] Loading data, checking local storage');
@@ -126,14 +225,14 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
   };
 
   const replaceChurchName = (text: string) => 
-    text.replace(/\[church name\]/g, localStorage.getItem('church_name') || 'your church');
+    text.replace(/\[church name\]/g, profile?.church_name || 'your church');
 
   const generateAnalysis = async () => {
     setState(prev => ({ ...prev, loading: true }));
     try {
       console.log('[ComparativeAnalysisModal] Starting analysis generation with summary:', summaryContent.substring(0, 100) + '...');
       
-      const church = localStorage.getItem('church_name') || 'your church';
+      const church = profile?.church_name || 'your church';
       
       // Parse the summary content if it's JSON
       let parsedContent = summaryContent;
@@ -155,11 +254,11 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
         messages: [
           { 
             role: 'system', 
-            content: `You are a comparative analysis expert that helps churches understand their situation in context. Generate a detailed comparative analysis that includes comparisons with similar churches and identifies obstacles.` 
+            content: `You are a comparative analysis expert that helps churches understand their situation in context. Generate a detailed comparative analysis that includes comparisons with similar churches, identifies obstacles, and provides strategic insights.` 
           },
           { 
             role: 'user', 
-            content: `Write a comparative analysis for ${church} based on this research summary:\n\n${parsedContent}\n\nInclude sections with bold headings for "Key Comparisons" and "Key Obstacles". Format your response with HTML.` 
+            content: `Write a comparative analysis for ${church} based on this research summary:\n\n${parsedContent}\n\nYour analysis should include the following elements:\n\n1. Create 3 imaginary churches that share characteristics with ${church}. Describe these churches and their capacity to create sustainable ministries.\n\n2. Perform a SWOT analysis (Strengths, Weaknesses, Opportunities, Threats) for each of these 3 imaginary churches and include this in your response.\n\n3. Create a detailed comparison between ${church} and these 3 imaginary churches, specifically providing a narrative around risks, obstacles, advantages, and any other factors that provide comparative insights.\n\n4. Include sections with bold headings for "Key Comparisons" and "Key Obstacles".\n\nFormat your response with HTML, using appropriate headings, paragraphs, and lists.` 
           }
         ],
         maxTokens: 2000,
@@ -299,135 +398,449 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
     }
   };
 
-  const renderStatisticalReports = () => (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart2 className="h-5 w-5" />
-              Average Weekly Attendance
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ChartContainer config={chartConfig.growth}>
-                <BarChart data={attendanceData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip content={(props: any) => <ChartTooltipContent {...props} />} />
-                  <Legend content={(props: any) => <ChartLegendContent {...props} />} />
-                  <Bar dataKey="value" fill="#8884d8">
-                    {attendanceData.map((_entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ChartContainer>
-            </div>
-            <div className="text-center text-sm mt-2 text-muted-foreground">
-              Based on quarterly average attendance data
-            </div>
-          </CardContent>
-        </Card>
+  const renderStatisticalReports = () => {
+    // Define static chart data
+    const attendanceData = [
+      { name: 'Jan', value: 350, fill: '#4F46E5' },
+      { name: 'Feb', value: 380, fill: '#4F46E5' },
+      { name: 'Mar', value: 410, fill: '#4F46E5' },
+      { name: 'Apr', value: 430, fill: '#4F46E5' },
+      { name: 'May', value: 405, fill: '#4F46E5' },
+      { name: 'Jun', value: 425, fill: '#4F46E5' },
+      { name: 'Jul', value: 440, fill: '#4F46E5' },
+      { name: 'Aug', value: 420, fill: '#4F46E5' },
+      { name: 'Sep', value: 430, fill: '#4F46E5' },
+      { name: 'Oct', value: 445, fill: '#4F46E5' },
+      { name: 'Nov', value: 450, fill: '#4F46E5' },
+      { name: 'Dec', value: 420, fill: '#4F46E5' }
+    ];
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <PieChart className="h-5 w-5" />
-              Monthly Growth Rate (%)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ChartContainer config={chartConfig.growth}>
-                <BarChart data={growthRateData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip content={(props: any) => <ChartTooltipContent {...props} />} />
-                  <Legend content={(props: any) => <ChartLegendContent {...props} />} />
-                  <Bar dataKey="yourChurch" fill="#0088FE" name="Your Church" />
-                  <Bar dataKey="similarChurches" fill="#00C49F" name="Similar Churches" />
-                </BarChart>
-              </ChartContainer>
-            </div>
-            <div className="text-center text-sm mt-2 text-muted-foreground">
-              Growth trends compared to churches of similar size
-            </div>
-          </CardContent>
-        </Card>
+    const growthRateData = [
+      { name: '2019', yourChurch: 1.2, similarChurches: 0.8, denominationAvg: 0.5 },
+      { name: '2020', yourChurch: -0.5, similarChurches: -1.2, denominationAvg: -1.5 },
+      { name: '2021', yourChurch: 1.8, similarChurches: 1.0, denominationAvg: 0.7 },
+      { name: '2022', yourChurch: 2.5, similarChurches: 1.5, denominationAvg: 1.2 },
+      { name: '2023', yourChurch: 3.0, similarChurches: 1.8, denominationAvg: 1.3 }
+    ];
+
+    const demographicData = [
+      { name: '18-25', value: 15 },
+      { name: '26-35', value: 25 },
+      { name: '36-50', value: 30 },
+      { name: '51-65', value: 20 },
+      { name: '65+', value: 10 }
+    ];
+
+    const engagementData = [
+      { name: 'Worship', yourChurch: 85, similarChurches: 82, denominationAvg: 80 },
+      { name: 'Small Groups', yourChurch: 45, similarChurches: 52, denominationAvg: 48 },
+      { name: 'Volunteering', yourChurch: 35, similarChurches: 30, denominationAvg: 28 },
+      { name: 'Giving', yourChurch: 65, similarChurches: 60, denominationAvg: 58 },
+      { name: 'Digital', yourChurch: 58, similarChurches: 48, denominationAvg: 42 }
+    ];
+    
+    return (
+      <div ref={chartsRef}>
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Average Weekly Attendance Card */}
+            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <BarChart2 className="h-5 w-5 text-indigo-600" />
+                    Average Weekly Attendance
+                  </CardTitle>
+                  <span className="text-xs px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full">
+                    Last 12 Months
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ChartContainer config={chartConfig.growth}>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart 
+                        data={attendanceData}
+                        margin={{ top: 20, right: 30, left: 5, bottom: 20 }}
+                        barCategoryGap={20}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          tickFormatter={(value) => `${value}`}
+                        />
+                        <Tooltip 
+                          content={<CustomTooltip />}
+                          cursor={{ fill: 'rgba(0, 0, 0, 0.03)' }}
+                        />
+                        <Bar 
+                          dataKey="value" 
+                          name="Attendance"
+                          radius={[4, 4, 0, 0]}
+                        >
+                          {attendanceData.map((entry, index) => (
+                            <Cell 
+                              key={`cell-${index}`} 
+                              fill={entry.fill || COLORS.others[index % COLORS.others.length]} 
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-indigo-600 mr-2"></div>
+                    <span>Your Church: <span className="font-medium">420</span></span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-3 h-3 rounded-full bg-emerald-500 mr-2"></div>
+                    <span>Similar Avg: <span className="font-medium">293</span></span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Growth Rate Card */}
+            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <BarChart2 className="h-5 w-5 text-emerald-600" />
+                    Annual Growth Rate (%)
+                  </CardTitle>
+                  <span className="text-xs px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full">
+                    5-Year Trend
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ChartContainer config={chartConfig.growth}>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart 
+                        data={growthRateData}
+                        margin={{ top: 20, right: 30, left: 5, bottom: 20 }}
+                        barGap={4}
+                        barCategoryGap={20}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          tickFormatter={(value) => `${value}%`}
+                        />
+                        <Tooltip 
+                          content={<CustomTooltip />}
+                          formatter={(value: number) => [`${value}%`, '']}
+                          cursor={{ fill: 'rgba(0, 0, 0, 0.03)' }}
+                        />
+                        <Legend 
+                          verticalAlign="top"
+                          height={36}
+                          content={({ payload }) => (
+                            <div className="flex justify-center gap-4 mt-2">
+                              {payload?.map((entry, index) => (
+                                <div key={`legend-growth-${index}`} className="flex items-center">
+                                  <div 
+                                    className="w-3 h-3 rounded-sm mr-1" 
+                                    style={{ backgroundColor: entry.color }}
+                                  />
+                                  <span className="text-xs text-gray-600">
+                                    {entry.value}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        />
+                        <Bar 
+                          dataKey="yourChurch" 
+                          name="Your Church" 
+                          fill={COLORS.yourChurch}
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          dataKey="similarChurches" 
+                          name="Similar Churches" 
+                          fill={COLORS.similarChurches}
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          dataKey="denominationAvg" 
+                          name="Denomination Avg" 
+                          fill={COLORS.denominationAvg}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                <div className="mt-2 text-xs text-center text-gray-500">
+                  Positive growth indicates increasing attendance year over year
+                </div>
+              </CardContent>
+              <CardContent>
+                <div className="h-64">
+                  <ChartContainer config={chartConfig.growth}>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart 
+                        data={growthRateData}
+                        margin={{ top: 20, right: 30, left: 5, bottom: 20 }}
+                        barGap={4}
+                        barCategoryGap={20}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          tickFormatter={(value) => `${value}%`}
+                        />
+                        <Tooltip 
+                          content={<CustomTooltip />}
+                          formatter={(value: number) => [`${value}%`, '']}
+                          cursor={{ fill: 'rgba(0, 0, 0, 0.03)' }}
+                        />
+                        <Legend 
+                          verticalAlign="top"
+                          height={36}
+                          content={({ payload }) => (
+                            <div className="flex justify-center gap-4 mt-2">
+                              {payload?.map((entry, index) => (
+                                <div key={`legend-${index}`} className="flex items-center">
+                                  <div 
+                                    className="w-3 h-3 rounded-sm mr-1" 
+                                    style={{ backgroundColor: entry.color }}
+                                  />
+                                  <span className="text-xs text-gray-600">
+                                    {entry.value}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        />
+                        <Bar 
+                          dataKey="yourChurch" 
+                          name="Your Church" 
+                          fill={COLORS.yourChurch}
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          dataKey="similarChurches" 
+                          name="Similar Churches" 
+                          fill={COLORS.similarChurches}
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          dataKey="denominationAvg" 
+                          name="Denomination Avg" 
+                          fill={COLORS.denominationAvg}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                <div className="mt-2 text-xs text-center text-gray-500">
+                  Positive growth indicates increasing attendance year over year
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Demographic Comparison Card */}
+            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <BarChart2 className="h-5 w-5 text-violet-600" />
+                    Demographic Comparison
+                  </CardTitle>
+                  <span className="text-xs px-2 py-1 bg-violet-50 text-violet-700 rounded-full">
+                    Age Distribution
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ChartContainer config={chartConfig.demographic}>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Legend 
+                          verticalAlign="top"
+                          height={36}
+                          content={({ payload }) => (
+                            <div className="flex justify-center gap-4 mt-2">
+                              {payload?.map((entry, index) => (
+                                <div key={`legend-${index}`} className="flex items-center">
+                                  <div 
+                                    className="w-3 h-3 rounded-sm mr-1" 
+                                    style={{ backgroundColor: entry.color }}
+                                  />
+                                  <span className="text-xs text-gray-600">
+                                    {entry.value}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        />
+                        <Pie 
+                          data={demographicData}
+                          dataKey="value"
+                          nameKey="name"
+                          cx="50%"
+                          cy="50%"
+                          outerRadius={80}
+                          fill="#8884d8"
+                          label
+                        >
+                          {demographicData.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS.others[index % COLORS.others.length]} />
+                          ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                <div className="mt-2 text-xs text-center text-gray-500">
+                  Percentage of congregation by age group
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Engagement Metrics Card */}
+            <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+              <CardHeader className="pb-2">
+                <div className="flex justify-between items-center">
+                  <CardTitle className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+                    <BarChart2 className="h-5 w-5 text-amber-600" />
+                    Engagement Metrics
+                  </CardTitle>
+                  <span className="text-xs px-2 py-1 bg-amber-50 text-amber-700 rounded-full">
+                    Participation Rates
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ChartContainer config={chartConfig.engagement}>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart 
+                        data={engagementData}
+                        margin={{ top: 20, right: 30, left: 5, bottom: 20 }}
+                        barCategoryGap={20}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          interval={0}
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          tickFormatter={(value) => `${value}%`}
+                        />
+                        <Tooltip 
+                          content={<CustomTooltip />}
+                          formatter={(value: number) => [`${value}%`, '']}
+                          cursor={{ fill: 'rgba(0, 0, 0, 0.03)' }}
+                        />
+                        <Legend 
+                          verticalAlign="top"
+                          height={36}
+                          content={({ payload }) => (
+                            <div className="flex justify-center gap-4 mt-2">
+                              {payload?.map((entry, index) => (
+                                <div key={`legend-${index}`} className="flex items-center">
+                                  <div 
+                                    className="w-3 h-3 rounded-sm mr-1" 
+                                    style={{ backgroundColor: entry.color }}
+                                  />
+                                  <span className="text-xs text-gray-600">
+                                    {entry.value}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        />
+                        <Bar 
+                          dataKey="yourChurch" 
+                          name="Your Church" 
+                          fill={COLORS.yourChurch}
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          dataKey="similarChurches" 
+                          name="Similar Churches" 
+                          fill={COLORS.similarChurches}
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          dataKey="denominationAvg" 
+                          name="Denomination Avg" 
+                          fill={COLORS.denominationAvg}
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                </div>
+                <div className="text-center text-sm mt-2 text-muted-foreground">
+                  Percentage of congregation participating in various activities
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="mt-4 p-4 bg-muted rounded-md">
+            <h3 className="text-lg font-medium mb-2">Key Insights from Statistical Analysis</h3>
+            <ul className="list-disc pl-5 space-y-2">
+              <li>{profile?.church_name || 'Your church'} has a 33% lower average attendance compared to similar churches in the area</li>
+              <li>Growth rate is consistently higher than comparison group by an average of 1.5%</li>
+              <li>Stronger representation in the 36-50 age group (30% vs 25%)</li>
+              <li>Lower participation in small groups (45% vs 52% in similar churches)</li>
+              <li>Higher digital engagement than comparable churches (58% vs 48%)</li>
+            </ul>
+          </div>
+        </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart2 className="h-5 w-5" />
-              Demographic Comparison
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ChartContainer config={chartConfig.demographic}>
-                <BarChart data={demographicData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip content={(props: any) => <ChartTooltipContent {...props} />} />
-                  <Legend content={(props: any) => <ChartLegendContent {...props} />} />
-                  <Bar dataKey="yourChurch" fill="#0088FE" name="Your Church" />
-                  <Bar dataKey="similarChurches" fill="#00C49F" name="Similar Churches" />
-                </BarChart>
-              </ChartContainer>
-            </div>
-            <div className="text-center text-sm mt-2 text-muted-foreground">
-              Age distribution comparison (percentage)
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart2 className="h-5 w-5" />
-              Engagement Metrics
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="h-64">
-              <ChartContainer config={chartConfig.engagement}>
-                <BarChart data={engagementData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip content={(props: any) => <ChartTooltipContent {...props} />} />
-                  <Legend content={(props: any) => <ChartLegendContent {...props} />} />
-                  <Bar dataKey="yourChurch" fill="#0088FE" name="Your Church" />
-                  <Bar dataKey="similarChurches" fill="#00C49F" name="Similar Churches" />
-                </BarChart>
-              </ChartContainer>
-            </div>
-            <div className="text-center text-sm mt-2 text-muted-foreground">
-              Percentage of congregation participating in various activities
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-4 p-4 bg-muted rounded-md">
-        <h3 className="text-lg font-medium mb-2">Key Insights from Statistical Analysis</h3>
-        <ul className="list-disc pl-5 space-y-2">
-          <li>Your church has a 33% lower average attendance compared to similar churches in the area</li>
-          <li>Growth rate is consistently higher than comparison group by an average of 1.5%</li>
-          <li>Stronger representation in the 36-50 age group (30% vs 25%)</li>
-          <li>Lower participation in small groups (45% vs 52% in similar churches)</li>
-          <li>Higher digital engagement than comparable churches (58% vs 48%)</li>
-        </ul>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -470,61 +883,58 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
               </form>
             </Form>
           ) : (
-            <>
-              <Tabs 
-                defaultValue="narrative" 
-                value={state.activeTab} 
-                onValueChange={(value) => setState(prev => ({ ...prev, activeTab: value as 'narrative' | 'statistics' }))}
-                className="mt-6"
-              >
-                <TabsList className="grid grid-cols-2 w-[400px] mx-auto mb-4">
-                  <TabsTrigger value="narrative">Narrative Report</TabsTrigger>
-                  <TabsTrigger value="statistics">Statistical Reports</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="narrative">
-                  <Card className="mb-6">
-                    <CardContent className="prose p-6 max-w-none" dangerouslySetInnerHTML={{ __html: state.analysis }} />
+            <Tabs 
+              value={state.activeTab}
+              onValueChange={(value) => setState(prev => ({ ...prev, activeTab: value as 'narrative' | 'statistics' }))}
+              className="w-full"
+            >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="narrative">Narrative Report</TabsTrigger>
+                <TabsTrigger value="statistics">Statistical Reports</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="narrative" className="space-y-4">
+                <Card>
+                  <CardContent className="p-6 prose max-w-none" dangerouslySetInnerHTML={{ __html: replaceChurchName(state.analysis) }} />
+                </Card>
+
+                {state.comparisons.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold mb-2">Key Comparisons</h3>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {state.comparisons.map((item, idx) => (
+                          <li key={idx} className="text-sm">{item}</li>
+                        ))}
+                      </ul>
+                      <Button onClick={saveComparisons} variant="outline" className="mt-4">
+                        Save Comparisons
+                      </Button>
+                    </CardContent>
                   </Card>
+                )}
 
-                  {state.comparisons.length > 0 && (
-                    <Card>
-                      <CardContent className="p-6">
-                        <h3 className="text-lg font-semibold mb-2">Key Comparisons</h3>
-                        <ul className="list-disc pl-5">
-                          {state.comparisons.map((item, idx) => (
-                            <li key={idx}>{item}</li>
-                          ))}
-                        </ul>
-                        <Button onClick={saveComparisons} variant="outline" className="mt-4">
-                          Save Comparisons
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {state.obstacles.length > 0 && (
-                    <Card>
-                      <CardContent className="p-6">
-                        <h3 className="text-lg font-semibold mb-2">Key Obstacles</h3>
-                        <ul className="list-disc pl-5">
-                          {state.obstacles.map((item, idx) => (
-                            <li key={idx}>{item}</li>
-                          ))}
-                        </ul>
-                        <Button onClick={saveObstacles} variant="outline" className="mt-4">
-                          Save Obstacles
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="statistics">
-                  {renderStatisticalReports()}
-                </TabsContent>
-              </Tabs>
-            </>
+                {state.obstacles.length > 0 && (
+                  <Card>
+                    <CardContent className="p-6">
+                      <h3 className="text-lg font-semibold mb-2">Key Obstacles</h3>
+                      <ul className="list-disc pl-5 space-y-1">
+                        {state.obstacles.map((item, idx) => (
+                          <li key={idx} className="text-sm">{item}</li>
+                        ))}
+                      </ul>
+                      <Button onClick={saveObstacles} variant="outline" className="mt-4">
+                        Save Obstacles
+                      </Button>
+                    </CardContent>
+                  </Card>
+                )}
+              </TabsContent>
+              
+              <TabsContent value="statistics">
+                {renderStatisticalReports()}
+              </TabsContent>
+            </Tabs>
           )}
         </div>
 

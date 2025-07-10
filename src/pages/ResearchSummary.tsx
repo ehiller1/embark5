@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
+import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
+import { saveVocationalStatement } from '@/utils/dbUtils';
 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/lib/supabase';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { useOpenAI } from '@/hooks/useOpenAI';
 import { usePromptsData } from '@/hooks/usePromptsData';
 import { populatePrompt } from '@/utils/promptUtils';
@@ -20,6 +24,7 @@ import { AssessmentSidebar } from '@/components/AssessmentSidebar';
 // }
 
 export default function ResearchSummary(): JSX.Element {
+  const { profile } = useUserProfile();
   const [churchName, setChurchName] = useState<string>('');
   const [location, setLocation] = useState<string>('');
   const [summaryDraft, setSummaryDraft] = useState<string>('');
@@ -36,11 +41,18 @@ export default function ResearchSummary(): JSX.Element {
 
   // Load churchName & location, then generate summary when prompt available
   useEffect(() => {
-    const savedChurch = localStorage.getItem('church_name') || 'Your church';
-    setChurchName(savedChurch);
+    // Use profile church_name if available, otherwise fallback to localStorage
+    const churchNameValue = profile?.church_name || localStorage.getItem('church_name') || 'Your church';
+    setChurchName(churchNameValue);
+    
+    // Also save to localStorage for other components that might need it
+    if (profile?.church_name && profile.church_name !== localStorage.getItem('church_name')) {
+      localStorage.setItem('church_name', profile.church_name);
+    }
+    
     const savedLoc = localStorage.getItem('user_location') || '';
     setLocation(savedLoc);
-  }, []);
+  }, [profile]);
 
   useEffect(() => {
     if (!promptsLoading && prompts?.['assessment_report']) {
@@ -73,15 +85,6 @@ export default function ResearchSummary(): JSX.Element {
     [key: string]: any;
   }
 
-  interface CompanionData {
-    companion?: string;
-    companion_type?: string;
-    traits?: string | string[];
-    speech_pattern?: string;
-    knowledge_domains?: string | string[];
-    [key: string]: any;
-  }
-
   // Format messages helper function
   const formatMessages = (messages: string | null): string => {
     if (!messages) return 'No messages available';
@@ -103,37 +106,21 @@ export default function ResearchSummary(): JSX.Element {
       setSummaryError(null);
 
       // Get all required data from localStorage
-      const churchMessages = localStorage.getItem('church_assessment_messages');
+      // churchMessages removed as per requirements
       const communityMessages = localStorage.getItem('community_assessment_messages');
-      const churchData = localStorage.getItem('church_assessment_data');
+      // churchData removed as per requirements
       const communityData = localStorage.getItem('community_assessment_data');
-      const companionData = localStorage.getItem('selected_companion');
+      // Use selectedCompanion from the centralized store
+      const { selectedCompanion } = useSelectedCompanion();
 
-      // Parse companion data with defaults
-      let companion = {
-        name: 'Guide',
-        type: 'Guide',
-        traits: 'Helpful and knowledgeable',
-        speech_pattern: 'Professional and friendly',
-        knowledge_domains: 'Church transformation, community engagement'
+      // Use selectedCompanion with defaults
+      const companion = {
+        name: selectedCompanion?.companion || 'Guide',
+        type: selectedCompanion?.companion_type || 'Guide',
+        traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : (selectedCompanion?.traits || 'Helpful and knowledgeable'),
+        speech_pattern: selectedCompanion?.speech_pattern || 'Professional and friendly',
+        knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : (selectedCompanion?.knowledge_domains || 'Church transformation, community engagement')
       };
-
-      if (companionData) {
-        try {
-          const parsed: CompanionData = JSON.parse(companionData);
-          companion = {
-            name: parsed.companion || companion.name,
-            type: parsed.companion_type || companion.type,
-            traits: Array.isArray(parsed.traits) ? parsed.traits.join(', ') : (parsed.traits || companion.traits),
-            speech_pattern: parsed.speech_pattern || companion.speech_pattern,
-            knowledge_domains: Array.isArray(parsed.knowledge_domains) 
-              ? parsed.knowledge_domains.join(', ') 
-              : (parsed.knowledge_domains || companion.knowledge_domains)
-          };
-        } catch (err) {
-          console.error('Error parsing companion data:', err);
-        }
-      }
 
       // Get the prompt template with proper type checking
       const promptData = prompts?.['assessment_report'];
@@ -156,9 +143,9 @@ export default function ResearchSummary(): JSX.Element {
       const parameters: Record<string, string> = {
         church_name: churchName || 'Your church',
         location: location || 'unknown location',
-        church_assessment_messages: formatMessages(churchMessages),
+        // church_assessment_messages removed as per requirements
         community_assessment_messages: formatMessages(communityMessages),
-        church_assessment_data: churchData || 'No church assessment data available',
+        // church_assessment_data removed as per requirements
         community_assessment_data: communityData || 'No community assessment data available',
         companion_name: companion.name,
         companion_type: companion.type,
@@ -365,11 +352,21 @@ export default function ResearchSummary(): JSX.Element {
             };
             const nbResp = await generateResponse(options);
             
-            // Handle different response types
-            if (typeof nbResp === 'string') {
-              localStorage.setItem('vocational_statement', nbResp);
-            } else if (nbResp && typeof nbResp === 'object' && 'text' in nbResp) {
-              localStorage.setItem('vocational_statement', String(nbResp.text));
+            // Handle different response types and save using the utility function
+            const { user } = useAuth();
+            if (user?.id) {
+              if (typeof nbResp === 'string') {
+                await saveVocationalStatement(nbResp, user.id);
+              } else if (nbResp && typeof nbResp === 'object' && 'text' in nbResp) {
+                await saveVocationalStatement(String(nbResp.text), user.id);
+              }
+            } else {
+              // Fallback to direct localStorage if user is not available
+              if (typeof nbResp === 'string') {
+                localStorage.setItem('vocational_statement', nbResp);
+              } else if (nbResp && typeof nbResp === 'object' && 'text' in nbResp) {
+                localStorage.setItem('vocational_statement', String(nbResp.text));
+              }
             }
           }
         } catch (nbError) {
@@ -394,13 +391,14 @@ export default function ResearchSummary(): JSX.Element {
   return (
     <AssessmentSidebar>
       <div className="container mx-auto px-4 py-8">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate('/church-assessment')}
-            className="flex items-center gap-1 mb-4"
+          <Button 
+            variant="ghost" 
+            className="mr-2 -ml-3 mt-1 mb-4" 
+            onClick={() => navigate('/clergy-home')}
+            aria-label="Back to homepage"
           >
-            <ArrowLeft className="h-4 w-4" /> Back to Assessment
+            <ArrowLeft className="h-5 w-5" />
+            <span className="ml-1">Back</span>
           </Button>
 
           <h1 className="text-3xl font-bold mb-4">Research Summary</h1>
@@ -448,14 +446,21 @@ export default function ResearchSummary(): JSX.Element {
             </Button>
           </div>
 
-          {/* New button for navigating to narrative build */}
-          <div className="flex justify-center mt-8">
+          {/* Navigation buttons */}
+          <div className="flex justify-center gap-4 mt-8">
+            <Button 
+              onClick={() => navigate('/clergy-home')}
+              size="lg" 
+              className="px-8 bg-gray-100 hover:bg-gray-200"
+            >
+              Home
+            </Button>
             <Button 
               onClick={() => navigate('/narrative-build')}
               size="lg" 
-              className="px-8"
+              className="px-8 bg-journey-blue text-white hover:bg-journey-blue/90"
             >
-              Uncover your vocation <ArrowRight className="ml-2 h-4 w-4" />
+              Articulate your mission <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
 

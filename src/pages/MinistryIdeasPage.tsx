@@ -1,12 +1,13 @@
 
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 // MainLayout is provided by router
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'; // TabsContent is unused
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { HeartIcon, BookmarkIcon, Search } from 'lucide-react';
+import { HeartIcon, BookmarkIcon, Search, ArrowLeft } from 'lucide-react';
 
 const ministryIdeas = [
   {
@@ -184,6 +185,7 @@ const categories = [...new Set(ministryIdeas.map(idea => idea.category))];
 const MinistryIdeasPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
+  const navigate = useNavigate();
   
   const filteredIdeas = ministryIdeas.filter(idea => {
     const matchesSearch = idea.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -195,11 +197,21 @@ const MinistryIdeasPage = () => {
   return (
     <>
       <div className="container py-6 space-y-6">
-        <div>
-          <h1 className="text-3xl font-bold mb-2">Ministry Ideas</h1>
-          <p className="text-muted-foreground">
-            Explore innovative ministry ideas to inspire your church's next steps.
-          </p>
+        <div className="flex items-start gap-2">
+          <Button 
+            variant="ghost" 
+            className="-ml-3" 
+            onClick={() => navigate('/clergy')}
+            aria-label="Back to homepage"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold mb-2">Ministry Ideas</h1>
+            <p className="text-muted-foreground">
+              Explore innovative ministry ideas to inspire your church's next steps.
+            </p>
+          </div>
         </div>
         
         <div className="flex flex-col sm:flex-row gap-4">

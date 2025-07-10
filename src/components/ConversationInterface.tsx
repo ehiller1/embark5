@@ -21,6 +21,7 @@ interface ConversationInterfaceProps {
   systemPrompt?: string;
   initialMessage?: string;
   onError?: (error: Error) => void;
+  companionName?: string;
 }
 
 export const ConversationInterface = ({
@@ -29,7 +30,8 @@ export const ConversationInterface = ({
   className = '',
   systemPrompt = 'You are a helpful assistant that helps create effective surveys.',
   initialMessage = "Let's begin creating your survey. What would you like to learn about your community?",
-  onError
+  onError,
+  companionName = 'Companion'
 }: ConversationInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -189,7 +191,7 @@ export const ConversationInterface = ({
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      <div className="flex-1 overflow-auto" ref={scrollAreaRef}>
+      <div className="flex-1" ref={scrollAreaRef}>
         <ScrollArea className="h-full">
         <div className="p-4">
           <div className="space-y-4">
@@ -207,6 +209,13 @@ export const ConversationInterface = ({
                       : 'bg-gray-100 text-gray-800 rounded-bl-none'
                   }`}
                 >
+                  {!msg.isUser && !msg.isLoading && !msg.error && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-medium">
+                        {companionName}
+                      </span>
+                    </div>
+                  )}
                   {msg.isLoading ? (
                     <div className="flex items-center space-x-2">
                       <Loader2 className="h-4 w-4 animate-spin" />

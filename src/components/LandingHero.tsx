@@ -80,14 +80,14 @@ export function LandingHero() {
       <div className="max-w-6xl w-full grid md:grid-cols-2 gap-12 items-center">
         <div className="space-y-6">
           <h1 className="text-5xl font-bold text-[#c46659]">
-            Reflective Spirit
+            EmbarkNow
           </h1>
           <h2 className="text-2xl text-[#c46659] mb-4">
             Equiping faith communities for the future
           </h2>
           <div className="space-y-4 text-gray-700">
             <p>
-              Welcome! Reflective Spirit helps us journey through a process of discernment and renewal.
+              Welcome! EmbarkNow helps us journey through a process of discernment and renewal.
             </p>
             <p>
               Through contemplative conversation and innovative thinking, you can help us build a discernment plan informed by your community and guided by God.

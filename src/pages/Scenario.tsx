@@ -1,99 +1,48 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { AvatarSelectionPanel } from '@/components/AvatarSelectionPanel';
-import { ScenarioList } from '@/components/ScenarioList';
+import { useNavigate } from 'react-router-dom';
 import { useScenarioGenerator } from '@/hooks/useScenarioGenerator';
 import { useActiveAvatars } from '@/hooks/useActiveAvatars';
-import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { useSelectedScenarios } from '@/hooks/useSelectedScenarios';
-import { useMissionalAvatars } from '@/hooks/useMissionalAvatars';
+import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
+import { useNarrativeAvatar } from '@/hooks/useNarrativeAvatar';
 import { toast } from '@/hooks/use-toast';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScenarioDetailDialog } from '@/components/ScenarioDetailDialog';
 import { EditRefinedScenariosDialog } from '@/components/EditRefinedScenariosDialog';
-
-import { MissionalAvatarModal } from '@/components/MissionalAvatarModal';
-import { Target } from 'lucide-react';
-import { ScenarioItem } from '@/types/NarrativeTypes';
-// import { useScenarioDiscussionMessaging } from '@/hooks/useScenarioDiscussionMessaging'; // Removed
-// import { RoundtableMessagingContainer } from '@/components/RoundtableMessagingContainer'; // Removed as unused on this page
-// import { ScenarioDiscussionInterface } from '@/components/ScenarioDiscussionInterface'; // Removed
+import { CompanionSelectionModal } from '@/components/CompanionSelectionModal';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScenarioItem, Companion } from '@/types/NarrativeTypes';
+import { ArrowLeft } from 'lucide-react';
 
 
-// Custom hook for missional avatar functionality
-function useMissionalAvatar() {
-  const { selectedMissionalAvatar } = useMissionalAvatars();
-  const [missionalModalOpen, setMissionalModalOpen] = useState(false);
-  const location = useLocation();
-
-  useEffect(() => {
-    if (location.state?.vocational_statement) {
-      toast({
-        title: "Vocational Statement Applied",
-        description: "Your vocational statement has been converted to a missional avatar."
-      });
-    }
-  }, [location.state]);
-
-  return {
-    selectedMissionalAvatar,
-    missionalModalOpen,
-    setMissionalModalOpen
-  };
-}
-
-// Component for missional avatar section
-function MissionalAvatarSection({ 
-  selectedMissionalAvatar, 
-  onOpenModal 
-}: { 
-  selectedMissionalAvatar: any, 
-  onOpenModal: () => void 
-}) {
-  if (!selectedMissionalAvatar) return null;
-
-  return (
-    <>
-      <Target className="h-4 w-4 text-primary" />
-      <div className="text-sm font-medium">
-        Integrate My Vocational Perspective: {selectedMissionalAvatar.avatar_name}
-      </div>
-      <p className="text-muted-foreground mb-4">
-        Adding your vocational perspective will enhance your scenarios with a vocational
-        focus that helps align them to your church's specific calling.
-      </p>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onOpenModal}
-      >
-        Open Vocational Modal
-      </Button>
-    </>
-  );
-}
-
-// Custom hook for message handling
 // Main Scenario page component
 export default function ScenarioPage() {
   const navigate = useNavigate();
   const { scenarios: generatedScenariosFromHook, isLoading, generateScenarios } = useScenarioGenerator();
-  const { avatarData, validateAvatarsForScenarios } = useActiveAvatars({
+  const { avatarData } = useActiveAvatars({
     onGenerateMessages: () => {}
   });
-  const { selectedCompanion } = useSelectedCompanion();
   const { selectedScenarios, handleSaveScenario, isScenarioSaved } = useSelectedScenarios();
-  const { selectedMissionalAvatar, missionalModalOpen, setMissionalModalOpen } = useMissionalAvatar();
+  const { companions } = useNarrativeAvatar();
 
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
   const [selectedScenario, setSelectedScenario] = useState<ScenarioItem | null>(null);
+  const [companionModalOpen, setCompanionModalOpen] = useState(false);
+  
+  // Use the standardized useSelectedCompanion hook for companion management
+  const { selectedCompanion: storedCompanion } = useSelectedCompanion();
+  
+  // No need for the useEffect to initialize from localStorage anymore
+  // as the useSelectedCompanion hook handles that for us
 
-  // State for the new edit refinement modal
+  // State for the edit refinement modal
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [scenariosForEditing, setScenariosForEditing] = useState<ScenarioItem[]>([]);
   const [finalizedScenarios, setFinalizedScenarios] = useState<ScenarioItem[]>([]);
   
+
+
   // Monitor changes in generated scenarios to update the UI
   useEffect(() => {
     if (generatedScenariosFromHook.length > 0) {
@@ -103,79 +52,78 @@ export default function ScenarioPage() {
     }
   }, [generatedScenariosFromHook]);
 
-  // Removed useScenarioDiscussionMessaging hook and related state
-
-  const handleLoadScenarios = async () => {
-    if (!validateAvatarsForScenarios()) return;
-    
+  // Define the generateScenariosOnLoad function at component level
+  const generateScenariosOnLoad = async () => {
     try {
+      // Check if we have the necessary data to generate scenarios
       const researchSummary = localStorage.getItem('research_summary') || '';
       const churchAvatar = avatarData.church;
-      const communityAvatar = avatarData.community;
-
-      if (!churchAvatar?.id || !communityAvatar?.id) {
-        toast({
-          title: "Missing Avatar Information",
-          description: "Church and Community avatars must have valid IDs.",
-          variant: "destructive"
-        });
+      const companionToUse = storedCompanion;
+      
+      console.log('[ScenarioPage] Attempting to generate scenarios with:', {
+        hasChurchAvatar: !!churchAvatar,
+        hasCompanion: !!companionToUse,
+        generatedScenariosCount: generatedScenariosFromHook.length
+      });
+      
+      // If companion is missing, we can't proceed
+      if (!companionToUse) {
+        console.log('[ScenarioPage] Missing companion for scenario generation');
         return;
       }
 
-      if (!selectedCompanion?.companion?.trim()) {
-        toast({
-          title: "Missing Companion",
-          description: "A valid companion avatar (with a name) must be selected.",
-          variant: "destructive"
-        });
-        return;
-      }
-
-      // Call generateScenarios with ALL required parameters
-      // Ensure churchAvatar has the specific role type expected by generateScenarios.
-      // The 'churchAvatar' object (likely from useNarrativeAvatar hook) might have role: string,
-      // but generateScenarios expects a type where role is the literal "church".
-      const typedChurchAvatar = {
-        ...churchAvatar, // Spread existing properties from the churchAvatar object
-        role: "church" as const, // Explicitly set 'role' to the literal type "church"
+      // Create a default church avatar if none exists
+      const typedChurchAvatar = churchAvatar ? {
+        ...churchAvatar,
+        role: "church" as const,
+      } : {
+        id: "default-church",
+        name: "Default Church",
+        role: "church" as const,
+        avatar_point_of_view: "A typical church in your community",
+        avatar_name: "Default Church"
       };
 
-      // Create a properly typed communityAvatar
-      const typedCommunityAvatar = {
-        ...communityAvatar,
-        role: "community" as const, // Explicitly set 'role' to the literal type "community"
-      };
+      // Get companion identifier safely
+      const companionIdentifier = companionToUse.companion || 
+                                 (companionToUse.UUID ? String(companionToUse.UUID) : 'unknown');
 
+      console.log('[ScenarioPage] Generating scenarios with:', {
+        researchSummaryLength: researchSummary.length,
+        churchAvatar: typedChurchAvatar.name,
+        companion: companionIdentifier
+      });
+
+      // Generate scenarios
       await generateScenarios(
         researchSummary,
-        typedChurchAvatar, // Pass the new object with the correctly typed 'role'
-        typedCommunityAvatar, // Pass the new object with the correctly typed 'role'
-        selectedCompanion
+        typedChurchAvatar,
+        companionToUse,
+        undefined
       );
 
-      // Use the scenarios from the hook state, not an undefined scenariosResponse
-      const rankedScenarios = generatedScenariosFromHook.map((scenario, index) => ({
-        ...scenario,
-        rank: index + 1 // Assign ranks starting from 1 (first is top-ranked)
-      }));
-
-      setFinalizedScenarios(rankedScenarios);
-      console.log("[ScenarioPage] Generated scenarios with ranking:", rankedScenarios);
-
-      toast({
-        title: "Scenarios Generated",
-        description: `${rankedScenarios.length} scenarios have been generated based on your avatar selections.`,
-        variant: "default"
-      });
     } catch (error) {
-      console.error("[ScenarioPage] Error generating scenarios:", error);
+      console.error('[ScenarioPage] Error auto-generating scenarios:', error);
       toast({
         title: "Error Generating Scenarios",
-        description: "There was an error generating scenarios. Please try again.",
+        description: "There was an error automatically generating scenarios.",
         variant: "destructive"
       });
     }
-    // Remove the finally block with setIsLoading as it's already handled by the hook
+  };
+
+  // Auto-generate scenarios on page load
+  useEffect(() => {
+    // Generate scenarios if we don't have any and we're not currently loading
+    if (generatedScenariosFromHook.length === 0 && !isLoading && storedCompanion) {
+      console.log('[ScenarioPage] Triggering scenario generation on load');
+      generateScenariosOnLoad();
+    }
+  }, [storedCompanion, isLoading, generatedScenariosFromHook.length]);
+
+  // Helper function to check if a scenario is selected by ID
+  const isScenarioSelected = (scenarioId: string) => {
+    return selectedScenarios.some(s => s.id === scenarioId);
   };
 
   const handleViewDetails = (scenario: ScenarioItem) => {
@@ -192,12 +140,11 @@ export default function ScenarioPage() {
     });
   };
   
-  // Method to open edit modal for refining scenarios
   const handleRefineScenarios = () => {
     if (finalizedScenarios.length === 0) {
       toast({
         title: "No Scenarios to Refine",
-        description: "Please generate scenarios first before refining them.",
+        description: "Please wait for scenarios to be generated before refining them.",
         variant: "default"
       });
       return;
@@ -209,8 +156,6 @@ export default function ScenarioPage() {
 
   const handleCloseEditModal = () => {
     setIsEditModalOpen(false);
-    // Optionally clear scenariosForEditing if they shouldn't persist if modal is reopened without new generation
-    // setScenariosForEditing([]); 
   };
 
   const handleRefinementSelection = (isUnified: boolean) => {
@@ -224,116 +169,188 @@ export default function ScenarioPage() {
     }
 
     // Determine the system prompt type for initializing the roundtable
-    // This will also be used by useEffect in RoundtableMessaging to kick off the conversation
-    const systemPromptType = 'scenario_interrogatory'; // Phase 1 always starts with interrogation
-    // messageHistory is no longer available here as useScenarioMessaging was removed.
-    // The RoundtableMessaging component and its hook (useRoundtableMessaging) now manage their own message history.
-    // If initial context from ScenarioPage is needed for the *very first* prompt in Roundtable, it would need a different mechanism.
-    // For now, assuming Roundtable starts fresh or gets all context from selectedScenarios.
+    const systemPromptType = 'scenario_interrogatory';
     const parameters = {
       single_selected_scenario_details: selectedScenarios[0] ? `${selectedScenarios[0].title}: ${selectedScenarios[0].description}` : '',
       multiple_selected_scenario_details: selectedScenarios.map(s => `${s.title}: ${s.description}`).join('\n'),
-      // message_history: "" // Or remove if the prompt doesn't strictly require it / handles absence
     };
 
-    console.log('[ScenarioPage] Navigating to /scenario_messaging with state:', {
-      numSelectedScenarios: selectedScenarios.length,
-      calculatedPromptType: systemPromptType,
-      isUnified,
-      // Log a snippet of scenarios to verify content if needed
-      // scenarios: selectedScenarios.map(s => s.title).slice(0, 2), 
-      churchAvatarName: avatarData.church?.avatar_name,
-      communityAvatarName: avatarData.community?.avatar_name
-    });
-
-    navigate('/scenario_messaging', {
+    navigate('/surveyBuilder', {
       state: { 
         scenarios: selectedScenarios, 
         isUnified, 
-        promptType: systemPromptType, // This is the crucial change for system message initialization
-        // Parameters for the kick-off prompt (used by handleStartRefinementConversation or handleInterrogateScenario)
-        // These might need to be adjusted based on what those functions expect for each systemPromptType
+        promptType: systemPromptType,
         parameters, 
-        // Pass church and community avatars for the roundtable context
         churchAvatar: avatarData.church,
-        communityAvatar: avatarData.community
       }
     });
   };
 
-  console.log('[ScenarioPage] Button disabled check: isLoading:', isLoading);
-  console.log('[ScenarioPage] Button disabled check: avatarData.church:', avatarData.church);
-  console.log('[ScenarioPage] Button disabled check: avatarData.community:', avatarData.community);
-  console.log('[ScenarioPage] Button disabled check: selectedCompanion:', selectedCompanion);
+  // Define the companion selection complete handler
+  const handleCompanionSelectionComplete = () => {
+    // Close the modal
+    setCompanionModalOpen(false);
+    
+    // The companion is already selected via the useSelectedCompanion hook
+    // so we just need to refresh the scenarios if needed
+    if (avatarData.church && storedCompanion) {
+      generateScenariosOnLoad();
+    }
+  };
 
   return (
     <>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <AvatarSelectionPanel />
-
-        <Card className="md:col-span-2">
-          <CardContent className="p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Possible Transformational Scenarios Based on Your Assessment</h2>
-              <Button onClick={handleLoadScenarios} disabled={isLoading || !avatarData.church?.id || !avatarData.community?.id || !selectedCompanion?.companion?.trim()}>
-                {isLoading ? 'Generating...' : 'Generate Scenarios'}
-              </Button>
+      <div className="container mx-auto py-8 px-4">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="ghost" 
+              onClick={() => navigate(-1)} 
+              className="flex items-center gap-1"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold">Scenario Building</h1>
+              <p className="text-sm text-muted-foreground">Create and refine scenarios for your transformational ministry plan</p>
             </div>
-            <MissionalAvatarSection 
-              selectedMissionalAvatar={selectedMissionalAvatar} 
-              onOpenModal={() => setMissionalModalOpen(true)} 
-            />
-            {isLoading && <p>Loading scenarios...</p>}
-            {!isLoading && finalizedScenarios.length === 0 && (
-              <p>No scenarios generated yet. Click "Generate Scenarios" to begin.</p>
+          </div>
+          
+          <div className="flex gap-2">
+            {finalizedScenarios.length > 0 && (
+              <Button 
+                onClick={handleRefineScenarios} 
+                variant="outline"
+              >
+                Refine All Scenarios
+              </Button>
             )}
-            {!isLoading && finalizedScenarios.length > 0 && (
-              <>
-                <ScenarioList
-                  scenarios={finalizedScenarios} 
-                  isLoading={isLoading} 
-                  onLoadScenarios={handleLoadScenarios} 
-                  onSaveScenario={handleSaveScenario} 
-                  onScenarioClick={handleViewDetails}
-                  selectedScenarios={selectedScenarios}
-                />
-                <div className="mt-4 flex justify-end space-x-2">
+            
+            {selectedScenarios.length > 0 && (
+              <Button 
+                onClick={() => handleRefinementSelection(false)} 
+                disabled={!storedCompanion}
+              >
+                Refine Selected ({selectedScenarios.length})
+              </Button>
+            )}
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Companion Card */}
+          <Card>
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Your Conversation Companion</h2>
+              {storedCompanion ? (
+                <div className="flex flex-col items-center space-y-4">
+                  <Avatar className="h-24 w-24">
+                    <AvatarImage src={storedCompanion.avatar_url} alt={storedCompanion.companion || 'Companion'} />
+                    <AvatarFallback>{(storedCompanion.companion || '').charAt(0)?.toUpperCase() || 'C'}</AvatarFallback>
+                  </Avatar>
+                  <div className="text-center">
+                    <h3 className="text-lg font-medium">{storedCompanion.companion || 'Your Companion'}</h3>
+                    {storedCompanion.companion_type && (
+                      <p className="text-sm text-muted-foreground">Type: {storedCompanion.companion_type}</p>
+                    )}
+                    {storedCompanion.traits && (
+                      <p className="text-sm text-muted-foreground">Traits: <span className="italic">{storedCompanion.traits}</span></p>
+                  
+                    )}
+                  </div>
                   <Button 
-                    onClick={handleRefineScenarios} 
-                    variant="outline"
+                    variant="outline" 
+                    onClick={() => setCompanionModalOpen(true)}
+                    className="mt-4"
                   >
-                    Refine All Scenarios
+                    Change point of view
                   </Button>
                 </div>
-              </>
-            )}
-            {selectedScenarios.length > 0 && (
-              <div className="mt-6 flex justify-end">
-                <Button 
-                  onClick={() => handleRefinementSelection(false)} 
-                  disabled={!avatarData.church || !avatarData.community || !selectedCompanion}
-                >
-                  Refine Selected Scenarios ({selectedScenarios.length})
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="flex flex-col items-center space-y-4">
+                  <p className="text-center text-muted-foreground">No companion selected</p>
+                  <Button onClick={() => setCompanionModalOpen(true)}>
+                    Select a companion
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-        {/* Modals should be siblings to the main content cards, within the grid's direct child div */}
+          {/* Scenarios Card */}
+          <Card className="md:col-span-2">
+            <CardContent className="p-6">
+              <h2 className="text-xl font-semibold mb-4">Transformational Ministry Scenarios</h2>
+              
+              {isLoading && <p className="text-center py-8">Generating scenarios...</p>}
+              
+              {!isLoading && finalizedScenarios.length === 0 && (
+                <p className="text-center py-8">Preparing scenarios based on your church profile...</p>
+              )}
+              
+              {!isLoading && finalizedScenarios.length > 0 && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                    {finalizedScenarios.map((scenario) => (
+                      <Card 
+                        key={scenario.id} 
+                        className={`overflow-hidden hover:shadow-md transition-shadow ${isScenarioSelected(scenario.id || '') ? 'border-primary/50' : ''}`}
+                      >
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1">
+                              <input 
+                                type="checkbox" 
+                                id={`scenario-${scenario.id}`} 
+                                checked={isScenarioSelected(scenario.id || '')}
+                                onChange={() => handleSaveScenario(scenario as ScenarioItem)}
+                                className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-medium text-lg mb-2">{scenario.title}</h3>
+                              <p className="text-sm text-muted-foreground mb-4">{scenario.description.substring(0, 150)}...</p>
+                              <div className="flex justify-end">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  onClick={() => handleViewDetails(scenario)}
+                                >
+                                  View Details
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  {/* Buttons moved to top of page */}
+                </>
+              )}
+              
+              
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Modals */}
         {selectedScenario && (
           <ScenarioDetailDialog
             open={detailDialogOpen}
             onOpenChange={setDetailDialogOpen}
             scenario={selectedScenario}
             onSave={handleSaveScenario} 
-            isSaved={selectedScenario ? isScenarioSaved(selectedScenario) : false} // Ensuring this is correctly 'isSaved'
+            isSaved={selectedScenario ? isScenarioSaved(selectedScenario) : false}
           />
         )}
-        <MissionalAvatarModal 
-          open={missionalModalOpen} // Reverted to 'open' based on IDE feedback
-          onOpenChange={setMissionalModalOpen} 
+        
+        <CompanionSelectionModal
+          open={companionModalOpen}
+          onOpenChange={setCompanionModalOpen}
+          onSelectionComplete={handleCompanionSelectionComplete}
         />
+        
         <EditRefinedScenariosDialog
           isOpen={isEditModalOpen}
           onClose={handleCloseEditModal}

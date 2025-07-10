@@ -41,7 +41,10 @@ export default function CommunityAssessment() {
           {/* 3) DESCRIPTION BAR */}
           <div className="mb-8 p-4 bg-gradient-journey-light rounded-2xl">
             <p className="text- text-muted-foreground">
-              Evaluate your neighborhood and gather insights that will help shape your church’s ministry approach.
+              Evaluate your neighborhood and gather insights that will help shape your community’s ministry approach.
+            </p>
+            <p className="mt-4 text-lg text-gray-600">
+            Enter into conversation and provide your thoughts and point of view about your neighborhood-Its needs, aspiration and community engagement.  Your views will help shape the subsequent discernment journey and options available to you.
             </p>
           </div>
 

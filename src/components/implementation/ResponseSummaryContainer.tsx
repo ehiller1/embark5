@@ -17,14 +17,14 @@ export function ResponseSummaryContainer({ cards, onViewDetails }: ResponseSumma
   return (
     <Card className="bg-white">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-medium">Response Summary</CardTitle>
+        <CardTitle className="text-sm font-medium">Review the results of the Community surveys</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col sm:flex-row justify-between items-center">
           <div>
             <p className="text-sm text-muted-foreground mb-2">
               {cardsWithResponses > 0 
-                ? `${cardsWithResponses} group${cardsWithResponses !== 1 ? 's' : ''} with response data`
+                ? `${cardsWithResponses} group${cardsWithResponses !== 1 ? 's' : ''} responded`
                 : 'No response data available yet'
               }
             </p>

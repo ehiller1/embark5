@@ -561,7 +561,7 @@ export default function Implementation() {
                      <p className="text-muted-foreground">
                        {activeCardIds.length > 0 
                          ? "Select an action to start a conversation" 
-                         : "Select cards from the network to start a conversation"
+                         : "Pick a person or group before you start a conversation"
                        }
                      </p>
                    </div>

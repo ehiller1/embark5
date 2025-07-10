@@ -14,7 +14,6 @@ const STORAGE_KEY = "viability_messages";
 
 export function useViabilityMessages() {
   const [messages, setMessages] = useState<Message[]>([]);
-  const [autoScroll, setAutoScroll] = useState(true);
   const [isInitialMessageGenerated, setIsInitialMessageGenerated] = useState(false);
   const initialMessageInProgressRef = useRef(false);
   const messageProcessingRef = useRef(false);
@@ -50,7 +49,7 @@ export function useViabilityMessages() {
   }, [messages]);
 
   // Generate initial message
-  const generateInitialMessage = async () => {
+  const generateInitialMessage = async (textInputs?: { input1: string; input2: string; input3: string; input4: string }) => {
     // Skip if already generated or in progress
     if (isInitialMessageGenerated || initialMessageInProgressRef.current || messages.length > 0) {
       console.log('[useViabilityMessages] Skipping initial message generation - already exists');
@@ -61,115 +60,95 @@ export function useViabilityMessages() {
     initialMessageInProgressRef.current = true;
     setIsInitialMessageGenerated(true);
     
-    console.log('[useViabilityMessages] Starting initial message generation');
+    console.log('[useViabilityMessages] Generating initial message with text inputs:', textInputs);
     
-    // Add a temporary loading message
-    const loadingMessage: Message = {
+    // Create initial message with dynamic content based on inputs
+    const hasInputs = textInputs && (
+      textInputs.input1.trim() || 
+      textInputs.input2.trim() || 
+      textInputs.input3.trim() || 
+      textInputs.input4.trim()
+    );
+
+    let initialContent = `Thank you for taking the time to share information about your faith community. `;
+
+    if (hasInputs) {
+      initialContent += `Based on the details you've provided, I can help you evaluate your church's readiness for a property repurposing discernment process.`;
+      
+      if (textInputs.input1.trim()) {
+        initialContent += `\n\nI understand your community is currently facing some challenges. This assessment will help you consider how property repurposing might address those needs.`;
+      }
+      
+      if (textInputs.input2.trim()) {
+        initialContent += `\n\nYour leadership team's readiness is an important factor in this process. We'll explore how to build on your current strengths.`;
+      }
+    } else {
+      initialContent += `This tool is designed to help you evaluate your community's readiness for a property repurposing discernment process.`;
+    }
+
+    initialContent += `\n\nHow This Works\n\n1. Assessment: We'll review key aspects of your community's current situation.\n2. Analysis: I'll help you understand potential opportunities and challenges.\n3. Next Steps: We'll identify concrete actions to move forward.\n\nYou can ask specific questions about your community's readiness, or we can work through the assessment together. What would you like to explore first?`;
+    
+    const hardcodedContent = initialContent;
+    
+    // Create the initial message with hardcoded content
+    const aiMessage: Message = {
       id: Date.now(),
       sender: "assistant",
-      content: "Thinking...",
+      content: hardcodedContent,
       timestamp: new Date(),
     };
-    setMessages([loadingMessage]);
-
-    try {
-      // Get the community assessment prompt
-      const { success, data, error } = await getAndPopulatePrompt('viability', {});
-
-      if (!success || !data) {
-        throw new Error(error as string || 'Failed to get prompt');
-      }
-
-      console.log('[useViabilityMessages] Successfully retrieved prompt');
-
-      // Generate AI response
-      const response = await generateResponse({
-        messages: [
-          { role: "system", content: data.prompt },
-          { role: "user", content: "Help me evaluate the readiness of my church in start the process of discerning how we should repurpose underutilized properties into sustainable ministries.  Where should I start?" }
-        ],
-        maxTokens: 500,
-        temperature: 0.7,
-      });
-
-      if (!response.text) {
-        throw new Error(response.error || "Failed to generate response");
-      }
-      
-      // Replace the loading message with the actual response
-      const aiMessage: Message = {
-        id: Date.now(),
-        sender: "assistant",
-        content: response.text.trim(),
-        timestamp: new Date(),
-      };
-      
-      setMessages([aiMessage]);
-      console.log('[useViabilityMessages] Initial message generated successfully');
-    } catch (error) {
-      console.error('[useViabilityMessages] Error generating initial message:', error);
-      const errorMessage: Message = {
-        id: Date.now(),
-        sender: "assistant",
-        content: "I apologize, but I encountered an error while generating the initial message. Please try refreshing the page.",
-        timestamp: new Date(),
-      };
-      setMessages([errorMessage]);
-      toast({
-        title: "Error",
-        description: "Failed to generate initial message. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      initialMessageInProgressRef.current = false;
-    }
+    
+    setMessages([aiMessage]);
+    console.log('[useViabilityMessages] Initial message generated successfully');
+    
+    // Reset the flag since we're done
+    initialMessageInProgressRef.current = false;
   };
 
   // Handle sending messages
-  const sendMessage = async (content: string) => {
+  const sendMessage = async (content: string, textInputs?: { input1: string; input2: string; input3: string; input4: string }) => {
     if (!content.trim() || isLoading || messageProcessingRef.current) return;
     
     messageProcessingRef.current = true;
     
     try {
-      // Get the prompt template first
-      const { success, data, error } = await getAndPopulatePrompt('viability', {});
+      // Add user message to the chat immediately for better UX
+      const userMessage: Message = {
+        id: Date.now(),
+        sender: "user",
+        content,
+        timestamp: new Date(),
+      };
+
+      // Update messages with user message
+      setMessages(prev => [...prev, userMessage]);
+
+      // Get the prompt template with current text inputs
+      const { success, data, error } = await getAndPopulatePrompt('viability', {
+        current_challenges: textInputs?.input1 || 'Not specified',
+        leadership_readiness: textInputs?.input2 || 'Not specified',
+        community_context: textInputs?.input3 || 'Not specified',
+        previous_experiences: textInputs?.input4 || 'Not specified',
+        user_message: content
+      });
 
       if (!success || !data) {
         throw new Error(error as string || 'Failed to get prompt');
       }
 
-      // Create message history for the API
-      const messageHistory = [
-        { role: "system", content: data.prompt },
-        ...messages.map((msg) => ({
-          role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.content,
-        })),
-        { role: "user", content },
-      ];
-
-      // Add user message and loading message in a single update
-      const userMessage: Message = {
-        id: Date.now(),
-        sender: "user",
-        content: content.trim(),
-        timestamp: new Date(),
-      };
-      
-      const loadingMessage: Message = {
-        id: Date.now() + 1,
-        sender: "assistant",
-        content: "Thinking...",
-        timestamp: new Date(),
-      };
-      
-      setMessages(prev => [...prev, userMessage, loadingMessage]);
-
-      // Generate AI response
+      // Generate AI response with full conversation history
       const response = await generateResponse({
-        messages: messageHistory,
-        maxTokens: 500,
+        messages: [
+          { role: "system", content: data.prompt },
+          ...messages
+            .filter(msg => msg.sender === 'assistant' || msg.sender === 'user')
+            .map(msg => ({
+              role: msg.sender === "user" ? "user" : "assistant",
+              content: msg.content,
+            })),
+          { role: "user", content },
+        ],
+        maxTokens: 800,
         temperature: 0.7,
       });
 
@@ -177,34 +156,31 @@ export function useViabilityMessages() {
         throw new Error(response.error || "Failed to generate response");
       }
 
-      // Replace loading message with actual response
+      // Add AI response to the chat
       const aiMessage: Message = {
-        id: loadingMessage.id,
+        id: Date.now(),
         sender: "assistant",
         content: response.text.trim(),
         timestamp: new Date(),
       };
-      
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const loadingIndex = newMessages.findIndex(msg => msg.id === loadingMessage.id);
-        if (loadingIndex !== -1) {
-          newMessages[loadingIndex] = aiMessage;
-        }
-        return newMessages;
-      });
+
+      setMessages(prev => [...prev, aiMessage]);
     } catch (error) {
       console.error('[useViabilityMessages] Error sending message:', error);
+      
+      // Add error message to the chat
       const errorMessage: Message = {
         id: Date.now(),
         sender: "assistant",
         content: "I apologize, but I encountered an error while generating a response. Please try again.",
         timestamp: new Date(),
       };
+      
       setMessages(prev => [...prev, errorMessage]);
+      
       toast({
         title: "Error",
-        description: "Failed to send message. Please try again.",
+        description: "Failed to generate response. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -214,10 +190,8 @@ export function useViabilityMessages() {
 
   return {
     messages,
-    isLoading,
-    generateInitialMessage,
     sendMessage,
-    autoScroll,
-    setAutoScroll
+    generateInitialMessage,
+    isLoading,
   };
 }

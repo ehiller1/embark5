@@ -73,7 +73,7 @@ export function ConnectionCreationPanel({ cards, onSuccess, initialSourceCardId 
           name="sourceCardId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Source Person/Group</FormLabel>
+              <FormLabel>Starting Person/Group</FormLabel>
               <Select
                 value={field.value}
                 onValueChange={field.onChange}
@@ -102,7 +102,7 @@ export function ConnectionCreationPanel({ cards, onSuccess, initialSourceCardId 
           name="targetCardId"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Target Person/Group</FormLabel>
+              <FormLabel>Connecting Person/Group</FormLabel>
               <Select
                 value={field.value}
                 onValueChange={field.onChange}
@@ -169,10 +169,7 @@ export function ConnectionCreationPanel({ cards, onSuccess, initialSourceCardId 
           render={({ field }) => (
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
               <div className="space-y-0.5">
-                <FormLabel>Bidirectional Relationship</FormLabel>
-                <div className="text-sm text-muted-foreground">
-                  Relationship flows both ways
-                </div>
+                <FormLabel>Relationship flows both ways</FormLabel>
               </div>
               <FormControl>
                 <Switch

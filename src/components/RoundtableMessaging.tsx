@@ -7,6 +7,8 @@ import { RoundtableInput } from '@/Roundtable/RoundtableInput';
 import { ScenarioItem, AvatarRole, ChurchAvatar, CommunityAvatar } from '@/types/NarrativeTypes';
 import { PromptType, REQUIRED_PROMPT_TYPES } from '@/utils/promptUtils'; // Import PromptType and REQUIRED_PROMPT_TYPES
 import { toast } from '@/hooks/use-toast';
+import { saveScenarioDetails } from '@/utils/dbUtils';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   AlertDialog,
@@ -38,6 +40,7 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
   churchAvatar, // Added
   communityAvatar // Added
 }) => {
+  const { user } = useAuth();
   const {
     roundtableMessages,
     currentMessage,
@@ -175,16 +178,28 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
   const handleSaveScenarios = async (scenarios: ScenarioItem[]) => {
     try {
       setIsSavingScenarios(true);
-      // Save scenarios to localStorage (similar to how it's done in existing code)
+      
+      // Save scenarios to localStorage under 'refined_scenarios' key (original behavior)
       localStorage.setItem('refined_scenarios', JSON.stringify(scenarios));
       
-      // Add any additional saving logic that already exists in your application
-      // This could involve saving to a database or other storage mechanism
+      // Also save the active/selected scenario to 'scenario_details' in localStorage and database
+      if (scenarios.length > 0 && user?.id) {
+        // If there's a current scenario, use that as the primary scenario
+        // Otherwise, use the first scenario in the list
+        const primaryScenario = currentScenario || scenarios[0];
+        
+        // Save to localStorage and database using our utility function
+        await saveScenarioDetails(primaryScenario, user.id);
+        console.log('Scenario details saved to localStorage and database');
+      } else if (!user?.id) {
+        console.warn('User ID not available, scenario details not saved to database');
+      }
       
       setIsSavingScenarios(false);
       setShowRefinedScenariosModal(false);
       return Promise.resolve();
     } catch (error) {
+      console.error('Error saving scenarios:', error);
       setIsSavingScenarios(false);
       return Promise.reject(error);
     }

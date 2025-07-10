@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 
 // Icons
-import { UploadCloud, Link, CheckCircle, AlertCircle, Database, Loader2, Lightbulb, Users, Save } from 'lucide-react';
+import { UploadCloud, Link, CheckCircle, AlertCircle, Database, Loader2, Lightbulb, Users, Save, ArrowLeft } from 'lucide-react';
 
 type SyncOptions = {
   members: boolean;
@@ -419,14 +419,22 @@ const CommunityProfilePage = (): ReactElement => {
   return (
 
       <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="mb-4">
+          <Button 
+            variant="ghost" 
+            className="mr-2 -ml-3 mt-1" 
+            onClick={() => navigate('/clergy-home')}
+            aria-label="Back to homepage"
+          >
+            <ArrowLeft className="h-5 w-5" />
+            <span className="ml-1">Back</span>
+          </Button>
+        </div>
         <header className="mb-10 pb-6 border-b border-gray-200">
           <div className="flex justify-between items-center">
             <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl gradient-text">
               Your Community Profile
             </h1>
-            <Button variant="outline" onClick={() => navigate('/clergy-home')}>
-              Back to Home
-            </Button>
           </div>
           <p className="text-gray-600 mb-8">
             Share information about your faith community to help us better understand your context and needs.

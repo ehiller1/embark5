@@ -113,60 +113,21 @@ export function Header() {
                     <Home className="h-4 w-4 mr-2 text-journey-pink" />
                     <span>Home</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleNavigation('/community-profile')} className="flex items-center cursor-pointer">
-                    <MessageCircle className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Church Community Profile</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleNavigation('/survey-summary')} className="flex items-center cursor-pointer">
-                    <FileText className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Survey Summary</span>
-                  </DropdownMenuItem>
-                  
-                  {/* Modules Submenu */}
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger className="flex items-center">
-                      <BookOpen className="h-4 w-4 mr-2 text-journey-pink" />
-                      <span>Modules</span>
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent className="w-48 bg-white">
-                      <DropdownMenuItem onClick={() => handleNavigation('/church-assessment')} className="cursor-pointer">
-                        Assessing Your Church
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleNavigation('/community-assessment')} className="cursor-pointer">
-                        Identifying Community Needs
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleNavigation('/church-research')} className="cursor-pointer">
-                        Researching Your Church
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleNavigation('/community-research')} className="cursor-pointer">
-                        Researching Your Community
-                      </DropdownMenuItem>
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                  
-                  <DropdownMenuItem onClick={() => handleNavigation('/narrative-build')} className="flex items-center cursor-pointer">
-                    <MessageCircle className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Defining Your Vocation</span>
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuItem onClick={() => handleNavigation('/scenario')} className="flex items-center cursor-pointer">
-                    <Map className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Imagining Ministry Scenarios</span>
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuItem onClick={() => handleNavigation('/plan-build')} className="flex items-center cursor-pointer">
-                    <Clipboard className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Planning for Parish Discernment</span>
-                  </DropdownMenuItem>
-                  
-                  <DropdownMenuItem onClick={() => handleNavigation('/implementation')} className="flex items-center cursor-pointer">
-                    <Clipboard className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Interacting with the Parish</span>
-                  </DropdownMenuItem>
 
+                  <DropdownMenuItem onClick={() => handleNavigation('/clergy/marketplace')} className="flex items-center cursor-pointer">
+                    <span>Fundraising</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleNavigation('/accounting')} className="flex items-center cursor-pointer">
+                    <span>Accounting</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleNavigation('/services-marketplace')} className="flex items-center cursor-pointer">
+                    <span>Shared Resources</span>
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleNavigation('/connect')} className="flex items-center cursor-pointer">
-                    <Share2 className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Connect to churches</span>
+                    <span>Network</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleNavigation('/implementation')} className="flex items-center cursor-pointer">
+                    <span>Practice Roll-out</span>
                   </DropdownMenuItem>
 
                   {/* Resources Submenu */}

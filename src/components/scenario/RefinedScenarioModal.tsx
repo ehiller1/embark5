@@ -6,6 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
+import { saveScenarioDetails } from '@/utils/dbUtils';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 
 // Extended scenario item with optional additional fields that might come from the AI response
 type ExtendedScenarioItem = Omit<ScenarioItem, 'targetAudience'> & {
@@ -50,6 +52,7 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
   isSaving
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [editableScenarios, setEditableScenarios] = useState<ExtendedScenarioItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>('0');
 
@@ -81,7 +84,21 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
         is_refined: true // Mark as refined when saving
       }));
       
+      // Save scenarios using the original onSave function (which saves to 'refined_scenarios')
       await onSave(scenariosToSave);
+      
+      // Also save to 'scenario_details' in localStorage and database
+      if (user?.id) {
+        // Save the active scenario (the one being viewed) to scenario_details
+        const activeScenario = editableScenarios[parseInt(activeTab)];
+        if (activeScenario) {
+          await saveScenarioDetails(activeScenario, user.id);
+          console.log('Scenario details saved to localStorage and database');
+        }
+      } else {
+        console.warn('User ID not available, scenario details not saved to database');
+      }
+      
       toast({
         title: "Success",
         description: "Scenarios saved successfully",

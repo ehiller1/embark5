@@ -5,11 +5,28 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { AssessmentSidebar } from '@/components/AssessmentSidebar';
+import { Textarea } from '@/components/ui/textarea';
 
 export default function ChurchAssessment() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const [sessionKey, setSessionKey] = useState<string>('initial');
+  
+  // State for text inputs
+  const [textInputs, setTextInputs] = useState({
+    input1: '',
+    input2: '',
+    input3: '',
+    input4: ''
+  });
+
+  // Handle text input changes
+  const handleInputChange = (field: keyof typeof textInputs, value: string) => {
+    setTextInputs(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
 
   useEffect(() => {
     setSessionKey(session?.access_token?.substring(0, 8) || 'no-session');
@@ -35,21 +52,79 @@ export default function ChurchAssessment() {
 
           {/* 2) TITLE */}
           <h1 className="text-4xl font-serif font-semibold bg-clip-text text-transparent bg-gradient-journey mb-4">
-            Your Community Assessment
+            Leadership Insights
           </h1>
 
           {/* 3) DESCRIPTION BAR */}
           <div className="mb-8 p-4 bg-gradient-journey-light rounded-2xl">
             <p className="text-xl text-muted-foreground">
-              Evaluate your faith community or organization's current state and gather insights to guide its future direction.
+            As a community leader provide additional insights about the current state of your organization and its discernment.
             </p>
+            <p className="mt-4 text-lg text-gray-600">
+           Enter into conversation with your Conversation Companion and provide answer questions about your community.  Your insights will be used to further define suggested mission statements, transformational scenerios for new ministries and building a discernment plan.
+            </p>
+
           </div>
 
-          {/* 4) EMBEDDED CHAT */}
+          {/* 4) TEXT INPUT BOXES */}
+          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="p-4 border rounded-lg shadow-sm">
+              <h3 className="font-medium text-lg mb-2">Celebrations</h3>
+              <Textarea 
+                id="churchInput1" 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="Describe ministries or historical contexts that your organization celebrates."
+                value={textInputs.input1}
+                onChange={(e) => handleInputChange('input1', e.target.value)}
+              />
+            </div>
+            <div className="p-4 border rounded-lg shadow-sm">
+              <h3 className="font-medium text-lg mb-2">Opportunities</h3>
+              <Textarea 
+                id="churchInput2" 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="As a leader, what opportunities have you identified for your organization."
+                value={textInputs.input2}
+                onChange={(e) => handleInputChange('input2', e.target.value)}
+              />
+            </div>
+            <div className="p-4 border rounded-lg shadow-sm">
+              <h3 className="font-medium text-lg mb-2">Obstacles</h3>
+              <Textarea 
+                id="churchInput3" 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="As a leader, what do you believe stands in the way of your current mission."
+                value={textInputs.input3}
+                onChange={(e) => handleInputChange('input3', e.target.value)}
+              />
+            </div>
+            <div className="p-4 border rounded-lg shadow-sm">
+              <h3 className="font-medium text-lg mb-2">Engagement</h3>
+              <Textarea 
+                id="churchInput4" 
+                className="w-full p-2 border rounded-md" 
+                rows={3} 
+                placeholder="How does your organization's membership engage in shared mission?"
+                value={textInputs.input4}
+                onChange={(e) => handleInputChange('input4', e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* 5) EMBEDDED CHAT */}
           <div className="flex-1 overflow-hidden">
             <ChurchAssessmentInterface
               key={sessionKey}
               disableNext
+              textInputs={{
+                input1: (document.getElementById('churchInput1') as HTMLInputElement)?.value || '',
+                input2: (document.getElementById('churchInput2') as HTMLInputElement)?.value || '',
+                input3: (document.getElementById('churchInput3') as HTMLInputElement)?.value || '',
+                input4: (document.getElementById('churchInput4') as HTMLInputElement)?.value || ''
+              }}
             />
           </div>
         </main>

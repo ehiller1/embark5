@@ -2,52 +2,93 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/lib/auth/AuthProvider";
 import { ConversationInterface, type Message } from "@/components/ConversationInterface";
+import { useSelectedCompanion } from "@/hooks/useSelectedCompanion";
+import { SurveyEditor } from "@/components/SurveyEditor";
 import { Button } from "@/components/ui/button";
-import { FileText, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { FileText, Loader2, ArrowLeft } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/lib/supabase";
 import { useOpenAI } from "@/hooks/useOpenAI";
 
-const SURVEY_SYSTEM_PROMPT = `You are an expert survey designer helping church leaders create effective community surveys. Follow these guidelines:
+type FieldType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'select';
 
-1. Ask clarifying questions to understand their survey goals
-2. Suggest appropriate question types (multiple choice, rating scales, open-ended)
-3. Help craft clear, unbiased questions
-4. Recommend best practices for survey design
-5. Keep responses concise and actionable
+interface Field {
+  id: string;
+  type: FieldType;
+  label: string;
+  required: boolean;
+  options?: string[];
+}
 
-Start by asking what they hope to learn from their community.`;
+export interface SurveyTemplate {
+  id?: string;
+  title: string;
+  description: string;
+  fields: Field[];
+  created_by?: string;
+  church_id?: string;
+  metadata?: any;
+}
+
+// State to store the system prompt
 
 const SurveyBuild = () => {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
+  const { selectedCompanion } = useSelectedCompanion();
   const { generateResponse } = useOpenAI();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [churchId, setChurchId] = useState<string | null>(null);
   const [surveyConversation, setSurveyConversation] = useState<Message[]>([]);
+  const [surveyTemplate, setSurveyTemplate] = useState<SurveyTemplate | null>(null);
+  const [mode, setMode] = useState<'conversation' | 'editor' | 'preview'>('conversation');
+  const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
+  const [systemPrompt, setSystemPrompt] = useState<string>("");
 
-  // Fetch the user's church ID
+  // Fetch the user's church ID and system prompt
   useEffect(() => {
-    const fetchChurchId = async () => {
+    const fetchInitialData = async () => {
       if (!user) return;
       
-      const { data, error } = await supabase
+      // Fetch church ID
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('church_id')
         .eq('id', user.id)
         .single();
       
-      if (error) {
-        console.error('[SurveyBuild] Error fetching church ID:', error);
+      if (profileError) {
+        console.error('[SurveyBuild] Error fetching church ID:', profileError);
         return;
       }
       
-      if (data?.church_id) {
-        setChurchId(data.church_id);
+      if (profileData?.church_id) {
+        setChurchId(profileData.church_id);
+      }
+      
+      // Fetch system prompt
+      const { data: promptData, error: promptError } = await supabase
+        .from('prompts')
+        .select('prompt')
+        .eq('prompt_type', 'survey_creation')
+        .single();
+      
+      if (promptError) {
+        console.error('[SurveyBuild] Error fetching system prompt:', promptError);
+        // Set a fallback prompt in case of error
+        setSystemPrompt("You are an expert survey designer helping church leaders create effective community surveys. Ask clarifying questions and suggest appropriate question types.");
+        return;
+      }
+      
+      if (promptData?.prompt) {
+        setSystemPrompt(promptData.prompt);
       }
     };
     
-    fetchChurchId();
+    fetchInitialData();
   }, [user]);
 
   // Check if user is authenticated and has the Clergy role
@@ -94,6 +135,166 @@ const SurveyBuild = () => {
       variant: "destructive",
     });  
   };
+  
+  // Setup auto-save functionality
+  useEffect(() => {
+    // Only run auto-save when in editor mode with a valid template
+    if (mode === 'editor' && surveyTemplate) {
+      // Clear any existing auto-save timer
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+      }
+      
+      // Set up a new auto-save timer (every 30 seconds)
+      const timer = setTimeout(() => {
+        if (surveyTemplate) {
+          // Quietly save in the background
+          saveSurveyTemplate(surveyTemplate)
+            .then(savedSurvey => {
+              setSurveyTemplate(prev => prev ? { ...prev, id: savedSurvey.id } : null);
+              toast({
+                title: "Auto-saved",
+                description: "Your survey has been automatically saved.",
+                variant: "default"
+              });
+            })
+            .catch(error => {
+              console.error('Auto-save failed:', error);
+              // Silent fail for auto-save
+            });
+        }
+      }, 30000); // 30 seconds
+      
+      setAutoSaveTimer(timer);
+      
+      // Clean up timer on unmount or mode change
+      return () => {
+        clearTimeout(timer);
+        setAutoSaveTimer(null);
+      };
+    } else if (autoSaveTimer) {
+      // Clean up timer if we're not in editor mode anymore
+      clearTimeout(autoSaveTimer);
+      setAutoSaveTimer(null);
+    }
+  // Remove autoSaveTimer from dependencies to prevent infinite loop
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, surveyTemplate]);
+
+  const handleSaveSurvey = async (template: SurveyTemplate) => {
+    try {
+      setIsSaving(true);
+      const savedSurvey = await saveSurveyTemplate(template);
+      
+      toast({
+        title: "Success",
+        description: "Survey saved successfully!",
+      });
+      
+      // Update the template with the saved ID
+      setSurveyTemplate(prev => prev ? { ...prev, id: savedSurvey.id } : null);
+      
+      // Navigate to ClergyHomePage after successful save
+      setTimeout(() => {
+        navigate('/clergy-home');
+      }, 1500); // Short delay to show success message
+      
+    } catch (error) {
+      console.error('Error saving survey:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save survey. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const handlePreviewToggle = () => {
+    if (mode === 'editor') {
+      setMode('preview');
+    } else if (mode === 'preview') {
+      setMode('editor');
+    }
+  };
+  
+  const parseSurveyFromAIResponse = (text: string): Omit<SurveyTemplate, 'id'> => {
+    try {
+      // Try to extract JSON if the response contains markdown or other text
+      const jsonMatch = text.match(/```json\n([\s\S]*?)\n```/) || 
+                      text.match(/```([\s\S]*?)```/);
+                      
+      const jsonContent = jsonMatch ? jsonMatch[1] : text;
+      const surveyData = JSON.parse(jsonContent);
+      
+      // Transform the fields to match our Field type
+      const fields: Field[] = (surveyData.fields || []).map((field: any) => ({
+        id: `field-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        type: (field.type || 'text') as FieldType,
+        label: field.label || 'Untitled Question',
+        required: field.required || false,
+        options: field.options || (['radio', 'checkbox', 'select'].includes(field.type) ? ['Option 1'] : undefined)
+      }));
+      
+      return {
+        title: surveyData.title || 'New Survey',
+        description: surveyData.description || '',
+        fields
+      };
+    } catch (e) {
+      console.error('Failed to parse survey JSON:', e);
+      throw new Error('Failed to parse survey template');
+    }
+  };
+
+  const saveSurveyTemplate = async (template: SurveyTemplate): Promise<SurveyTemplate> => {
+    if (!user?.id) throw new Error('User ID is required to save survey');
+    if (!churchId) throw new Error('Church ID is required to save survey');
+    
+    try {
+      let result;
+      const surveyPayload = {
+        title: template.title,
+        description: template.description,
+        created_by: user.id,
+        metadata: {
+          survey_type: 'parish',
+          template_data: template,
+          church_id: churchId
+        },
+        updated_at: new Date().toISOString()
+      };
+      
+      if (template.id) {
+        // Update existing survey
+        const { data, error } = await supabase
+          .from('survey_templates')
+          .update(surveyPayload)
+          .eq('id', template.id)
+          .select('*')
+          .single();
+        
+        if (error) throw error;
+        result = data;
+      } else {
+        // Create new survey
+        const { data, error } = await supabase
+          .from('survey_templates')
+          .insert([surveyPayload])
+          .select('*')
+          .single();
+        
+        if (error) throw error;
+        result = data;
+      }
+      
+      return result as SurveyTemplate;
+    } catch (error) {
+      console.error('Error saving survey template:', error);
+      throw error;
+    }
+  };
 
   const handleBuildSurvey = async () => {
     if (!surveyConversation.length) {
@@ -111,14 +312,13 @@ const SurveyBuild = () => {
       // Format conversation messages for OpenAI
       const messages = [
         { 
-          role: 'system', 
+          role: 'system' as const, 
           content: `You are a survey generator for church communities. Create a JSON survey template with the following structure:
 {
   "title": "Survey Title",
   "description": "Survey description",
   "fields": [
     {
-      "id": "unique_id",
       "type": "text|select|radio|checkbox|textarea",
       "label": "Question text",
       "required": true|false,
@@ -130,7 +330,7 @@ const SurveyBuild = () => {
 Based on the conversation, create appropriate survey questions.`
         },
         ...surveyConversation.map(msg => ({
-          role: msg.isUser ? 'user' : 'assistant',
+          role: msg.isUser ? 'user' as const : 'assistant' as const,
           content: msg.text
         }))
       ];
@@ -146,97 +346,17 @@ Based on the conversation, create appropriate survey questions.`
         throw new Error(response.error);
       }
       
-      // Parse the response text as JSON
-      let surveyData;
-      try {
-        // Try to extract JSON if the response contains markdown or other text
-        const jsonMatch = response.text.match(/```json\n([\s\S]*?)\n```/) || 
-                         response.text.match(/```([\s\S]*?)```/);
-                          
-        const jsonContent = jsonMatch ? jsonMatch[1] : response.text;
-        surveyData = JSON.parse(jsonContent);
-      } catch (e) {
-        console.error('Failed to parse survey JSON:', e);
-        throw new Error('Failed to parse survey template');
-      }
+      // Parse the AI response into a survey template
+      const newTemplate = parseSurveyFromAIResponse(response.text);
+      setSurveyTemplate(newTemplate);
       
-      // Validate required fields
-      if (!user?.id) {
-        console.error('User ID is missing');
-        throw new Error('User ID is required to save survey');
-      }
+      // Switch to editor mode
+      setMode('editor');
       
-      if (!churchId) {
-        console.error('Church ID is missing');
-        throw new Error('Church ID is required to save survey');
-      }
-      
-      // Ensure surveyData has required fields
-      if (!surveyData.title) {
-        surveyData.title = 'New Survey';
-      }
-      
-      if (!surveyData.fields || !Array.isArray(surveyData.fields)) {
-        console.error('Survey data is missing fields array');
-        surveyData.fields = [];
-      }
-      
-      // Log the data we're trying to save
-      console.log('Saving survey template with data:', {
-        title: surveyData.title || 'New Survey',
-        description: surveyData.description || '',
-        created_by: user?.id,
-        church_id: churchId,
+      toast({
+        title: "Success",
+        description: "Survey template created! You can now edit it.",
       });
-      
-      try {
-        // Save the survey template to the survey_templates table
-        const { data: survey, error: saveError } = await supabase
-          .from('survey_templates')
-          .insert({
-            title: surveyData.title || 'New Survey',
-            description: surveyData.description || '',
-            created_by: user.id,
-            metadata: {
-              survey_type: 'parish',
-              template_data: surveyData,
-              church_id: churchId
-            }
-          })
-          .select('*')
-          .single();
-          
-        if (saveError) {
-          console.error('Supabase error saving survey template:', saveError);
-          throw new Error(`Failed to save survey template: ${saveError.message}`);
-        }
-        
-        if (saveError) {
-          console.error('Error saving survey template:', saveError);
-          toast({
-            title: "Error",
-            description: "Error saving survey template",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        console.log('Successfully saved survey template:', survey);
-        
-        // Show success message
-        toast({
-          title: "Success",
-          description: "Survey template created successfully!",
-          variant: "default"
-        });
-        
-        // Navigate to ClergyHomePage after successful survey creation
-        navigate('/clergy-home');
-        
-      } catch (error) {
-        console.error('Error in Supabase operation:', error);
-        throw error;
-      }
       
     } catch (error) {
       console.error('Error generating survey:', error);
@@ -252,28 +372,154 @@ Based on the conversation, create appropriate survey questions.`
 
   if (!isAuthenticated || !user) return null;
 
+  if ((mode === 'editor' || mode === 'preview') && surveyTemplate) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-6xl">
+        <div className="flex justify-between items-center mb-4">
+          <Button
+            variant="ghost"
+            onClick={() => setMode('conversation')}
+            disabled={isSaving}
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Conversation
+          </Button>
+          
+          <Button
+            variant="outline"
+            onClick={handlePreviewToggle}
+            disabled={isSaving}
+          >
+            {mode === 'editor' ? 'Preview Survey' : 'Edit Survey'}
+          </Button>
+        </div>
+        
+        {isSaving && (
+          <div className="mb-4 p-2 bg-yellow-50 text-yellow-800 rounded flex items-center">
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            Saving your survey...
+          </div>
+        )}
+        
+        {mode === 'editor' ? (
+          <SurveyEditor
+            initialData={surveyTemplate}
+            onSave={handleSaveSurvey}
+            onCancel={() => !isSaving && setMode('conversation')}
+          />
+        ) : (
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <div className="mb-8">
+              <h1 className="text-2xl font-bold mb-2">{surveyTemplate.title}</h1>
+              <p className="text-gray-600">{surveyTemplate.description}</p>
+            </div>
+            
+            <div className="space-y-6">
+              {surveyTemplate.fields.map((field, index) => (
+                <div key={field.id} className="border-b border-gray-200 pb-4 last:border-0">
+                  <div className="mb-2 flex items-start">
+                    <span className="font-medium mr-1">{index + 1}.</span>
+                    <span className="font-medium">{field.label}</span>
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
+                  </div>
+                  
+                  {field.type === 'text' && (
+                    <Input disabled placeholder="Text answer" className="max-w-md" />
+                  )}
+                  
+                  {field.type === 'textarea' && (
+                    <Textarea disabled placeholder="Long answer" className="max-w-md" />
+                  )}
+                  
+                  {field.type === 'radio' && field.options && (
+                    <div className="space-y-2">
+                      {field.options.map((option, i) => (
+                        <div key={i} className="flex items-center">
+                          <input type="radio" disabled className="mr-2" />
+                          <span>{option}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {field.type === 'checkbox' && field.options && (
+                    <div className="space-y-2">
+                      {field.options.map((option, i) => (
+                        <div key={i} className="flex items-center">
+                          <input type="checkbox" disabled className="mr-2" />
+                          <span>{option}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {field.type === 'select' && field.options && (
+                    <select disabled className="w-full max-w-md p-2 border border-gray-300 rounded">
+                      <option value="">Select an option</option>
+                      {field.options.map((option, i) => (
+                        <option key={i} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            <div className="mt-8 flex justify-end">
+              <Button variant="outline" onClick={() => setMode('editor')} className="mr-2">
+                Edit Survey
+              </Button>
+              <Button onClick={() => setMode('conversation')}>
+                Back to Conversation
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="max-w-4xl mx-auto">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Community Survey Builder</h1>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 pt-8 sm:px-6 lg:px-8">
+        {/* Back button above the header */}
+        <div className="mb-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/clergy-home')}
+            className="flex items-center gap-1 text-journey-pink hover:bg-journey-lightPink/20 -ml-2"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        </div>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold text-gray-900">Survey Builder</h1>
+        </div>
+        <div className="mb-8 text-left">
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Community Survey Builder</h1>
           <p className="text-gray-600">Create a survey to gather information from your community</p>
+          <p className="mt-4 text-lg text-gray-600">
+           Enter into conversation about the ideas and topics that you think are important and you will be guided through the survey building process using up-to-date research on survey construction.  When you are finished click the generate survey button and a survey will be sontructed that you can edit.  Members of the community can then complete the survey and results will be summarized for you.
+         </p>
+
         </div>
         
         <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
           <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Conversation</h2>
-            <p className="text-sm text-gray-500">Discuss the survey questions with the assistant</p>
+            <h2 className="text-lg font-medium text-gray-900">Survey Builder</h2>
+            <p className="text-sm text-gray-500">Type in your goals and questions for your neighborhood survey. Your Companion will help you craft effective questions to gather the information you need.  Start typing your questions in the text box below to begin building your survey.</p>
           </div>
           
-          <div className="h-[60vh] overflow-hidden">
+          <div>
             <ConversationInterface 
-            onMessageUpdate={handleConversationUpdate}
-            onError={handleError}
-            systemPrompt={SURVEY_SYSTEM_PROMPT}
-            initialMessage="Welcome to the Survey Builder! I'll help you create an effective community survey. What would you like to learn from your community?"
-            className="h-full"
-          />
+              onMessageUpdate={handleConversationUpdate}
+              onError={handleError}
+              systemPrompt={systemPrompt}
+              initialMessage="Welcome to the Survey Builder! I'll help you create an effective survey for your community. What would you like to learn from your survey?"
+              className="h-[60vh]"
+              companionName={selectedCompanion?.companion || 'Companion'}
+            />
           </div>
         </div>
         

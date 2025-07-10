@@ -105,7 +105,7 @@ export const NarrativeConfirmationModal: React.FC<NarrativeConfirmationModalProp
         <AlertDialogFooter>
           <AlertDialogCancel>Modify Selections</AlertDialogCancel>
           <AlertDialogAction onClick={handleContinue}>
-            Continue to Narrative Building
+            Continue to Building a Vocational or Mission Statement
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

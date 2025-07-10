@@ -25,12 +25,27 @@ export function ProtectedRoute({
     </div>
   ),
 }: ProtectedRouteProps) {
-    const { loading: authLoading, isAuthenticated } = useAuth();
-  const { profile, isLoading: profileLoading } = useUserProfile();
+  const { loading: authLoading, isAuthenticated, user } = useAuth();
+  const { profile, isLoading: profileLoading, profileFetchAttempted } = useUserProfile();
 
   const isLoading = authLoading || profileLoading;
   const role = profile?.role;
   const location = useLocation();
+  
+  // Additional debug logging
+  console.log(`%c[ProtectedRoute] DETAILED DEBUG for ${location.pathname}`, 'color: purple; font-weight: bold;', {
+    authLoading,
+    profileLoading,
+    isLoading,
+    isAuthenticated,
+    userId: user?.id,
+    profileFetchAttempted,
+    profileExists: !!profile,
+    profileId: profile?.id,
+    role,
+    allowedRoles,
+    timestamp: new Date().toISOString(),
+  });
 
   useEffect(() => {
     console.log(`%c[ProtectedRoute] State Update for ${location.pathname}`, 'color: blue; font-weight: bold;', {
@@ -55,8 +70,8 @@ export function ProtectedRoute({
 
   // If authenticated and role restrictions are specified, check for role-based access
   if (allowedRoles && allowedRoles.length > 0) {
-    // DEVELOPMENT MODE: Allow access to survey-build regardless of role
-    if (location.pathname === '/survey-build') {
+    // DEVELOPMENT MODE: Allow access to survey-build and narrative-build regardless of role
+    if (location.pathname === '/survey-build' || location.pathname === '/narrative-build') {
       console.log(`%c[ProtectedRoute] DEV MODE: Bypassing role check for ${location.pathname}`, 'color: purple; font-weight: bold;');
     } else if (!role || !allowedRoles.includes(role)) {
       console.log(`%c[ProtectedRoute] UNAUTHORIZED for ${location.pathname}. Role '${role}' not in allowed roles: [${allowedRoles.join(', ')}]`, 'color: orange; font-weight: bold;');

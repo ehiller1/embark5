@@ -1,7 +1,6 @@
 
 import { useState } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Button } from '@/components/ui/button';
 import { Archetype, useArchetypes } from '@/hooks/useArchetypes';
 import { ArchetypeCard } from './ArchetypeCard';
 import { EmptyState } from '@/components/EmptyState';
@@ -22,77 +21,39 @@ interface ArchetypesPanelProps {
 export function ArchetypesPanel({ onCardSelect, openChatModal }: ArchetypesPanelProps) {
   const { archetypes, isLoading } = useArchetypes();
   const { cards, createCard } = useImplementationCards();
-  const [selectedArchetypes, setSelectedArchetypes] = useState<Record<string, boolean>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  
+  const [selectedArchetype, setSelectedArchetype] = useState<string | null>(null);
   const [showConnectionModal, setShowConnectionModal] = useState(false);
   const [newCardAddedId, setNewCardAddedId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const handleSelect = (archetype: Archetype) => {
-    setSelectedArchetypes(prev => ({
-      ...prev,
-      [archetype.id]: !prev[archetype.id]
-    }));
-  };
-
-  // Unified chat modal for archetype click
-  const handleArchetypeCardClick = (archetype: Archetype) => {
-    openChatModal([archetype.id]);
-  };
-
-  const handleAddSelected = async () => {
-    setIsSubmitting(true);
+    // Radio button selection - only one can be selected at a time
+    setSelectedArchetype(archetype.id);
     
+    // Immediately activate the flow when a radio button is selected
+    activateArchetype(archetype);
+  };
+
+  // Activate the selected archetype
+  const activateArchetype = async (archetype: Archetype) => {
     try {
-      const selectedIds = Object.entries(selectedArchetypes)
-        .filter(([_, isSelected]) => isSelected)
-        .map(([id]) => id);
+      // Check if this archetype is already added to avoid duplicates
+      const existingCard = cards.find(card => 
+        card.name === archetype.name && 
+        card.type === (archetype.type as "individual" | "group")
+      );
       
-      if (selectedIds.length === 0) {
+      let cardToUse: ImplementationCard;
+      
+      if (existingCard) {
+        cardToUse = existingCard;
         toast({
-          title: "No archetypes selected",
-          description: "Please select at least one archetype to add.",
-          variant: "destructive"
+          title: "Using Existing Stakeholder",
+          description: `${archetype.name} is already in your network and will be used.`, 
+          variant: "default"
         });
-        return;
-      }
-
-      const cardsForModal: ImplementationCard[] = []; // To collect all cards for the modal
-
-      // Sequential processing to avoid race conditions
-      for (const id of selectedIds) {
-        const archetype = archetypes.find(a => a.id === id);
-        if (!archetype) continue;
-        
-        // Check if this archetype is already added to avoid duplicates
-        const existingCard = cards.find(card => 
-          card.name === archetype.name && 
-          card.type === (archetype.type as "individual" | "group")
-        );
-        
-        if (existingCard) {
-          toast({
-            title: "Archetype Already Added",
-            description: `Card '${archetype.name}' already exists and will be added to the conversation.`, 
-            variant: "default"
-          });
-          cardsForModal.push(existingCard); // Add existing card to the list for the modal
-          continue;
-        }
-        
-        // Use a uniqueness check based on name, type, and description
-        const alreadyExists = cards.some(card => card.name === archetype.name && card.type === archetype.type && card.description === archetype.description);
-        if (alreadyExists) {
-          toast({
-            title: "Archetype Already Exists",
-            description: `A card similar to '${archetype.name}' already exists in your network and was not added again.`,
-            variant: "default" // Or 'info' if you have such a variant
-          });
-          continue;
-        }
-
-        // Map archetype to ImplementationCard shape
+      } else {
+        // Create a new card for this archetype
         const newCardObject = await createCard({
           name: archetype.name,
           type: archetype.type as 'individual' | 'group',
@@ -103,43 +64,42 @@ export function ArchetypesPanel({ onCardSelect, openChatModal }: ArchetypesPanel
         });
         
         if (newCardObject) {
-          cardsForModal.push(newCardObject); // Add newly created card to the list for the modal
+          cardToUse = newCardObject;
+          toast({
+            title: "Added New Stakeholder",
+            description: `${archetype.name} has been added to your network.`,
+            variant: "default"
+          });
+        } else {
+          throw new Error("Failed to create new card");
         }
       }
-
-      // If any cards were identified (new or existing), trigger onCardSelect
-      if (onCardSelect && cardsForModal.length > 0) {
-        onCardSelect(cardsForModal);
-      }
-
-      // Connection modal is removed to prioritize UnifiedChatModal from Implementation.tsx
-      // The onCardSelect prop will trigger the chat modal flow.
-
-      // Clear selections after adding
-      setSelectedArchetypes({});
       
-      toast({
-        title: "Archetypes Processed",
-        description: `${cardsForModal.length} archetype(s) have been processed and added/selected for conversation.`,
-      });
+      // Trigger the onCardSelect callback with the selected card
+      if (onCardSelect) {
+        onCardSelect([cardToUse]);
+      }
+      
+      // Open the chat modal for this card
+      openChatModal([cardToUse.id]);
+      
     } catch (error) {
-      console.error('Error adding archetypes:', error);
+      console.error('Error activating archetype:', error);
       toast({
-        title: "Error adding archetypes",
-        description: "An error occurred while adding archetypes to your network.",
+        title: "Error",
+        description: "Failed to activate the selected stakeholder.",
         variant: "destructive"
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
+  // Function to handle connection modal closing
   const handleConnectionModalClose = () => {
     setShowConnectionModal(false);
     setNewCardAddedId(null);
   };
 
-  const hasSelections = Object.values(selectedArchetypes).some(v => v);
+
 
   if (isLoading) {
     return <LoadingSpinner size="md" text="Loading archetypes..." />;
@@ -158,10 +118,10 @@ export function ArchetypesPanel({ onCardSelect, openChatModal }: ArchetypesPanel
       <ScrollArea className="h-[350px] pr-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
            {archetypes.map(archetype => (
-             <div key={archetype.id} onDoubleClick={() => handleArchetypeCardClick(archetype)}>
+             <div key={archetype.id}>
                <ArchetypeCard
                  archetype={archetype}
-                 isSelected={!!selectedArchetypes[archetype.id]}
+                 isSelected={selectedArchetype === archetype.id}
                  onSelect={() => handleSelect(archetype)}
                />
              </div>
@@ -169,17 +129,6 @@ export function ArchetypesPanel({ onCardSelect, openChatModal }: ArchetypesPanel
         </div>
       </ScrollArea>
       
-      {hasSelections && (
-        <div className="flex justify-end mt-4">
-          <Button 
-            onClick={handleAddSelected} 
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? <LoadingSpinner size="xs" /> : 'Add Selected to Network'}
-          </Button>
-        </div>
-      )}
-
       {/* Connection Modal */}
       <Dialog open={showConnectionModal} onOpenChange={handleConnectionModalClose}>
         <DialogContent>
@@ -196,7 +145,6 @@ export function ArchetypesPanel({ onCardSelect, openChatModal }: ArchetypesPanel
           />
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

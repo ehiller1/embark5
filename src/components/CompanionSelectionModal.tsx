@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNarrativeAvatar } from '@/hooks/useNarrativeAvatar';
+import { useSelectedCompanion, Companion as SelectedCompanion } from '@/hooks/useSelectedCompanion';
 
 interface CompanionSelectionModalProps {
   open: boolean;
@@ -24,8 +25,21 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
   onOpenChange,
   onSelectionComplete,
 }) => {
-  const { companions, selectCompanion, fetchCompanions, selectedCompanion: currentSelectedCompanion } = useNarrativeAvatar();
-  const [pendingSelectedCompanionId, setPendingSelectedCompanionId] = useState<string | null>(currentSelectedCompanion?.id || null);
+  // Use both hooks - we'll keep useNarrativeAvatar for the companions list
+  // but use useSelectedCompanion for selection management
+  const { companions, fetchCompanions } = useNarrativeAvatar();
+  const { 
+    selectedCompanion: currentSelectedCompanion, 
+    selectCompanion,
+    clearSelectedCompanion,
+    allCompanions: standardizedCompanions,
+    fetchCompanions: fetchStandardizedCompanions
+  } = useSelectedCompanion();
+  
+  // Initialize with the currently selected companion's UUID if available
+  const [pendingSelectedCompanionId, setPendingSelectedCompanionId] = useState<number | null>(
+    currentSelectedCompanion?.UUID || null
+  );
 
   React.useEffect(() => {
     if (open) {
@@ -33,42 +47,59 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
         'CompanionSelectionModal: companions list on open:',
         companions.map(c => ({ id: c.id, name: c.name }))
       );
+      
+      // Fetch companions if needed
       if (companions.length === 0) {
         fetchCompanions();
       }
+      
+      // Also fetch standardized companions if needed
+      if (standardizedCompanions.length === 0) {
+        fetchStandardizedCompanions();
+      }
+      
       // Initialize pending selection with the currently selected companion
-      setPendingSelectedCompanionId(currentSelectedCompanion?.id || null);
+      setPendingSelectedCompanionId(currentSelectedCompanion?.UUID || null);
     }
-  }, [open, companions, fetchCompanions, currentSelectedCompanion]); // Ensure 'companions' is a dependency for the log
+  }, [open, companions, fetchCompanions, currentSelectedCompanion, standardizedCompanions, fetchStandardizedCompanions]);
 
   const handleSaveSelection = () => {
     console.log('[CompanionSelectionModal] handleSaveSelection called with pendingSelectedCompanionId:', pendingSelectedCompanionId);
     
     if (pendingSelectedCompanionId) {
-      const companionToSelect = companions.find(c => c.id === pendingSelectedCompanionId);
+      // Find the companion in the standardized companions list
+      const companionToSelect = standardizedCompanions.find(c => c.UUID === pendingSelectedCompanionId);
+      
       if (companionToSelect) {
         console.log('[CompanionSelectionModal] Calling selectCompanion with:', companionToSelect);
-        selectCompanion(companionToSelect.id);
+        
+        // Use the standardized hook to select the companion
+        // This will handle both state management and localStorage persistence
+        selectCompanion(companionToSelect);
+        
+        console.log('[CompanionSelectionModal] Selected companion using standardized hook:', companionToSelect.companion);
       } else {
         // This case should ideally not happen if pendingSelectedCompanionId is valid
         console.warn('[CompanionSelectionModal] Pending companion ID not found in companions list');
-        selectCompanion(null); // Fallback to deselecting
+        // Use the standardized hook's clearSelectedCompanion method
+        clearSelectedCompanion();
       }
     } else {
       // If pendingSelectedCompanionId is null, it means user wants to deselect
       console.log('[CompanionSelectionModal] Deselecting companion');
-      selectCompanion(null);
+      // Use the standardized hook's clearSelectedCompanion method
+      clearSelectedCompanion();
     }
     
     onOpenChange(false); // Close modal on selection
     onSelectionComplete?.(); // Call the callback if provided
   };
 
-  const handleCardClick = (companionId: string) => {
-    if (pendingSelectedCompanionId === companionId) {
+  const handleCardClick = (companionUUID: number) => {
+    if (pendingSelectedCompanionId === companionUUID) {
       setPendingSelectedCompanionId(null); // Toggle off if already pending
     } else {
-      setPendingSelectedCompanionId(companionId);
+      setPendingSelectedCompanionId(companionUUID);
     }
   };
 
@@ -83,26 +114,26 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
         </AlertDialogHeader>
         
         <div className="py-4 space-y-3 max-h-96 overflow-y-auto">
-          {companions.length > 0 ? (
-            companions.map((companion, index) => (
+          {standardizedCompanions.length > 0 ? (
+            standardizedCompanions.map((companion, index) => (
               <Card 
-                key={companion.id || companion.name || `companion-idx-${index}`} 
-                className={`transition-colors border-2 ${pendingSelectedCompanionId === companion.id ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'}`}
-                onClick={() => handleCardClick(companion.id)}
+                key={companion.UUID || `companion-idx-${index}`} 
+                className={`transition-colors border-2 ${pendingSelectedCompanionId === companion.UUID ? 'border-primary bg-primary/5' : 'border-transparent hover:bg-muted/50'}`}
+                onClick={() => handleCardClick(companion.UUID)}
               >
                 <CardContent className="p-4 flex items-center gap-4 cursor-pointer">
-                                    <Checkbox
-                    id={`companion-checkbox-${companion.id}`}
-                    checked={pendingSelectedCompanionId === companion.id}
-                    onCheckedChange={() => handleCardClick(companion.id)}
+                  <Checkbox
+                    id={`companion-checkbox-${companion.UUID}`}
+                    checked={pendingSelectedCompanionId === companion.UUID}
+                    onCheckedChange={() => handleCardClick(companion.UUID)}
                     className="mr-3 h-5 w-5 self-center"
                   />
                   <Avatar className="h-16 w-16">
-                    <AvatarImage src={companion.avatar_url} alt={companion.name} />
-                    <AvatarFallback>{companion.name?.charAt(0)?.toUpperCase() || 'C'}</AvatarFallback>
+                    <AvatarImage src={companion.avatar_url} alt={companion.companion} />
+                    <AvatarFallback>{companion.companion?.charAt(0)?.toUpperCase() || 'C'}</AvatarFallback>
                   </Avatar>
                   <div className="flex-grow space-y-1">
-                    <div className="font-semibold text-lg">{companion.name || 'Unnamed Companion'}</div>
+                    <div className="font-semibold text-lg">{companion.companion || 'Unnamed Companion'}</div>
                     {companion.companion_type && <p className="text-sm text-muted-foreground">Type: {companion.companion_type}</p>}
                     {companion.traits && <p className="text-sm text-muted-foreground">Traits: <span className="italic">{companion.traits}</span></p>}
                     {companion.knowledge_domains && <p className="text-sm text-muted-foreground">Knowledge: {companion.knowledge_domains}</p>}

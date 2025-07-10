@@ -44,11 +44,8 @@ export function AvatarSelectionPanel() {
   const [showMissionalModal, setShowMissionalModal] = useState(false);
   const [showCompanionModal, setShowCompanionModal] = useState(false); // Added for companion selection
 
-  // Handler to switch from overview modal to companion selection modal
-  const handleRequestCompanionChange = () => {
-    setShowVocationModal(false); // Close the overview modal
-    setShowCompanionModal(true);  // Open the companion selection modal
-  };
+  // Note: Previously had a handler to switch from overview modal to companion selection modal
+  // This functionality has been removed as it's no longer needed
 
   // Handle avatar card clicks
   const handleAvatarCardClick = (type: AvatarType | 'missional') => {
@@ -86,7 +83,7 @@ export function AvatarSelectionPanel() {
   
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">Companions With Their Points of View</h2>
+      <h2 className="text-lg font-semibold">Your Conversational Companion or aspirational point of view</h2>
       <Card>
         <CardContent className="p-6">
           <AvatarCards 
@@ -160,21 +157,15 @@ export function AvatarSelectionPanel() {
         onOpenChange={setShowVocationModal} 
         selectionContext="vocation_overview" // Explicitly set context for clarity
         companionsList={companions} // Pass companions for display in overview
-        onSelectCompanion={companion => selectCompanion(companion ? companion.id : null)} // Adapt to context API
-        onRequestCompanionChange={handleRequestCompanionChange} // Pass the handler
+        onSelectCompanion={(companion: { id: string | null }) => selectCompanion(companion ? companion.id : null)} // Adapt to context API
         // selectChurchAvatar and selectCommunityAvatar are implicitly handled by VocationAvatarModal's own state/props for its child modals
       />
 
       {/* Modal for Companion Selection using VocationAvatarModal */}
-      {companions && selectCompanion && (
-        <VocationAvatarModal 
-          open={showCompanionModal} 
-          onOpenChange={setShowCompanionModal} 
-          companionsList={companions} 
-          onSelectCompanion={companion => selectCompanion(companion ? companion.id : null)} 
-          selectionContext="companion"
-        />
-      )}
+      <VocationAvatarModal 
+        open={showCompanionModal} 
+        onOpenChange={setShowCompanionModal} 
+      />
       
       {/* ---- MODIFIED ---- */}
       {/* console.log('[AvatarSelectionPanel] Pre-ChurchModal render. selectChurchAvatar type:', typeof selectChurchAvatar, 'Value:', selectChurchAvatar) */}

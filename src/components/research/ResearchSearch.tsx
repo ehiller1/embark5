@@ -109,10 +109,11 @@ export function ResearchSearch({
               {results.map((result) => (
                 <Card
                   key={result.id}
-                  className="cursor-pointer transition-all hover:shadow-md hover:bg-accent/20"
+                  className="cursor-pointer transition-all hover:shadow-md hover:bg-accent/20 active:bg-accent/40 focus:outline-none focus:ring-2 focus:ring-[#47799f] focus:ring-offset-2"
                   onClick={() => handleResultClick(result)}
                 >
-                  <CardContent className="p-4">
+                  <CardContent className="p-4 relative">
+                    <div className="absolute inset-0 bg-[#47799f]/10 opacity-0 hover:opacity-100 active:opacity-100 transition-opacity pointer-events-none"></div>
                     {result.type === 'ai' ? (
                       <>
                         <div className="flex justify-between items-center mb-2">

@@ -9,6 +9,8 @@ import { useMissionalAvatars } from '@/hooks/useMissionalAvatars';
 import { toast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '@/integrations/lib/supabase';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
+import { saveVocationalStatement } from '@/utils/dbUtils';
 import { VocationalFilter, VocationalStatement, VocationalDialogProps } from '@/types/NarrativeTypes';
 
 export function VocationalStatementDialog({
@@ -48,6 +50,7 @@ export function VocationalStatementDialog({
   );
   const [isSaving, setIsSaving] = useState(false);
   const { addMissionalAvatar, selectMissionalAvatar } = useMissionalAvatars();
+  const { user } = useAuth();
 
   const handleSave = async () => {
     if (!filterName.trim()) {
@@ -73,36 +76,37 @@ export function VocationalStatementDialog({
         category: 'narrative'
       };
 
-      // For add and edit modes, save to resource library
-      if (mode !== 'adapt') {
-        // If editing, we should include the original ID
-        const resourceData = {
-          title: filterName,
-          content: statementContent,
-          resource_type: 'narrative_statement'
-        };
-
-        if (mode === 'edit' && initialStatementData?.id) {
-          // Update existing record if in edit mode
-          await supabase
-            .from('resource_library')
-            .update(resourceData)
-            .eq('id', initialStatementData.id);
-        } else {
-          // Create new record if in add mode
-          await supabase
-            .from('resource_library')
-            .insert(resourceData);
-        }
-      }
-
-      // Save to local storage
-      const vocationalFilter: VocationalFilter = {
+      // Create a standardized vocational statement object for storage
+      const vocationalObject = {
+        mission_statement: statementContent,
         name: filterName,
-        statement: statementContent,
         createdAt: new Date().toISOString()
       };
-      localStorage.setItem('vocational_statement', JSON.stringify(vocationalFilter));
+      
+      // For add and edit modes, save to resource library and localStorage using utility function
+      if (mode !== 'adapt' && user?.id) {
+        if (mode === 'edit' && initialStatementData?.id) {
+          // For edit mode, we need to handle the update separately since our utility doesn't support updates yet
+          await supabase
+            .from('resource_library')
+            .update({
+              title: filterName,
+              content: JSON.stringify(vocationalObject),
+              resource_type: 'vocational_statement',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', initialStatementData.id);
+            
+          // Still use the utility to update localStorage in a standardized way
+          await saveVocationalStatement(vocationalObject, user.id);
+        } else {
+          // For add mode, use the utility function to save to both localStorage and database
+          await saveVocationalStatement(vocationalObject, user.id);
+        }
+      } else {
+        // For adapt mode or when user is not available, just save to localStorage
+        localStorage.setItem('vocational_statement', JSON.stringify(vocationalObject));
+      }
       
       // Create missional avatar only in add mode and if statement content is valid
       if (mode === 'add' && statementContent.trim()) {
@@ -126,8 +130,8 @@ export function VocationalStatementDialog({
           selectMissionalAvatar(missionalAvatar);
           
           toast({
-            title: "Missional Avatar Created",
-            description: "A missional avatar has been created from your vocational statement."
+            title: "Aspirtion Created",
+            description: "An apsiration avatar has been created from your vocational statement."
           });
         }
       }

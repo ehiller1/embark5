@@ -89,6 +89,8 @@ export interface Companion {
   // Added properties that were missing
   churchAvatar?: ChurchAvatar | null;
   communityAvatar?: CommunityAvatar | null;
+  name?: string; // Name property for display
+  id?: string; // ID property for identification
 }
 
 /**

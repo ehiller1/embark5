@@ -9,6 +9,7 @@ import { NarrativeAvatarProvider } from "@/hooks/useNarrativeAvatar";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useEffect } from "react";
+import { AuthCompanionFlow } from "./components/AuthCompanionFlow";
 import { createRequiredPrompts } from "./utils/promptUtils";
 import { MainLayout } from "./components/MainLayout";
 
@@ -48,11 +49,15 @@ import SurveySummary from './pages/survey_summary';
 import SurveyNeighborhoodBuild from './pages/SurveyNeighborhoodBuild';
 import NeighborhoodSurvey from './pages/NeighborhoodSurvey';
 import MinistryDetail from './pages/MinistryDetail';
+import ClergyMarketplace from './pages/ClergyMarketplace';
+import ServicesMarketplace from './pages/ServicesMarketplace';
+import Accounting from './pages/Accounting';
 import InvestmentSuccess from './pages/InvestmentSuccess';
 import InvestmentDashboard from './pages/InvestmentDashboard';
 import Viability from './pages/Viability';
 import VocationalDiscernment from './pages/VocationalDiscernment';
 import SurveyBuild from './pages/SurveyBuild';
+import ServiceDetail from './pages/ServiceDetail';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -96,6 +101,7 @@ const App = () => {
                 <ErrorBoundary>
                   <Toaster />
                   <Sonner />
+                  <AuthCompanionFlow />
                   <RouteDebugger />
                   <Routes>
                     <Route element={<MainLayout />}>
@@ -126,6 +132,7 @@ const App = () => {
                       <Route path="/community-research" element={<ProtectedRoute allowedRoles={['Clergy']}><CommunityResearch /></ProtectedRoute>} />
                       <Route path="/church-assessment" element={<ProtectedRoute allowedRoles={['Clergy']}><ChurchAssessment /></ProtectedRoute>} />
                       <Route path="/church-research" element={<ProtectedRoute allowedRoles={['Clergy']}><ChurchResearch /></ProtectedRoute>} />
+                      <Route path="/accounting" element={<ProtectedRoute allowedRoles={['Clergy']}><Accounting /></ProtectedRoute>} />
                       <Route path="/research-summary" element={<ProtectedRoute allowedRoles={['Clergy']}><ResearchSummary /></ProtectedRoute>} />
                       <Route path="/community-profile" element={<ProtectedRoute allowedRoles={['Clergy']}><CommunityProfilePage /></ProtectedRoute>} />
                       <Route path="/scenario" element={<ProtectedRoute allowedRoles={['Clergy']}><Scenario /></ProtectedRoute>} />
@@ -147,6 +154,11 @@ const App = () => {
                       <Route path="/conversation-parish-survey" element={<ProtectedRoute allowedRoles={['Parish']}><ConversationParishSurvey /></ProtectedRoute>} />
                       <Route path="/conversation-parish" element={<ProtectedRoute allowedRoles={['Parish']}><ConversationParish /></ProtectedRoute>} />
                                             <Route path="/survey-summary" element={<ProtectedRoute allowedRoles={['Clergy', 'Parish']}><SurveySummary /></ProtectedRoute>} />
+                      {/* Clergy Marketplace */}
+                      <Route path="/clergy/marketplace" element={<ProtectedRoute allowedRoles={['Clergy']}><ClergyMarketplace /></ProtectedRoute>} />
+                      <Route path="/services-marketplace" element={<ProtectedRoute allowedRoles={['Clergy']}><ServicesMarketplace /></ProtectedRoute>} />
+                      <Route path="/services/:id" element={<ProtectedRoute allowedRoles={['Clergy']}><ServiceDetail /></ProtectedRoute>} />
+                      {/* Parish Marketplace */}
                       <Route path="/marketplace" element={<ProtectedRoute allowedRoles={['Parish']}><CrowdfundingMarketplace /></ProtectedRoute>} />
                       <Route path="/ministry-detail/:ministryId" element={<ProtectedRoute allowedRoles={['Parish']}><MinistryDetail /></ProtectedRoute>} />
                       <Route path="/investment-success" element={<ProtectedRoute allowedRoles={['Parish']}><InvestmentSuccess /></ProtectedRoute>} />

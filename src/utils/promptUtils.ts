@@ -26,7 +26,7 @@ export const REQUIRED_PROMPT_TYPES = [
   'scenario_builder',
   'scenario_refinement',
   'scenario_interrogatory',
-  'church_avatar_prompt',
+  'church_avatars', // Correct prompt type used in database
   'community_assessment',
   'church_assessment',
   // 'community_avatar_prompt', // Not strictly required for core narrative build flow
@@ -364,7 +364,7 @@ export const PROMPT_PARAMETERS: PromptParameterConfig = {
     companion_speech_pattern: { required: true, description: 'companion_speech_pattern' },
     companion_knowledge_domains: { required: true, description: 'companion_knowledge_domains' }
   },
-  church_avatar_prompt: {
+  church_avatars: {
     research_summary: { required: true, description: 'research_summary' },
     church_assessment: { required: true, description: 'church_assessment' },
     community_research: { required: true, description: 'community_research' },

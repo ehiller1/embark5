@@ -18,10 +18,7 @@ export function CompanionsList() {
   
   // Load the active companion from localStorage on initial render
   useEffect(() => {
-    const storedCompanionId = localStorage.getItem('selected_companion_id');
-    if (storedCompanionId && storedCompanionId !== selectedCompanion?.id) {
-      selectCompanion(storedCompanionId);
-    }
+
   }, []);
 
   useEffect(() => {
@@ -56,11 +53,8 @@ export function CompanionsList() {
   const handleCompanionClick = (companion: Companion) => {
     console.log("[CompanionsList] Companion clicked:", companion);
     
-    // Update the selected companion in the context
-    selectCompanion(companion.id);
-    
-    // Update localStorage directly to ensure it's always in sync
-    localStorage.setItem('selected_companion_id', companion.id);
+    // Update the selected companion in the centralized store
+    selectCompanion(companion);
     
     toast({
       title: "Companion Selected",

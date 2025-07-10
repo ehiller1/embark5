@@ -441,17 +441,14 @@ export function PlanBuilder({
     if (!prerequisitesMet) {
       return (
         <>
-          <DialogHeader>
-            <DialogTitle>Building a Discernment Plan</DialogTitle>
-          </DialogHeader>
           <div className="mt-4 space-y-4 text-sm">
             <p className="font-semibold text-base">A plan for the discernment process requires:</p>
             <ul className="list-disc list-inside space-y-1 pl-2">
-              <li>Research on Community (Summary saved)</li>
-              <li>An Assessment of your Church (Reflected in Vocational Statement)</li>
-              <li>A survey of your parish (Input to Vocational Statement)</li>
-              <li>A starting statement of calling and vocation (Saved)</li>
-              <li>Possible scenarios for innovative ministry (Details saved)</li>
+              <li>Neighborhood Research</li>
+              <li>Community Assessment</li>
+              <li>Community and Neighborhood Engagement-Completed surveys</li>
+              <li>Developed Mission</li>
+              <li>Identified Ministry Innovation</li>
             </ul>
             <p className="mt-2">Please ensure all prerequisite steps are completed and their outputs are available.</p>
             {fetchedResearchSummary && <p className="text-xs text-green-600">✓ Research Summary found.</p>}
@@ -462,7 +459,7 @@ export function PlanBuilder({
             {(!fetchedScenarioDetailsArray || fetchedScenarioDetailsArray.length === 0) && <p className="text-xs text-red-600">✗ Scenario Details missing.</p>}
           </div>
           <div className="mt-6 flex justify-end">
-            <Button onClick={handleStartPrerequisitesClick}>Start Prerequisite Steps</Button>
+            <Button onClick={handleStartPrerequisitesClick}>Finish Incomplete Items</Button>
           </div>
         </>
       );
@@ -539,11 +536,13 @@ export function PlanBuilder({
         )}
         {showSaveDialog && (
              <Dialog open={showSaveDialog} onOpenChange={setShowSaveDialog}>
-                <DialogContent>
+                <DialogContent aria-labelledby="save-dialog-title" aria-describedby="save-dialog-desc">
                     <DialogHeader>
-                        <DialogTitle>Confirm Save</DialogTitle>
+                        <DialogTitle id="save-dialog-title">Confirm Save</DialogTitle>
+                        <p id="save-dialog-desc" className="text-sm text-muted-foreground">
+                          Are you sure you want to save this plan?
+                        </p>
                     </DialogHeader>
-                    <p>Are you sure you want to save this plan?</p>
                     <div className="flex justify-end gap-2 mt-4">
                         <Button variant="outline" onClick={() => setShowSaveDialog(false)}>Cancel</Button>
                         <Button onClick={savePlan}>Save Plan</Button>
@@ -561,12 +560,18 @@ export function PlanBuilder({
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={handleDialogClose}>
-      <DialogContent className={`transition-all duration-300 ease-in-out ${prerequisitesMet && !isLoadingPrerequisites ? 'max-w-3xl' : 'max-w-lg'}`}>
-        <DialogHeader>
-          <DialogTitle>Plan Builder</DialogTitle>
-        </DialogHeader>
-        {renderContent()}
-      </DialogContent>
+      <DialogContent className={`transition-all duration-300 ease-in-out ${prerequisitesMet && !isLoadingPrerequisites ? 'max-w-3xl' : 'max-w-lg'}`}
+      aria-labelledby="plan-builder-title"
+      aria-describedby="plan-builder-desc"
+    >
+      <DialogHeader>
+        <DialogTitle id="plan-builder-title">Plan Builder</DialogTitle>
+        <p id="plan-builder-desc" className="text-sm text-muted-foreground">
+          Create, edit, and enhance your discernment plan using research, vocational statements, and scenarios.
+        </p>
+      </DialogHeader>
+      {renderContent()}
+    </DialogContent>
     </Dialog>
   );
 }

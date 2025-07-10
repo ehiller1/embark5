@@ -151,8 +151,19 @@ export function CardNetworkVisualization({
     });
   }, [selectedCardIds]);
 
+  const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null);
+  const [showNodeDetailModal, setShowNodeDetailModal] = useState(false);
+
   const handleNodeClick = (node: GraphNode) => {
-    openChatModal([node.id]);
+    setSelectedNode(node);
+    setShowNodeDetailModal(true);
+  };
+  
+  const handleStartChat = () => {
+    if (selectedNode) {
+      openChatModal([selectedNode.id]);
+      setShowNodeDetailModal(false);
+    }
   };
 
   const handleConnectionCreated = () => {
@@ -203,19 +214,112 @@ export function CardNetworkVisualization({
   
   return (
     <div ref={containerRef} className="w-full h-full flex flex-col">
+      {/* Node Detail Modal */}
+      <Dialog open={showNodeDetailModal} onOpenChange={setShowNodeDetailModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{selectedNode?.name || 'Person/Group Details'}</DialogTitle>
+            <DialogDescription>
+              View details about this person or group
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-2">
+            {selectedNode && (
+              <>
+                <div>
+                  <h3 className="text-sm font-medium mb-1">Type</h3>
+                  <p className="text-sm capitalize">{selectedNode.type}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-1">Description</h3>
+                  <p className="text-sm">{selectedNode.description || 'No description available'}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-1">Categories</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedNode.categories.length > 0 ? (
+                      selectedNode.categories.map(categoryId => {
+                        const category = categories.find(c => c.id === categoryId);
+                        return (
+                          <span 
+                            key={categoryId}
+                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                            style={{ 
+                              backgroundColor: category?.color ? `${category.color}30` : '#e2e8f0',
+                              color: category?.color ? category.color : '#64748b'
+                            }}
+                          >
+                            {category?.name || 'Unknown Category'}
+                          </span>
+                        );
+                      })
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No categories assigned</span>
+                    )}
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium mb-1">Connections</h3>
+                  <div className="text-sm">
+                    {connections
+                      .filter(conn => conn.source_card_id === selectedNode.id || conn.target_card_id === selectedNode.id)
+                      .map(conn => {
+                        const isSource = conn.source_card_id === selectedNode.id;
+                        const otherCardId = isSource ? conn.target_card_id : conn.source_card_id;
+                        const otherCard = cards.find(c => c.id === otherCardId);
+                        
+                        return (
+                          <div key={conn.id} className="flex items-center mb-1">
+                            <span>{selectedNode.name}</span>
+                            <span className="mx-1 text-muted-foreground">{isSource ? '→' : '←'}</span>
+                            <span>{otherCard?.name || 'Unknown'}</span>
+                            {conn.relationship_type && (
+                              <span className="ml-2 text-xs text-muted-foreground">({conn.relationship_type})</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    {!connections.some(conn => conn.source_card_id === selectedNode.id || conn.target_card_id === selectedNode.id) && (
+                      <span className="text-muted-foreground">No connections</span>
+                    )}
+                  </div>
+                </div>
+                
+                {selectedNode.card_data.attributes && Object.keys(selectedNode.card_data.attributes).length > 0 && (
+                  <div>
+                    <h3 className="text-sm font-medium mb-1">Additional Details</h3>
+                    <div className="text-sm">
+                      {Object.entries(selectedNode.card_data.attributes).map(([key, value]) => (
+                        <div key={key} className="mb-1">
+                          <span className="font-medium">{key}: </span>
+                          <span>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          
+          <div className="flex justify-end space-x-2 mt-4">
+            <Button variant="outline" onClick={() => setShowNodeDetailModal(false)}>Close</Button>
+            <Button onClick={handleStartChat}>Start Conversation</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      
       <div className="flex justify-end space-x-2 p-2 bg-slate-50 border-b">
         <Dialog open={isCreatingCategory} onOpenChange={setIsCreatingCategory}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Plus className="h-4 w-4 mr-1" />
-              New Category
-            </Button>
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Category</DialogTitle>
+              <DialogTitle>Group people together</DialogTitle>
               <DialogDescription>
-                Add a new category to organize your cards.
+                Create a new group to organize people in your community.
               </DialogDescription>
             </DialogHeader>
             <CategoryCreationPanel onSuccess={() => setIsCreatingCategory(false)} />
@@ -223,17 +327,12 @@ export function CardNetworkVisualization({
         </Dialog>
         
         <Dialog open={isCreatingConnection} onOpenChange={setIsCreatingConnection}>
-          <DialogTrigger asChild>
-            <Button variant="outline" size="sm">
-              <Link className="h-4 w-4 mr-1" />
-              New Connection
-            </Button>
-          </DialogTrigger>
+
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Create New Connection</DialogTitle>
+              <DialogTitle>Connect two people or groups together</DialogTitle>
               <DialogDescription>
-                Connect two people or groups in your network.
+                Connect people or groups together that share a similar point of view.
               </DialogDescription>
             </DialogHeader>
             <ConnectionCreationPanel 
@@ -270,9 +369,9 @@ export function CardNetworkVisualization({
               const fontSize = 12 / globalScale;
               const nodeSize = 5;
               
-              // Draw node circle
+              // Draw node as square instead of circle
               ctx.beginPath();
-              ctx.arc(node.x || 0, node.y || 0, nodeSize, 0, 2 * Math.PI);
+              ctx.rect((node.x || 0) - nodeSize, (node.y || 0) - nodeSize, nodeSize * 2, nodeSize * 2);
               ctx.fillStyle = getNodeColor(n);
               ctx.fill();
               

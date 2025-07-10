@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/lib/supabase';
-import { ScenarioItem, ChurchAvatar, CommunityAvatar, Companion } from '@/types/NarrativeTypes';
+import { ScenarioItem, ChurchAvatar, Companion } from '@/types/NarrativeTypes';
 import { MissionalAvatar } from '@/hooks/useMissionalAvatars';
 import { usePrompts } from '@/hooks/usePrompts';
 import { useOpenAI } from '@/hooks/useOpenAI';
@@ -25,16 +25,15 @@ export function useScenarioGenerator() {
     researchSummary: string,
     narrative: string,
     churchAvatar: ChurchAvatar | null,
-    communityAvatar: CommunityAvatar | null,
     companionAvatar: Companion | null,
     missionalAvatar?: MissionalAvatar | null
   ): ValidationResult => {
     const missingParams: string[] = [];
 
-    // Check required parameters
-    if (!researchSummary?.trim()) {
-      missingParams.push('research summary');
-    }
+    // Research summary is now optional
+    // if (!researchSummary?.trim()) {
+    //   missingParams.push('research summary');
+    // }
 
     // Vocational statement is now optional for scenario generation
     // if (!narrative?.trim()) {
@@ -45,20 +44,16 @@ export function useScenarioGenerator() {
       missingParams.push('church avatar');
     }
 
-    if (!communityAvatar?.avatar_name || !communityAvatar?.avatar_point_of_view) {
-      missingParams.push('community avatar');
-    }
-
-    if (!companionAvatar?.companion || !companionAvatar?.companion_type) {
-      missingParams.push('companion avatar');
-    }
+    // Companion avatar is now optional
+    // if (!companionAvatar?.companion || !companionAvatar?.companion_type) {
+    //   missingParams.push('companion avatar');
+    // }
 
     // Log validation results
     console.log('[ScenarioGenerator] Parameter validation:', {
       hasResearchSummary: !!researchSummary?.trim(),
       hasNarrative: !!narrative?.trim(),
       hasChurchAvatar: !!churchAvatar?.avatar_name,
-      hasCommunityAvatar: !!communityAvatar?.avatar_name,
       hasCompanionAvatar: !!companionAvatar?.companion,
       hasMissionalAvatar: !!missionalAvatar?.avatar_name,
       missingParams
@@ -76,8 +71,8 @@ export function useScenarioGenerator() {
   const generateScenarios = async (
     researchSummary: string,
     churchAvatar: ChurchAvatar,
-    communityAvatar: CommunityAvatar,
     companionAvatar: Companion,
+    scenarioType?: string,
     missionalAvatar?: MissionalAvatar | null
   ) => {
     setIsLoading(true);
@@ -118,9 +113,8 @@ export function useScenarioGenerator() {
       // Validate parameters before proceeding
       const validation = validateScenarioParameters(
         researchSummary,
-        vocationalStatement, // Pass the fetched or default statement
+        '', // narrative is now optional
         churchAvatar,
-        communityAvatar,
         companionAvatar,
         missionalAvatar
       );
@@ -147,22 +141,17 @@ export function useScenarioGenerator() {
         ? `${churchAvatar.avatar_name} (${churchAvatar.role} with ${churchAvatar.avatar_point_of_view})`
         : 'No church avatar selected';
 
-      const communityAvatarInfo = communityAvatar
-        ? `${communityAvatar.avatar_name} (${communityAvatar.role} with ${communityAvatar.avatar_point_of_view})`
-        : 'No community avatar selected';
-
       // 3. Populate placeholders
       const template = promptData.prompt;
       const missionalAvatarInfo = missionalAvatar
         ? `${missionalAvatar.avatar_name} (missional perspective: ${missionalAvatar.avatar_point_of_view})`
-        : ''; // If no missional avatar, replace placeholder with empty string
+        : '';
 
       let fullPrompt = template
         .replace(/\$\(\s*ResearchSummary\s*\)/g, researchSummary)
         .replace(/\$\(\s*vocational_statement\s*\)/g, vocationalStatement || 'Not available') // Use fetched or default
         .replace(/\$\(\s*companion_avatar\s*\)/g, JSON.stringify(companionAvatar))
-        .replace(/\$\(\s*church_avatar\s*\)/g, churchAvatarInfo)
-        .replace(/\$\(\s*community_avatar\s*\)/g, communityAvatarInfo);
+        .replace(/\$\(\s*church_avatar\s*\)/g, churchAvatarInfo);
 
       // Handle missional_avatar replacement carefully to avoid issues if it's missing
       // and the prompt has specific structures around it (e.g., lists, conjunctions)

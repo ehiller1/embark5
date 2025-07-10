@@ -29,7 +29,7 @@ export function ResearchLayout({
   children
 }: ResearchLayoutProps) {
   return (
-    <div className="flex flex-col h-full space-y-4 p-6 max-w-full mx-auto">
+    <div className="flex flex-col h-full space-y-4 p-6 w-full max-w-[1800px] mx-auto overflow-hidden">
       {/* Context */}
       <div className="flex justify-between items-center">
         {locationName && (
@@ -84,7 +84,7 @@ export function ResearchLayout({
         </div>
       </div>
       {/* Main Content */}
-      <div className="flex-1 min-h-0 w-full">
+      <div className="flex-1 min-h-0 w-full overflow-auto">
         {children}
       </div>
     </div>

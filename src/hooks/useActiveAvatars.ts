@@ -65,15 +65,15 @@ export function useActiveAvatars({ onGenerateMessages }: UseActiveAvatarsProps) 
     });
   }, []);
 
-  const validateAvatarsForScenarios = useCallback((): boolean => {
-    // Only require church and community avatars, companion is optional
-    const requiredAvatars: AvatarType[] = ['church', 'community'];
-    const missing = requiredAvatars.filter(type => !isAvatarActive(type));
+  const validateAvatarsForScenarios = useCallback((requiredTypes: AvatarType[] = ['church', 'community']): boolean => {
+    // By default, require church and community avatars, but allow customization
+    const missing = requiredTypes.filter(type => !isAvatarActive(type));
     return missing.length === 0;
   }, [isAvatarActive]);
 
   const generateMessagesForActiveAvatars = useCallback(() => {
-    if (!validateAvatarsForScenarios()) {
+    // For message generation, we still require both church and community avatars
+    if (!validateAvatarsForScenarios(['church', 'community'])) {
       return false;
     }
     onGenerateMessages([]);

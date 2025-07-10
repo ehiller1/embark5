@@ -1,9 +1,39 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+
+// Define a simple Companion interface for the cached companion
+interface Companion {
+  id: string;
+  companion: string;
+  avatar_url?: string;
+  traits?: string;
+  speech_pattern?: string;
+  knowledge_domains?: string;
+  companion_type?: string;
+  role?: string;
+}
+
+// Function to get companion from companions_cache in localStorage
+const getCachedCompanion = (): Companion | null => {
+  try {
+    const cachedData = localStorage.getItem('companions_cache');
+    if (cachedData) {
+      const companions = JSON.parse(cachedData);
+      // Find the selected companion (usually the first one in the cache)
+      if (Array.isArray(companions) && companions.length > 0) {
+        return companions[0];
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting cached companion:', error);
+    return null;
+  }
+};
 
 interface RoundtableMessageProps {
   id: string;
@@ -22,8 +52,14 @@ export function RoundtableMessage({
   isSpeaking
 }: RoundtableMessageProps) {
   const [expanded, setExpanded] = useState(false);
+  const [cachedCompanion, setCachedCompanion] = useState<Companion | null>(null);
   const isUser = role === "user";
   const isSystem = role === "system";
+  
+  // Load cached companion on mount
+  useEffect(() => {
+    setCachedCompanion(getCachedCompanion());
+  }, []);
 
   const words = content.split(' ');
   const shouldTruncate = words.length > 20;
@@ -63,8 +99,12 @@ export function RoundtableMessage({
         <CardContent className="flex items-start gap-3 p-3">
           {!isUser && (
             <Avatar className="h-8 w-8 flex-shrink-0">
-              <AvatarImage src={avatarUrl} alt={name} />
-              <AvatarFallback>{getAvatarFallback()}</AvatarFallback>
+              <AvatarImage src={role === "companion" ? cachedCompanion?.avatar_url || avatarUrl : avatarUrl} alt={name} />
+              <AvatarFallback>
+                {role === "companion" && cachedCompanion?.companion
+                  ? cachedCompanion.companion.charAt(0).toUpperCase()
+                  : getAvatarFallback()}
+              </AvatarFallback>
             </Avatar>
           )}
           <div className="flex-1 min-w-0">
