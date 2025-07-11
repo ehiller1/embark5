@@ -48,6 +48,10 @@ const CommunityProfilePage = (): ReactElement => {
   const [realmModalOpen, setRealmModalOpen] = useState(false);
   const [realmUsername, setRealmUsername] = useState('');
   const [realmPassword, setRealmPassword] = useState('');
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const [realmApiKey, setRealmApiKey] = useState('');
   const [realmIntegrationStep, setRealmIntegrationStep] = useState(0);
   const [realmIntegrationProgress, setRealmIntegrationProgress] = useState(0);
@@ -125,6 +129,7 @@ const CommunityProfilePage = (): ReactElement => {
       }
     };
 
+    const navigate = useNavigate();
   const handleSave = async () => {
     console.log('[CommunityProfilePage] Save button clicked');
     setSaving(true);
@@ -224,7 +229,8 @@ const CommunityProfilePage = (): ReactElement => {
       console.log('[CommunityProfilePage] Profile save result:', profileResult);
 
       if (profileResult.success) {
-        console.log('[CommunityProfilePage] Profile saved successfully, clearing local storage...');
+                console.log('[CommunityProfilePage] Profile saved successfully, navigating to next step...');
+        navigate('/survey-build');
         // Clear localStorage for this church after successful save to DB
         const keysToRemove = [
           `cp_accomplish_${churchId}`,
@@ -611,7 +617,7 @@ const CommunityProfilePage = (): ReactElement => {
           </Card>
         </div>
 
-        <div className="mt-12 flex justify-end p-6">
+        <div className="mt-12 flex justify-between items-center p-6">
           <Button
             onClick={handleSave}
             disabled={saving}
@@ -619,7 +625,16 @@ const CommunityProfilePage = (): ReactElement => {
             className="text-lg px-8 py-6 bg-gradient-journey hover:opacity-90 transition-opacity duration-300 shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
           >
             <Save className="mr-2 h-5 w-5" />
-            {saving ? 'Saving Profile...' : 'Save Community Profile'}
+            {saving ? 'Saving Profile...' : 'Save and Continue'}
+          </Button>
+          <Button
+            onClick={() => navigate('/clergy-home')}
+            size="lg"
+            variant="outline"
+            className="text-lg px-8 py-6"
+          >
+            <ArrowLeft className="mr-2 h-5 w-5" />
+            Home
           </Button>
         </div>
 

@@ -539,17 +539,20 @@ const ClergyHomePage: React.FC = () => {
               <div className="flex flex-col lg:flex-row gap-8 items-center">
                 <div className="flex-1">
                   <h2 className="text-3xl font-bold text-ministry mb-4">
-                  Planning with Purpose: Structuring the Discernment Journey for Building Innovative Ministries
+                  Planning with Purpose: 
                   </h2>
+                  <h3 className="text-xl font-bold text-ministry mb-4">
+                  Structuring the Discernment Journey for Building Innovative Ministries
+                  </h3>
                   <p className="text-gray-700 mb-4">
-                    Welcome to the journey of discernment, where vision meets action. This step-by-step guide is designed to support clergy and faith leaders in thoughtfully transforming underutilized church property into vibrant, mission-driven ministries. Through community connection, deep reflection, and structured planning, you'll uncover new possibilities rooted in your congregation's gifts and your neighborhood's needs.
+                    Welcome to the journey of discernment, where vision meets action. This step-by-step guide is designed to support clergy and faith leaders in thoughtfully transforming underutilized community assets and property into vibrant, mission-driven ministries. Through community connection, deep reflection, and structured planning, you'll uncover new possibilities rooted in your congregation's gifts and your neighborhood's needs.
                   </p>
                   <p className="text-gray-700 font-medium italic mb-8">
                     Let this journey inspire you to listen, imagine, and act—together.
                   </p>
                   
                   <h3 className="text-xl font-semibold text-ministry mb-3">
-                    🚀 What You'll Accomplish:
+                    What You'll Accomplish:
                   </h3>
                   <ul className="list-disc pl-6 space-y-2 text-gray-700 mb-6">
                     <li>Understand the heartbeat of your congregation and their dreams for ministry.</li>
@@ -567,7 +570,7 @@ const ClergyHomePage: React.FC = () => {
                 <div className="lg:w-2/5 flex justify-center">
                   <img 
                     src="/ChatGPT Image Jul 4, 2025, 01_45_59 PM.png" 
-                    alt="Reflective Spirit Journey" 
+                    alt="EmbarkNow Journey" 
                     className="rounded-lg shadow-md max-w-full h-auto object-cover"
                   />
                 </div>

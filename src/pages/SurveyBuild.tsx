@@ -48,6 +48,10 @@ const SurveyBuild = () => {
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   const [systemPrompt, setSystemPrompt] = useState<string>("");
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   // Fetch the user's church ID and system prompt
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -519,6 +523,7 @@ Based on the conversation, create appropriate survey questions.`
               initialMessage="Welcome to the Survey Builder! I'll help you create an effective survey for your community. What would you like to learn from your survey?"
               className="h-[60vh]"
               companionName={selectedCompanion?.companion || 'Companion'}
+              selectedCompanion={selectedCompanion}
             />
           </div>
         </div>

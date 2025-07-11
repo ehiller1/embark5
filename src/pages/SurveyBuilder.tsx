@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/lib/supabase";
 import { useOpenAI } from "@/hooks/useOpenAI";
 import { SurveyPreview } from "@/components/SurveyPreview";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import jsPDF from 'jspdf';
 
 const SURVEY_SYSTEM_PROMPT = `You are an expert survey designer helping church leaders create effective community surveys. Follow these guidelines:
 
@@ -325,6 +326,42 @@ Based on the conversation, create appropriate survey questions.`
     }
   };
 
+  const handleDownloadPdf = () => {
+    if (!generatedSurvey) return;
+
+    const doc = new jsPDF();
+    let y = 15;
+
+    doc.setFontSize(18);
+    doc.text(generatedSurvey.title, 10, y);
+    y += 10;
+
+    doc.setFontSize(12);
+    doc.text(generatedSurvey.description, 10, y, { maxWidth: 190 });
+    y += 30;
+
+    generatedSurvey.questions.forEach((question, index) => {
+      if (y > 280) {
+        doc.addPage();
+        y = 15;
+      }
+      doc.setFontSize(14);
+      doc.text(`${index + 1}. ${question.text}`, 10, y);
+      y += 8;
+
+      if (question.type === 'multiple_choice' && question.options) {
+        doc.setFontSize(12);
+        question.options.forEach(option => {
+          doc.text(`- ${option}`, 15, y);
+          y += 6;
+        });
+      }
+      y += 10;
+    });
+
+    doc.save(`${generatedSurvey.title.replace(/\s+/g, '_').toLowerCase()}_survey.pdf`);
+  };
+
   if (!isAuthenticated || !user) return null;
 
   return (
@@ -389,6 +426,9 @@ Based on the conversation, create appropriate survey questions.`
                 Save Survey
               </>
             )}
+          </Button>
+          <Button onClick={handleDownloadPdf} disabled={!generatedSurvey} className="ml-2">
+            Download as PDF
           </Button>
         </div>
       </div>

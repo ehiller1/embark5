@@ -412,7 +412,7 @@ export default function Implementation() {
                   <CardDescription>Summarized insights from your Community</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponseSummaryContainer cards={cards} onViewDetails={() => setShowResponseSummaryModal(true)} compact />
+                  <ResponseSummaryContainer cards={cards} onViewDetails={() => setShowResponseSummaryModal(true)} />
                 </CardContent>
               </Card>
             </div>

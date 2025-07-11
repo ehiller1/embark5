@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useOpenAI } from './useOpenAI';
 import { usePrompts } from './usePrompts';
 import { supabase } from '@/integrations/lib/supabase';
+import { Companion } from '@/types/Companion';
 
 interface ChurchAvatar {
   id: string;
@@ -15,13 +16,6 @@ interface CommunityAvatar {
   avatar_name: string;
   role: string;
   avatar_point_of_view: string;
-}
-
-interface Companion {
-  id: string;
-  name: string;
-  role: string;
-  description: string;
 }
 
 // MissionalAvatar interface removed as it's not being used

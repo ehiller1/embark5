@@ -473,6 +473,18 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
                     required
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
+                  <Input
+                    id="address"
+                    type="text"
+                    placeholder="123 Main St"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    disabled={isLoading}
+                    required
+                  />
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="city">City <span className="text-red-500">*</span></Label>
@@ -498,18 +510,6 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
                       required
                     />
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="address">Address <span className="text-red-500">*</span></Label>
-                  <Input
-                    id="address"
-                    type="text"
-                    placeholder="123 Main St"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    disabled={isLoading}
-                    required
-                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number <span className="text-red-500">*</span></Label>

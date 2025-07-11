@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 
-import { ConversationInterface } from '@/components/ConversationInterface';
+import { ConversationInterface } from '@/components/ConversationParishInterface';
 import { DiscernmentPlanViewer } from '@/components/DiscernmentPlanViewer';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';

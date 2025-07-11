@@ -1,10 +1,11 @@
-
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2, AlertCircle } from "lucide-react";
-import { useOpenAI } from "@/hooks/useOpenAI";
-import { toast } from "@/components/ui/use-toast";
+import { useOpenAI } from '@/hooks/useOpenAI';
+import { toast } from '@/components/ui/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Companion } from '@/types/Companion';
 
 export interface Message {
   text: string;
@@ -15,23 +16,23 @@ export interface Message {
 }
 
 interface ConversationInterfaceProps {
-  messages?: Message[];
-  onMessageUpdate?: (messages: Message[]) => void;
-  className?: string;
+  onMessageUpdate: (messages: Message[]) => void;
   systemPrompt?: string;
   initialMessage?: string;
   onError?: (error: Error) => void;
   companionName?: string;
+  className?: string;
+  selectedCompanion?: Companion | null;
 }
 
 export const ConversationInterface = ({
-  messages: externalMessages,
   onMessageUpdate,
-  className = '',
   systemPrompt = 'You are a helpful assistant that helps create effective surveys.',
   initialMessage = "Let's begin creating your survey. What would you like to learn about your community?",
   onError,
-  companionName = 'Companion'
+  companionName = 'Companion',
+  className = '',
+  selectedCompanion
 }: ConversationInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -41,9 +42,7 @@ export const ConversationInterface = ({
 
   // Set initial message when component mounts
   useEffect(() => {
-    if (externalMessages && externalMessages.length > 0) {
-      setMessages(externalMessages);
-    } else if (messages.length === 0) {
+    if (messages.length === 0) {
       const initialBotMessage = {
         id: 'initial',
         text: initialMessage,
@@ -51,7 +50,7 @@ export const ConversationInterface = ({
       };
       setMessages([initialBotMessage]);
     }
-  }, [externalMessages, initialMessage]);
+  }, [initialMessage]);
 
   const formatMessagesForAPI = useCallback((messages: Message[]) => {
     return messages.map(msg => ({
@@ -198,12 +197,18 @@ export const ConversationInterface = ({
             {messages.map((msg) => (
               <div
                 key={msg.id || msg.text}
-                className={`flex ${msg.isUser ? 'justify-end' : 'justify-start'}`}
+                className={`flex items-start gap-3 ${msg.isUser ? 'justify-end' : 'justify-start'}`}
               >
+                {!msg.isUser && (
+                  <Avatar className="h-8 w-8 flex-shrink-0">
+                    <AvatarImage src={selectedCompanion?.avatar_url} />
+                    <AvatarFallback>{selectedCompanion?.name?.charAt(0)}</AvatarFallback>
+                  </Avatar>
+                )}
                 <div
                   className={`max-w-[80%] rounded-lg px-4 py-2 ${
                     msg.isUser
-                      ? 'bg-primary text-white rounded-br-none'
+                      ? 'bg-[#47799F] text-white rounded-br-none'
                       : msg.error
                       ? 'bg-red-50 text-red-800 border border-red-200 rounded-bl-none'
                       : 'bg-gray-100 text-gray-800 rounded-bl-none'

@@ -54,7 +54,7 @@ export function CompanionsList() {
     console.log("[CompanionsList] Companion clicked:", companion);
     
     // Update the selected companion in the centralized store
-    selectCompanion(companion);
+    selectCompanion(companion.id);
     
     toast({
       title: "Companion Selected",

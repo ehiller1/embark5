@@ -142,15 +142,6 @@ const Analysis = () => {
     <div className="flex flex-col min-h-screen bg-gray-50">
       <header className="bg-white shadow-sm py-4 px-4 sm:px-6 border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto flex items-center space-x-4">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate(isAuthenticated ? '/clergy-home' : '/')}
-            className="flex-shrink-0 flex items-center gap-1 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            <span className="hidden sm:inline">Back to {isAuthenticated ? 'Home' : 'Get Started'}</span>
-          </Button>
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">Viability Assessment</h1>
         </div>
       </header>

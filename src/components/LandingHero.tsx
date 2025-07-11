@@ -94,6 +94,13 @@ export function LandingHero() {
             </p>
           </div>
           <div className="flex flex-col sm:flex-row gap-4">
+          <Button 
+              onClick={() => navigate('/viability')} 
+              className="px-8 py-3 text-lg border border-[#47799f] text-[#47799f] bg-transparent hover:bg-[#47799f]/10 transition-all"
+              variant="outline"
+            >
+              Uncertain about starting?
+            </Button>
             <Button 
               onClick={handleStartJourney} 
               className="px-8 py-3 text-lg bg-[#47799f] text-white hover:bg-[#47799f]/90 hover:shadow-lg transition-all"
@@ -106,13 +113,6 @@ export function LandingHero() {
                   {isAuthenticated ? "Begin" : "Ready to begin?"} <ArrowRight className="ml-2" />
                 </>
               )}
-            </Button>
-            <Button 
-              onClick={() => navigate('/viability')} 
-              className="px-8 py-3 text-lg border border-[#47799f] text-[#47799f] bg-transparent hover:bg-[#47799f]/10 transition-all"
-              variant="outline"
-            >
-              Uncertain about starting?
             </Button>
           </div>
         </div>

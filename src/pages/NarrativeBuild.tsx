@@ -186,7 +186,7 @@ const NarrativeBuildContent: React.FC = () => {
   const [selectedStatements, setSelectedStatements] = useState<UIVocationalStatement[]>([]);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showChurchModal, setShowChurchModal] = useState(false);
-  const [selectedViewStatement, setSelectedViewStatement] = useState<HookVocationalStatement | null>(null);
+  const [selectedViewStatement, setSelectedViewStatement] = useState<UIVocationalStatement | null>(null);
   const [showStatementModal, setShowStatementModal] = useState(false);
   const [showVocationalDialog, setShowVocationalDialog] = useState(false);
   const [editingStatement, setEditingStatement] = useState<UIVocationalStatement | null>(null);
@@ -797,7 +797,10 @@ const NarrativeBuildContent: React.FC = () => {
     try {
       // Use the utility function to save vocational statement in standardized format
       // This will handle both localStorage and database saving
-      const resourceId = await saveVocationalStatement(editedContent, currentUser.id);
+            if (selectedViewStatement) {
+        const statementData = { ...selectedViewStatement, content: editedContent };
+        await handleSaveVocationalStatement(statementData, 'edit', selectedViewStatement);
+      }
       
       if (!resourceId) {
         throw new Error('Failed to save vocational statement');
@@ -1509,7 +1512,7 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    if (selectedViewStatement) {
+                    if (selectedViewStatement?.id) {
                       handleToggleStatementSelection(selectedViewStatement.id);
                     }
                   }}
@@ -1519,7 +1522,7 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
                 <Button
                   variant="default"
                   onClick={() => {
-                    if (selectedViewStatement && selectedViewStatement.avatar_role) {
+                    if (selectedViewStatement?.avatar_role) {
                       handleOpenVocationalDialog(selectedViewStatement.avatar_role, selectedViewStatement, 'edit');
                       setShowStatementModal(false);
                     }
