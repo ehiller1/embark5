@@ -7,7 +7,7 @@ import { saveVocationalStatement } from '@/utils/dbUtils'; // Import the utility
 import { v4 as uuidv4 } from 'uuid';
 import { VocationAvatarModal } from '@/components/VocationAvatarModal';
 import { VocationalStatementDialog } from '@/components/VocationalStatementDialog';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { UIVocationalStatement as ImportedUIVocationalStatement, AvatarRole } from '@/types/NarrativeTypes';
 import { ChurchAvatarModal } from '@/components/ChurchAvatarModal';
 // REQUIRED_PROMPT_TYPES import removed, PromptType defined via path
@@ -21,7 +21,8 @@ import { useOpenAI } from '@/hooks/useOpenAI';
 import { usePrompts, Prompt } from '@/hooks/usePrompts'; // Import Prompt type
 import { useVocationalStatements, VocationalStatement as HookVocationalStatement } from '@/hooks/useVocationalStatements';
 import { populatePrompt } from '@/utils/promptUtils';
-import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -29,6 +30,7 @@ import { EditVocationalStatementModal } from '@/components/narrative-build/EditV
 // import { toast } from '@/components/ui/use-toast'; // Removed to avoid duplicate declaration, using toast from @/hooks/use-toast
 import { EnhancedNarrativeConversation } from '@/components/narrative-build/EnhancedNarrativeConversation';
 import { NarrativeMessageInput } from '@/components/narrative-build/NarrativeMessageInput';
+import { ChurchAvatarCard } from '@/components/ChurchAvatarCard';
 
 // Define PromptType correctly
 type PromptType = typeof import('@/utils/promptUtils').REQUIRED_PROMPT_TYPES[number];
@@ -68,6 +70,10 @@ const NarrativeBuildContent: React.FC = () => {
   // Fetch the most recent scenario if none is specified in the URL
   // Modal state for missing scenarios
   const [showMissingScenariosModal, setShowMissingScenariosModal] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterType, setFilterType] = useState<'all' | 'selected' | 'unselected'>('all');
+  const [sorter, setSorter] = useState<'date' | 'rank'>('date');
+  const [showChurchCard, setShowChurchCard] = useState(false);
   // Store scenarios in a ref to use in prompt creation without triggering re-renders
   const scenariosRef = useRef<any[]>([]);
 
@@ -198,6 +204,26 @@ const NarrativeBuildContent: React.FC = () => {
   const [showEditVocationalModal, setShowEditVocationalModal] = useState(false);
   const [editingVocationalContent, setEditingVocationalContent] = useState('');
   const [isSavingEditedVocationalStatement, setIsSavingEditedVocationalStatement] = useState(false);
+
+  // Event listener for custom event from EnhancedNarrativeConversation
+  useEffect(() => {
+    const handleOpenEditVocationalStatementModal = (event: CustomEvent) => {
+      const statement = event.detail?.statement;
+      if (statement) {
+        console.log('[NarrativeBuild] Received custom event to open modal with statement:', statement);
+        setEditingVocationalContent(statement);
+        setShowEditVocationalModal(true);
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('openEditVocationalStatementModal', handleOpenEditVocationalStatementModal as EventListener);
+    
+    // Remove event listener on cleanup
+    return () => {
+      window.removeEventListener('openEditVocationalStatementModal', handleOpenEditVocationalStatementModal as EventListener);
+    };
+  }, []);
   
   // Get avatar context
   const { selectChurchAvatar } = useNarrativeAvatar();
@@ -796,21 +822,22 @@ const NarrativeBuildContent: React.FC = () => {
     setIsSavingEditedVocationalStatement(true);
     try {
       // Use the utility function to save vocational statement in standardized format
-      // This will handle both localStorage and database saving
-            if (selectedViewStatement) {
+      const userId = currentUser.id;
+      
+      if (selectedViewStatement) {
+        // If we're editing an existing statement
         const statementData = { ...selectedViewStatement, content: editedContent };
         await handleSaveVocationalStatement(statementData, 'edit', selectedViewStatement);
+      } else {
+        // If this is a new statement from custom event or generation
+        // Save both to localStorage and database
+        localStorage.setItem('vocational_statement', editedContent);
+        await saveVocationalStatement(editedContent, userId);
       }
       
-      if (!resourceId) {
-        throw new Error('Failed to save vocational statement');
-      }
-      
-      console.log('[NarrativeBuild] Saved vocational statement with ID:', resourceId);
-
       toast({ title: 'Success', description: 'Vocational statement saved successfully.', variant: 'default' });
       setShowEditVocationalModal(false); // Close modal on successful save
-      navigate('/scenario'); // Navigate to Scenario page
+      navigate('/plan-build'); // Navigate to PlanBuild page after saving
 
     } catch (error: any) {
       console.error('[NarrativeBuild] Error saving edited vocational statement:', error);
@@ -822,7 +849,7 @@ const NarrativeBuildContent: React.FC = () => {
     } finally {
       setIsSavingEditedVocationalStatement(false);
     }
-  }, [currentUser, supabase, navigate]); // Added supabase and navigate to dependencies
+  }, [currentUser, selectedViewStatement, navigate, toast]);
 
 
 
@@ -1171,7 +1198,7 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
         <Button 
           variant="ghost" 
           className="mr-2 -ml-3 mt-1" 
-          onClick={() => navigate('/clergy')}
+          onClick={() => navigate('/clergy-home')}
           aria-label="Back to homepage"
         >
           <ArrowLeft className="h-5 w-5" />
@@ -1193,7 +1220,30 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
             Based on combined research below you will find a series of optional mission statements.  Select a statement that most closely resembles your hope for the future.  After selecting a statement, use the interactive tool to refine your ongoing mission.
           </p>
         </div>
-        <Button onClick={() => setShowAvatarModal(true)} variant="outline">Want to change your aspiration?</Button>
+        <div className="md:w-64">
+          {showChurchCard ? (
+            <ChurchAvatarCard onChangeAspiration={() => setShowAvatarModal(true)} />
+          ) : (
+            selectedCompanion && (
+              <div className="p-4 border rounded-md bg-white shadow-sm">
+                <div className="flex flex-col items-center space-y-2">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={selectedCompanion?.avatar_url} alt={(selectedCompanion as any)?.companion || 'Companion'} />
+                    <AvatarFallback>{((selectedCompanion as any)?.companion || '').charAt(0)?.toUpperCase() || 'C'}</AvatarFallback>
+                  </Avatar>
+                  <h3 className="text-lg font-medium">{(selectedCompanion as any)?.companion || 'Your Companion'}</h3>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowAvatarModal(true)} 
+                    size="sm"
+                  >
+                    Change point of view
+                  </Button>
+                </div>
+              </div>
+            )
+          )}
+        </div>
       </div>
 
         <Card>
@@ -1437,6 +1487,17 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
             </div>
           </CardContent>
         </Card>
+
+        {/* Next Steps Button */}
+        <div className="flex justify-end mt-8">
+          <Button
+            onClick={() => navigate('/scenario')}
+            size="lg"
+            className="px-8 bg-journey-blue text-white hover:bg-journey-blue/90"
+          >
+            Next Steps <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
 
         {/* Main Avatar Selection Modal */}
         <VocationAvatarModal 

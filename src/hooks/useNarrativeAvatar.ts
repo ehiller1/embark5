@@ -631,9 +631,9 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
     setSelectedCompanionId(companionId);
     
     if (companionId) {
-      localStorage.setItem('selection_companion_id', companionId);
+      localStorage.setItem('selected_companion_id', companionId);
     } else {
-      localStorage.removeItem('selection_companion_id');
+      localStorage.removeItem('selected_companion_id');
     }
   }, []);
 

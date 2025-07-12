@@ -9,16 +9,16 @@ interface ScenarioDetailDialogProps {
   scenario: ScenarioItem | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (scenario: ScenarioItem) => void;
-  isSaved: boolean;
+  onSaveScenario: (scenario: ScenarioItem, isSelected: boolean) => void;
+  isScenarioSaved: (scenarioId: string) => boolean;
 }
 
 export const ScenarioDetailDialog: React.FC<ScenarioDetailDialogProps> = ({
   scenario,
   open,
   onOpenChange,
-  onSave,
-  isSaved,
+  onSaveScenario,
+  isScenarioSaved,
 }) => {
   const [isSaving, setIsSaving] = useState(false);
   const titleId = useId();
@@ -29,7 +29,9 @@ export const ScenarioDetailDialog: React.FC<ScenarioDetailDialogProps> = ({
   const handleSaveClick = async () => {
     setIsSaving(true);
     try {
-      await Promise.resolve(onSave(scenario));
+      // Toggle the saved state - if it's currently saved, unsave it, otherwise save it
+      const currentlySaved = scenario && isScenarioSaved(scenario.id || '');
+      await Promise.resolve(onSaveScenario(scenario!, !currentlySaved));
       onOpenChange(false);
     } finally {
       setIsSaving(false);
@@ -62,26 +64,18 @@ export const ScenarioDetailDialog: React.FC<ScenarioDetailDialogProps> = ({
           </div>
         </DialogHeader>
 
-        <div id={descriptionId} className="prose prose-sm mx-auto py-4">
-          <p className="whitespace-pre-wrap text-gray-700">{scenario.description}</p>
-        </div>
+        {/* Description is already displayed in the DialogHeader */}
 
         <DialogFooter className="flex flex-col gap-4">
-          {!isSaved ? (
+          {!(scenario && isScenarioSaved(scenario.id || '')) ? (
             <Button
               onClick={handleSaveClick}
               disabled={isSaving}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              variant={scenario && isScenarioSaved(scenario.id || '') ? "outline" : "default"}
+              className="flex items-center gap-2"
             >
-              {isSaving ? (
-                <>
-                  <Save className="h-4 w-4 mr-2 animate-spin" /> Saving Idea...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" /> Save This Idea
-                </>
-              )}
+              <Save className="h-4 w-4" />
+              {isSaving ? "Saving..." : (scenario && isScenarioSaved(scenario.id || '') ? "Saved" : "Save")}
             </Button>
           ) : (
             <Button

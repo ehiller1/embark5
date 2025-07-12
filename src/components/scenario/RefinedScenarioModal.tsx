@@ -57,9 +57,29 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
   const [activeTab, setActiveTab] = useState<string>('0');
 
   useEffect(() => {
-    if (refinedScenarios.length > 0) {
-      setEditableScenarios([...refinedScenarios]);
+    console.log('[RefinedScenarioModal] refinedScenarios prop received:', refinedScenarios);
+    if (refinedScenarios && refinedScenarios.length > 0) {
+      // Create a deep copy to avoid reference issues
+      const scenariosWithDefaults = refinedScenarios.map(scenario => ({
+        ...scenario,
+        // Ensure all required fields exist with defaults
+        id: scenario.id || `scenario-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        title: scenario.title || 'Untitled Scenario',
+        description: scenario.description || '',
+        targetAudience: Array.isArray(scenario.targetAudience) ? scenario.targetAudience : [],
+        strategicRationale: scenario.strategicRationale || '',
+        theologicalJustification: scenario.theologicalJustification || '',
+        potentialChallengesBenefits: scenario.potentialChallengesBenefits || '',
+        successIndicators: scenario.successIndicators || '',
+        impactOnCommunity: scenario.impactOnCommunity || '',
+        is_refined: true
+      }));
+      
+      console.log('[RefinedScenarioModal] Setting editable scenarios:', scenariosWithDefaults);
+      setEditableScenarios(scenariosWithDefaults);
       setActiveTab('0');
+    } else {
+      console.warn('[RefinedScenarioModal] No scenarios received or empty array');
     }
   }, [refinedScenarios]);
 
@@ -103,6 +123,10 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
         title: "Success",
         description: "Scenarios saved successfully",
       });
+      
+      // Navigate to narrative-build page after saving
+      navigate('/narrative-build');
+      onClose();
     } catch (error) {
       console.error('Error saving scenarios:', error);
       toast({
@@ -259,7 +283,8 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
                           // Skip already handled properties and basic ScenarioItem properties
                           const basicProps = ['id', 'title', 'description', 'is_refined', 
                             'targetAudience', 'strategicRationale', 'theologicalJustification', 
-                            'potentialChallengesBenefits', 'successIndicators', 'impactOnCommunity'];
+                            'potentialChallengesBenefits', 'successIndicators', 'impactOnCommunity',
+                            'vocational_statement_formatted'];
                           
                           if (!basicProps.includes(key) && typeof value === 'string') {
                             return (
@@ -312,7 +337,7 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
               className="bg-teal-600 hover:bg-teal-700 text-white"
               disabled={isSaving}
             >
-              Continue to Plan Build
+              Next Step
             </Button>
           </div>
         </DialogFooter>

@@ -6,10 +6,14 @@ import { RoundtableConversation } from '@/Roundtable/RoundtableConversation';
 import { RoundtableInput } from '@/Roundtable/RoundtableInput';
 import { ScenarioItem, AvatarRole, ChurchAvatar, CommunityAvatar } from '@/types/NarrativeTypes';
 import { PromptType, REQUIRED_PROMPT_TYPES } from '@/utils/promptUtils'; // Import PromptType and REQUIRED_PROMPT_TYPES
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 import { saveScenarioDetails } from '@/utils/dbUtils';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
+import { useNarrativeAvatar } from '@/hooks/useNarrativeAvatar';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { storageUtils } from '@/utils/storage';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +34,7 @@ interface RoundtableMessagingProps {
   promptType: string | null;
   churchAvatar: ChurchAvatar | null;
   communityAvatar: CommunityAvatar | null;
+  companion?: any; // Add companion from navigation state
 }
 
 export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({ 
@@ -38,9 +43,51 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
   isUnifiedRefinement = false,
   promptType, // Added
   churchAvatar, // Added
-  communityAvatar // Added
+  communityAvatar, // Added
+  companion // Companion passed from ScenarioMessaging
 }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
+  const { selectedCompanion } = useSelectedCompanion();
+  const { churchAvatar: churchAvatarFromContext } = useNarrativeAvatar();
+  
+  // Get active avatars from local storage
+  const [activeAvatars, setActiveAvatars] = useState<string[]>([]);
+  const [displayAvatar, setDisplayAvatar] = useState<{
+    name: string;
+    avatarUrl: string;
+  } | null>(null);
+  
+  // Determine which avatar to display based on passed companion first, then active_avatars
+  useEffect(() => {
+    const storedActiveAvatars = storageUtils.getItem<string[]>('active_avatars', []);
+    setActiveAvatars(storedActiveAvatars);
+    
+    // First priority: Use companion passed from ScenarioMessaging (from Scenario.tsx)
+    if (companion) {
+      setDisplayAvatar({
+        name: companion.companion || companion.name || 'Companion',
+        avatarUrl: companion.avatar_url || '/default-avatar.png'
+      });
+    }
+    // Second priority: If 'church' is in active_avatars, use church_avatar
+    else if (storedActiveAvatars.includes('church') && (churchAvatar || churchAvatarFromContext)) {
+      const avatar = churchAvatar || churchAvatarFromContext;
+      setDisplayAvatar({
+        name: avatar?.avatar_name || avatar?.name || 'Church Avatar',
+        avatarUrl: avatar?.avatar_url || avatar?.image_url || '/default-avatar.png'
+      });
+    } 
+    // Third priority: Use the selected companion from context/hook
+    else if (selectedCompanion) {
+      setDisplayAvatar({
+        name: selectedCompanion.companion,
+        avatarUrl: selectedCompanion.avatar_url || '/default-avatar.png'
+      });
+    } else {
+      setDisplayAvatar(null);
+    }
+  }, [companion, churchAvatar, churchAvatarFromContext, selectedCompanion]);
   const {
     roundtableMessages,
     currentMessage,
@@ -69,13 +116,15 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
     setRefinementConversationInitiated(false);
   }, [promptType]);
 
-  // Validate promptType before using it with the hook
-  if (!promptType || !(REQUIRED_PROMPT_TYPES as ReadonlyArray<string>).includes(promptType)) {
-    console.error(`[RoundtableMessaging] Invalid or missing promptType: ${promptType}. Cannot initialize roundtable.`);
-    // Optionally, render an error state or return null
-    // For now, this will cause useRoundtableMessaging to log its own warning and not initialize fully.
-    // Consider a more robust error display here if this state is critical.
-    // return <ErrorState error={`Invalid system prompt configuration: ${promptType}`} />;
+  // Show loading state while waiting for promptType
+  if (!promptType) {
+    console.log('[RoundtableMessaging] Waiting for prompt type to be fetched...');
+    // The hook will handle null promptType gracefully
+  }
+  // Validate promptType once it's available
+  else if (!(REQUIRED_PROMPT_TYPES as ReadonlyArray<string>).includes(promptType)) {
+    console.error(`[RoundtableMessaging] Invalid promptType: ${promptType}. Cannot initialize roundtable.`);
+    // We'll continue with the hook, but it won't initialize properly
   }
 
   // Effect to initiate scenario interrogation
@@ -159,19 +208,30 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
   };
 
   const handleFinalize = async () => {
+    setShowFinalizeDialog(false);
     try {
-      setShowFinalizeDialog(false);
-      const scenarios = await finalizeRefinement(selectedScenarios);
-      setRefinedScenarios(scenarios);
-      setShowRefinedScenariosModal(true);
+      // Only pass selectedScenarios as that's the only parameter the function accepts
+      console.log('[RoundtableMessaging] Starting finalization with selectedScenarios:', selectedScenarios);
+      const refinedScenariosResult = await finalizeRefinement(selectedScenarios);
+      console.log('[RoundtableMessaging] Received refined scenarios:', refinedScenariosResult);
+      
+      // Make sure we're setting state with the result from finalizeRefinement
+      setRefinedScenarios(refinedScenariosResult);
+      
+      // Add a small delay to ensure state is updated before showing modal
+      setTimeout(() => {
+        console.log('[RoundtableMessaging] Opening modal with refinedScenarios state:', refinedScenariosResult);
+        setShowRefinedScenariosModal(true);
+      }, 100);
+    } catch (err) {
+      console.error('[RoundtableMessaging] Error finalizing refinement:', err);
+      const errorMsg = err instanceof Error ? err.message : 'Failed to finalize refinement';
       toast({
-        title: "Scenarios refined successfully",
-        description: "Review and save your refined scenarios"
+        title: 'Error',
+        description: errorMsg,
+        variant: 'destructive',
       });
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error finalizing scenarios. Please try again.';
-      setError(msg);
-      toast({ title: "Error finalizing scenarios", description: msg, variant: "destructive" });
+      setError(errorMsg);
     }
   };
 
@@ -213,7 +273,7 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
           <h2 className="text-lg font-semibold text-slate-800 mb-3">
             {isUnifiedRefinement 
               ? "Creating a Unified Story" 
-              : "Refining Scenarios"}
+              : "Scenarios Being Refined"}
           </h2>
           <Card className="flex-1 overflow-hidden border border-slate-200 shadow-none">
             <ScrollArea className="h-full p-4">
@@ -228,10 +288,10 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
         </div>
 
         {/* Roundtable Discussion */}
-        <div className="w-full md:w-2/3 flex flex-col">
+        <div className="w-full md:w-2/3 flex flex-col h-[calc(100vh-200px)] relative">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-lg font-semibold text-slate-800">
-              Roundtable Discussion
+              Discussion
             </h2>
             <Button
               onClick={() => setShowFinalizeDialog(true)}
@@ -242,26 +302,67 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
               Finalize Refinement
             </Button>
           </div>
-
+          
+          {/* Main content area with messages - fixed height with scroll */}
+          <div className="flex-grow flex flex-col overflow-hidden">
           {error ? (
             <ErrorState error={error} onRetry={() => setError(null)} />
           ) : (
-            <RoundtableConversation 
-              messages={roundtableMessages.map((msg, index) => ({
-                ...msg,
-                id: `msg-${index}`,
-                role: msg.role as AvatarRole
-              }))}
-              isGenerating={isProcessingMessage}
-            />
+            <div className="flex flex-col space-y-4 overflow-y-auto h-[calc(100vh-350px)] pb-4">
+              {/* Hardcoded message bubble with avatar info (church or companion) */}
+              {displayAvatar && (
+                <div className="flex items-start gap-3 p-3 rounded-lg">
+                  <Avatar className="h-8 w-8 ring-2 ring-slate-200">
+                    <AvatarImage
+                      src={displayAvatar.avatarUrl}
+                      alt={displayAvatar.name}
+                    />
+                    <AvatarFallback className="bg-slate-100 text-slate-700">
+                      {displayAvatar.name?.[0]?.toUpperCase() || 'A'}
+                    </AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex flex-col max-w-[80%] items-start">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-slate-700">
+                        {displayAvatar.name}
+                      </span>
+                    </div>
+                    
+                    <div className="px-4 py-3 rounded-xl bg-slate-100 text-slate-800 whitespace-pre-wrap">
+                      Let me help you refine these scenarios by combining or eliminating parts that don't make sense, or ideas that you would want to add.  What are you thinking?
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              <RoundtableConversation 
+                messages={roundtableMessages.map((msg, index) => ({
+                  ...msg,
+                  id: `msg-${index}`,
+                  role: msg.role as AvatarRole,
+                  // Add avatar info (church or companion) to assistant messages
+                  ...(msg.role === 'assistant' && displayAvatar ? {
+                    name: displayAvatar.name,
+                    avatarUrl: displayAvatar.avatarUrl
+                  } : {})
+                }))}
+                isGenerating={isProcessingMessage}
+              />
+            </div>
           )}
+          </div>
           
-          <RoundtableInput 
-            onSend={sendUserMessage}
-            isSending={isProcessingMessage}
-            onChange={setCurrentMessage}
-            value={currentMessage}
-          />
+          {/* Input field - fixed at bottom */}
+          <div className="mt-auto pt-4 sticky bottom-0 bg-white z-10">
+            <RoundtableInput 
+              onSend={sendUserMessage}
+              isSending={isProcessingMessage}
+              onChange={setCurrentMessage}
+              value={currentMessage}
+              placeholder="Type your message about the scenarios..."
+            />
+          </div>
 
           <AlertDialog open={showFinalizeDialog} onOpenChange={setShowFinalizeDialog}>
             <AlertDialogContent>

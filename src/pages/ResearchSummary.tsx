@@ -100,6 +100,9 @@ export default function ResearchSummary(): JSX.Element {
     }
   };
 
+  // Get selectedCompanion outside the generateSummary function
+  const { selectedCompanion } = useSelectedCompanion();
+  
   const generateSummary = async (): Promise<void> => {
     try {
       setIsLoadingSummary(true);
@@ -110,9 +113,7 @@ export default function ResearchSummary(): JSX.Element {
       const communityMessages = localStorage.getItem('community_assessment_messages');
       // churchData removed as per requirements
       const communityData = localStorage.getItem('community_assessment_data');
-      // Use selectedCompanion from the centralized store
-      const { selectedCompanion } = useSelectedCompanion();
-
+      
       // Use selectedCompanion with defaults
       const companion = {
         name: selectedCompanion?.companion || 'Guide',
@@ -447,21 +448,19 @@ export default function ResearchSummary(): JSX.Element {
           </div>
 
           {/* Navigation buttons */}
-          <div className="flex justify-center gap-4 mt-8">
-            <Button 
-              onClick={() => navigate('/clergy-home')}
-              size="lg" 
-              className="px-8 bg-gray-100 hover:bg-gray-200"
-            >
-              Home
-            </Button>
-            <Button 
-              onClick={() => navigate('/narrative-build')}
-              size="lg" 
-              className="px-8 bg-journey-blue text-white hover:bg-journey-blue/90"
-            >
-              Articulate your mission <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+          <div className="flex justify-between mt-8">
+            <div className="flex gap-4">
+              {/* Left-justified buttons would go here */}
+            </div>
+            <div>
+              <Button 
+                onClick={() => navigate('/narrative-build')}
+                size="lg" 
+                className="px-8 bg-journey-blue text-white hover:bg-journey-blue/90"
+              >
+                Next Steps <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
           <ComparativeAnalysisModal

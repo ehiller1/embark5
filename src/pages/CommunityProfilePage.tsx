@@ -15,7 +15,7 @@ import { Progress } from '@/components/ui/progress';
 import { Label } from '@/components/ui/label';
 
 // Icons
-import { UploadCloud, Link, CheckCircle, AlertCircle, Database, Loader2, Lightbulb, Users, Save, ArrowLeft } from 'lucide-react';
+import { UploadCloud, Link, CheckCircle, AlertCircle, Database, Loader2, Lightbulb, Users, Save, ArrowLeft, ArrowRight } from 'lucide-react';
 
 type SyncOptions = {
   members: boolean;
@@ -129,8 +129,7 @@ const CommunityProfilePage = (): ReactElement => {
       }
     };
 
-    const navigate = useNavigate();
-  const handleSave = async () => {
+    const handleSave = async () => {
     console.log('[CommunityProfilePage] Save button clicked');
     setSaving(true);
     
@@ -618,25 +617,26 @@ const CommunityProfilePage = (): ReactElement => {
         </div>
 
         <div className="mt-12 flex justify-between items-center p-6">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            size="lg"
-            className="text-lg px-8 py-6 bg-gradient-journey hover:opacity-90 transition-opacity duration-300 shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
-          >
-            <Save className="mr-2 h-5 w-5" />
-            {saving ? 'Saving Profile...' : 'Save and Continue'}
-          </Button>
-          <Button
-            onClick={() => navigate('/clergy-home')}
-            size="lg"
-            variant="outline"
-            className="text-lg px-8 py-6"
-          >
-            <ArrowLeft className="mr-2 h-5 w-5" />
-            Home
-          </Button>
-        </div>
+  {/* Home button removed */}
+  <Button
+    onClick={handleSave}
+    disabled={saving}
+    size="lg"
+    className="text-lg px-8 py-6 bg-gradient-journey hover:opacity-90 transition-opacity duration-300 shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
+  >
+    <Save className="mr-2 h-5 w-5" />
+    {saving ? 'Saving Profile...' : 'Save Community Profile'}
+  </Button>
+  <Button
+    onClick={() => navigate('/survey-build')}
+    size="lg"
+    variant="default"
+    className="text-lg px-8 py-6 ml-2 bg-primary hover:bg-primary/90 text-white font-bold"
+  >
+    Next Steps
+    <ArrowRight className="ml-2 h-5 w-5" />
+  </Button>
+</div>
 
       {/* Realm Integration Modal */}
       <Dialog open={realmModalOpen} onOpenChange={handleRealmClose}>

@@ -5,7 +5,7 @@ import { ConversationInterface, type Message } from "@/components/ConversationIn
 import { SurveyPreview } from "@/components/SurveyPreview";
 import { SurveyEditor } from "@/components/SurveyEditor";
 import { Button } from "@/components/ui/button";
-import { FileText, Loader2, ArrowLeft, Copy, Check } from "lucide-react";
+import { FileText, Loader2, ArrowLeft, ArrowRight, Copy, Check } from "lucide-react";
 import { useSelectedCompanion } from "@/hooks/useSelectedCompanion";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/lib/supabase";
@@ -397,11 +397,6 @@ const SurveyNeighborhoodBuild = () => {
           title: "Survey Generated",
           description: "Your neighborhood survey has been created successfully!",
         });
-        
-        // Switch to editor mode after a short delay
-        setTimeout(() => {
-          setMode('editor');
-        }, 1500);
       } catch (error: any) {
         console.error('Error saving initial survey:', error);
         // Continue even if save fails - we'll try again later
@@ -410,9 +405,6 @@ const SurveyNeighborhoodBuild = () => {
           description: "Survey created but couldn't be saved. You can try saving again later.",
           variant: "default"
         });
-        
-        // Still switch to editor mode
-        setMode('editor');
       }
     } catch (error: any) {
       console.error('Error generating survey:', error);
@@ -684,24 +676,10 @@ const SurveyNeighborhoodBuild = () => {
           <div className="flex justify-between items-center pb-4">
             <h1 className="text-2xl font-bold text-gray-900">Neighborhood Survey Builder</h1>
           </div>
-          <div className="flex space-x-4">
-            <Button 
-              onClick={handleProduceSurvey}
-              disabled={isGenerating || !surveyConversation.length}
-              className="flex items-center bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Generate Survey
-                </>
-              )}
-            </Button>
+          <div className="mb-6">
+            <p className="text-gray-600">
+              Build your neighborhood survey by conversing with Conversation Companion. Start typing your questions in the text box below to begin building your survey. Your Companion will help you craft effective questions to gather the information you need.
+            </p>
           </div>
         </div>
       </header>
@@ -710,15 +688,7 @@ const SurveyNeighborhoodBuild = () => {
         <div className="p-6">
           <div className="max-w-4xl mx-auto bg-white rounded-lg shadow overflow-hidden">
             <div className="p-6">
-              <h2 className="text-lg font-medium text-gray-900 mb-4">
-                Build your neighborhood survey by conversing with Conversation Companion
-              </h2>
-              <p className="text-gray-600 mb-6">
-              Start typing your questions in the text box below to begin building your survey.  Type in your goals and questions for your neighborhood survey. Your Companion will help you craft 
-                effective questions to gather the information you need.
-              </p>
-              
-              <div className="border rounded-lg overflow-hidden">
+              <div className="border rounded-lg overflow-hidden mb-6">
                 <ConversationInterface 
                   onMessageUpdate={handleConversationUpdate}
                   onError={handleError}
@@ -726,7 +696,36 @@ const SurveyNeighborhoodBuild = () => {
                   initialMessage="Welcome to the Neighborhood Survey Builder! I'll help you create an effective survey to understand your local community. What would you like to learn about your neighborhood?"
                   className="h-[60vh]"
                   companionName={selectedCompanion?.companion || 'Companion'}
+                  selectedCompanion={selectedCompanion}
                 />
+              </div>
+              
+              <div className="flex flex-col items-center gap-4 mt-6">
+                <Button 
+                  onClick={handleProduceSurvey}
+                  disabled={isGenerating || !surveyConversation.length}
+                  className="flex items-center bg-primary hover:bg-primary/90 text-white text-lg px-8 py-6 font-bold"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileText className="h-5 w-5 mr-2" />
+                      Generate Survey
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  onClick={() => navigate('/church-assessment')}
+                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white"
+                >
+                  <span>Next Steps</span>
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
               </div>
             </div>
           </div>

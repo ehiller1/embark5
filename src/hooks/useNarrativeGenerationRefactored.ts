@@ -229,7 +229,7 @@ export function useNarrativeGenerationRefactored(
   const generateAvatarResponse = useCallback(
     async (
       avatarType: 'church' | 'community',
-      avatar: ChurchAvatar | CommunityAvatar,
+      avatar: ChurchAvatar | CommunityAvatar | null | undefined,
       userMessage: string,
       conversationHistory: string,
       signal: AbortSignal
@@ -256,12 +256,23 @@ export function useNarrativeGenerationRefactored(
         maxTokens: 200
       });
       if (resp.text && !signal.aborted) {
-        addMessage({
-          role: avatarType as AvatarRole,
-          content: resp.text,
-          name: avatar.name || avatar.avatar_name,
-          avatarUrl: avatar.image_url || avatar.avatar_url || '/placeholder.svg'
-        });
+        // Check if avatar exists before accessing its properties
+        if (!avatar) {
+          console.warn(`[useNarrativeGeneration] ${avatarType} avatar is undefined or null`);
+          addMessage({
+            role: avatarType as AvatarRole,
+            content: resp.text,
+            name: avatarType.charAt(0).toUpperCase() + avatarType.slice(1), // Capitalize avatar type as fallback
+            avatarUrl: '/placeholder.svg'
+          });
+        } else {
+          addMessage({
+            role: avatarType as AvatarRole,
+            content: resp.text,
+            name: avatar.name || avatar.avatar_name || avatarType.charAt(0).toUpperCase() + avatarType.slice(1),
+            avatarUrl: avatar.image_url || avatar.avatar_url || '/placeholder.svg'
+          });
+        }
       } else if (!signal.aborted) {
         console.error(`${avatarType} response generation failed:`, resp.error);
       }
@@ -338,15 +349,17 @@ export function useNarrativeGenerationRefactored(
           mentions.includes('church') ||
           mentions.includes(churchAvatars[0]?.name?.toLowerCase() || '')
         ) {
-          tasks.push(generateAvatarResponse('church', churchAvatars[0]!, userMessage, convo, ctl.signal));
+          // Pass the avatar without non-null assertion
+          tasks.push(generateAvatarResponse('church', churchAvatars[0], userMessage, convo, ctl.signal));
         }
         if (
           mentions.length === 0 ||
           mentions.includes('community') ||
           mentions.includes(communityAvatars[0]?.name?.toLowerCase() || '')
         ) {
+          // Pass the avatar without non-null assertion
           tasks.push(
-            generateAvatarResponse('community', communityAvatars[0]!, userMessage, convo, ctl.signal)
+            generateAvatarResponse('community', communityAvatars[0], userMessage, convo, ctl.signal)
           );
         }
         if (

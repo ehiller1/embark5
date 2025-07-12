@@ -8,7 +8,7 @@ import { toast } from '@/hooks/use-toast'; // Added import
 
 
 
-export function useRoundtableMessaging(systemPromptType: PromptType) {
+export function useRoundtableMessaging(systemPromptType: PromptType | null) {
   const { getPromptByType, getAndPopulatePrompt } = usePrompts();
   const { generateResponse } = useOpenAI();
   const { selectedCompanion } = useSelectedCompanion();
@@ -32,11 +32,9 @@ export function useRoundtableMessaging(systemPromptType: PromptType) {
   useEffect(() => {
     // Ensure systemPromptType is provided before initializing
     if (!systemPromptType) {
-      console.warn('[useRoundtableMessaging] systemPromptType not provided. Skipping initialization.');
-      // Optionally, set an error state or a default minimal system message
-      // For now, we'll just return and wait for a valid systemPromptType.
-      // This might happen if the component using the hook hasn't received it yet.
-      // Consider if an error toast is needed here or if the calling component handles it.
+      console.warn('[useRoundtableMessaging] systemPromptType not provided. Waiting for valid prompt type.');
+      // Clear any existing system message to prevent using stale data
+      setInitialSystemMessage(null);
       return;
     }
 
@@ -297,16 +295,35 @@ export function useRoundtableMessaging(systemPromptType: PromptType) {
         } else {
           // If no recognized format, try to extract what we can
           console.warn('No recognized format in AI response, attempting to extract data:', response);
+          
+          // Store the original vocational statement in JSON format that the modal expects
+          const formattedVocationalStatement = JSON.stringify({
+            mission_statement: response.Title || response.title || 'Refined Scenario',
+            contextual_explanation: response.Description || response.description || '',
+            theological_justification: response.theologicalJustification || 
+              response['Theological justification'] || 
+              (response['Potential challenges/benefits'] ? 
+                'Theological foundation: Based on biblical principles of community, justice, and care.' : ''),
+            conclusion_and_future_outlook: response['Potential challenges/benefits'] || 
+              response.potentialChallengesBenefits || 
+              'This vocational direction provides opportunities for growth and community impact.'
+          }, null, 2);
+          
+          // Store this formatted JSON in localStorage for potential use in other components
+          localStorage.setItem('vocational_statement_formatted', formattedVocationalStatement);
+          
           refinedScenarios = [{
             id: `scenario-${Date.now()}`,
-            title: response.title || 'Refined Scenario',
-            description: response.description || JSON.stringify(response, null, 2),
+            title: response.Title || response.title || 'Refined Scenario',
+            description: response.Description || response.description || JSON.stringify(response, null, 2),
             targetAudience: [],
             strategicRationale: '',
             theologicalJustification: '',
             potentialChallengesBenefits: '',
             successIndicators: '',
-            impactOnCommunity: ''
+            impactOnCommunity: '',
+            // Add the formatted statement as a new property that can be accessed
+            vocational_statement_formatted: formattedVocationalStatement
           }];
         }
 

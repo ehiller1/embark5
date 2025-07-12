@@ -76,30 +76,54 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     const timestamp = new Date().toISOString();
     console.log(`[UserProfileProvider] [${timestamp}] No profile found for ${user.id}. Creating default.`);
 
-    const profileData = {
-      id: user.id,
-      email: user.email,
-      role: user.user_metadata?.role || 'Clergy',
-      first_name: user.user_metadata?.firstName || user.user_metadata?.first_name || '',
-      last_name: user.user_metadata?.lastName || user.user_metadata?.last_name || '',
-      church_name: user.user_metadata?.churchName || user.user_metadata?.church_name || '',
-      church_id: user.user_metadata?.church_id || '',
-      created_at: new Date().toISOString(),
-    };
+    try {
+      // First check if a profile already exists (double-check)
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .maybeSingle();
+      
+      if (existingProfile) {
+        console.log(`[UserProfileProvider] [${timestamp}] Profile already exists, returning existing profile.`);
+        return existingProfile as UserProfile;
+      }
+      
+      const profileData = {
+        id: user.id,
+        email: user.email,
+        role: user.user_metadata?.role || 'Clergy',
+        first_name: user.user_metadata?.firstName || user.user_metadata?.first_name || '',
+        last_name: user.user_metadata?.lastName || user.user_metadata?.last_name || '',
+        church_name: user.user_metadata?.churchName || user.user_metadata?.church_name || '',
+        church_id: user.user_metadata?.church_id || '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .insert(profileData)
-      .select()
-      .single();
+      console.log(`[UserProfileProvider] [${timestamp}] Inserting new profile with data:`, profileData);
+      
+      const { data, error } = await supabase
+        .from('profiles')
+        .insert(profileData)
+        .select()
+        .single();
 
-    if (error) {
-      console.error(`[UserProfileProvider] [${timestamp}] Error creating default profile:`, error);
-      throw new Error(error.message);
+      if (error) {
+        console.error(`[UserProfileProvider] [${timestamp}] Error creating default profile:`, error);
+        throw new Error(`Failed to create profile: ${error.message}`);
+      }
+
+      if (!data) {
+        throw new Error('Profile creation returned no data');
+      }
+
+      console.log(`[UserProfileProvider] [${timestamp}] Default profile created successfully:`, data);
+      return data as UserProfile;
+    } catch (err) {
+      console.error(`[UserProfileProvider] [${timestamp}] Exception in createDefaultProfile:`, err);
+      throw err;
     }
-
-    console.log(`[UserProfileProvider] [${timestamp}] Default profile created successfully.`);
-    return data as UserProfile;
   }, []);
 
   const fetchProfile = useCallback(async (user: User) => {
@@ -228,6 +252,15 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     else if (!user && profileState.profile) {
       console.log(`%c[UserProfileProvider] User logged out, resetting profile state`, 'color: green; font-weight: bold;');
       resetProfileState();
+    }
+    // Ensure loading state is reset if it's been loading for too long
+    else if (profileState.isLoading && profileState.profileFetchAttempted) {
+      const loadingTimeout = setTimeout(() => {
+        console.log(`%c[UserProfileProvider] Loading timeout reached, resetting loading state`, 'color: orange; font-weight: bold;');
+        setProfileState(prev => ({ ...prev, isLoading: false }));
+      }, 5000); // 5 second timeout
+      
+      return () => clearTimeout(loadingTimeout);
     }
   }, [user, profileState.profileFetchAttempted, profileState.profile, fetchProfile, resetProfileState]);
 

@@ -84,8 +84,20 @@ export function useScenarioGenerator() {
       try {
         const localVocationalStatement = localStorage.getItem('vocational_statement');
         if (localVocationalStatement) {
-          vocationalStatement = localVocationalStatement;
-          console.log('[ScenarioGenerator] Found vocational statement in local storage.');
+          // Handle different formats of vocational statement in localStorage
+          try {
+            // Try to parse as JSON first
+            const parsedVocStatement = JSON.parse(localVocationalStatement);
+            // Extract the statement field if it exists, otherwise use the whole object as a string
+            vocationalStatement = parsedVocStatement.statement || JSON.stringify(parsedVocStatement);
+            console.log('[ScenarioGenerator] Found and parsed vocational statement from local storage:', 
+              { format: 'JSON', length: vocationalStatement.length });
+          } catch (parseError) {
+            // If parsing fails, use as plain string
+            vocationalStatement = localVocationalStatement;
+            console.log('[ScenarioGenerator] Found vocational statement in local storage as plain string:', 
+              { length: vocationalStatement.length });
+          }
         } else {
           console.log('[ScenarioGenerator] Vocational statement not in local storage, checking database...');
           const { data: dbVocationalStatement, error: dbError } = await supabase
@@ -99,8 +111,22 @@ export function useScenarioGenerator() {
           if (dbError && dbError.code !== 'PGRST116') { // PGRST116: 'single' row not found, not an error for us
             console.error('[ScenarioGenerator] Error fetching vocational statement from DB:', dbError);
           } else if (dbVocationalStatement) {
-            vocationalStatement = dbVocationalStatement.content;
-            console.log('[ScenarioGenerator] Found vocational statement in database.');
+            // Handle different formats from the database
+            if (typeof dbVocationalStatement.content === 'string') {
+              try {
+                // Try to parse as JSON
+                const parsedContent = JSON.parse(dbVocationalStatement.content);
+                vocationalStatement = parsedContent.statement || JSON.stringify(parsedContent);
+              } catch (parseError) {
+                // Use as plain string if parsing fails
+                vocationalStatement = dbVocationalStatement.content;
+              }
+            } else {
+              // If it's already an object, stringify it
+              vocationalStatement = JSON.stringify(dbVocationalStatement.content);
+            }
+            console.log('[ScenarioGenerator] Found vocational statement in database:', 
+              { length: vocationalStatement.length });
           } else {
             console.log('[ScenarioGenerator] No vocational statement found in local storage or database. Proceeding without it.');
           }
@@ -108,6 +134,14 @@ export function useScenarioGenerator() {
       } catch (e) {
         console.error('[ScenarioGenerator] Error accessing vocational statement sources:', e);
         // Proceeding with empty vocationalStatement
+      }
+      
+      // Log the first 100 characters of the vocational statement for debugging
+      if (vocationalStatement) {
+        console.log('[ScenarioGenerator] Vocational statement preview:', 
+          vocationalStatement.substring(0, 100) + (vocationalStatement.length > 100 ? '...' : ''));
+      } else {
+        console.warn('[ScenarioGenerator] No vocational statement available');
       }
 
       // Validate parameters before proceeding
@@ -138,20 +172,83 @@ export function useScenarioGenerator() {
 
       // 2. Format avatar information consistently
       const churchAvatarInfo = churchAvatar
-        ? `${churchAvatar.avatar_name} (${churchAvatar.role} with ${churchAvatar.avatar_point_of_view})`
+        ? `${churchAvatar.avatar_name || 'Unknown'} (${churchAvatar.role || 'Unknown role'} with ${churchAvatar.avatar_point_of_view || 'Unknown perspective'})`
         : 'No church avatar selected';
+        
+      console.log('[ScenarioGenerator] Church avatar info:', { 
+        name: churchAvatar?.avatar_name || 'Missing', 
+        role: churchAvatar?.role || 'Missing',
+        perspective: churchAvatar?.avatar_point_of_view || 'Missing'
+      });
 
       // 3. Populate placeholders
       const template = promptData.prompt;
       const missionalAvatarInfo = missionalAvatar
-        ? `${missionalAvatar.avatar_name} (missional perspective: ${missionalAvatar.avatar_point_of_view})`
+        ? `${missionalAvatar.avatar_name || 'Unknown'} (missional perspective: ${missionalAvatar.avatar_point_of_view || 'Unknown perspective'})`
         : '';
+        
+      console.log('[ScenarioGenerator] Missional avatar info:', { 
+        name: missionalAvatar?.avatar_name || 'Not provided', 
+        perspective: missionalAvatar?.avatar_point_of_view || 'Not provided'
+      });
+      
+      // Log companion avatar info
+      console.log('[ScenarioGenerator] Companion avatar info:', {
+        name: companionAvatar?.companion || 'Missing',
+        type: companionAvatar?.companion_type || 'Missing'
+      });
 
+      // Create a parameters object to track what's being replaced
+      const promptParameters = {
+        researchSummary: {
+          value: researchSummary || '',
+          length: (researchSummary || '').length,
+          placeholder: '$(ResearchSummary)',
+          isPopulated: !!researchSummary && researchSummary.length > 0
+        },
+        vocationalStatement: {
+          value: vocationalStatement || 'Not available',
+          length: (vocationalStatement || '').length,
+          placeholder: '$(vocational_statement)',
+          isPopulated: !!vocationalStatement && vocationalStatement.length > 0
+        },
+        companionAvatar: {
+          value: JSON.stringify(companionAvatar),
+          placeholder: '$(companion_avatar)',
+          isPopulated: !!companionAvatar && !!companionAvatar.companion
+        },
+        churchAvatar: {
+          value: churchAvatarInfo,
+          placeholder: '$(church_avatar)',
+          isPopulated: !!churchAvatar && !!churchAvatar.avatar_name
+        }
+      };
+      
+      // Log parameter population status
+      console.log('[ScenarioGenerator] Prompt parameter status:', {
+        researchSummary: promptParameters.researchSummary.isPopulated ? 'Populated' : 'Missing',
+        vocationalStatement: promptParameters.vocationalStatement.isPopulated ? 'Populated' : 'Missing',
+        companionAvatar: promptParameters.companionAvatar.isPopulated ? 'Populated' : 'Missing',
+        churchAvatar: promptParameters.churchAvatar.isPopulated ? 'Populated' : 'Missing'
+      });
+      
+      // Check if template contains all expected placeholders
+      const missingPlaceholders: string[] = [];
+      Object.values(promptParameters).forEach(param => {
+        if (!template.includes(param.placeholder)) {
+          missingPlaceholders.push(param.placeholder);
+        }
+      });
+      
+      if (missingPlaceholders.length > 0) {
+        console.warn('[ScenarioGenerator] Template is missing these placeholders:', missingPlaceholders);
+      }
+      
       let fullPrompt = template
-        .replace(/\$\(\s*ResearchSummary\s*\)/g, researchSummary)
-        .replace(/\$\(\s*vocational_statement\s*\)/g, vocationalStatement || 'Not available') // Use fetched or default
-        .replace(/\$\(\s*companion_avatar\s*\)/g, JSON.stringify(companionAvatar))
-        .replace(/\$\(\s*church_avatar\s*\)/g, churchAvatarInfo);
+        .replace(/\$\(\s*ResearchSummary\s*\)/g, promptParameters.researchSummary.value)
+        .replace(/\$\(\s*vocational_statement\s*\)/g, promptParameters.vocationalStatement.value)
+        .replace(/\$\(\s*companion_avatar\s*\)/g, promptParameters.companionAvatar.value)
+        .replace(/\$\(\s*church_avatar\s*\)/g, promptParameters.churchAvatar.value);
 
       // Handle missional_avatar replacement carefully to avoid issues if it's missing
       // and the prompt has specific structures around it (e.g., lists, conjunctions)
@@ -170,7 +267,18 @@ export function useScenarioGenerator() {
         }
       }
 
-      console.log('[useScenarioGenerator] Full prompt being sent to AI:', fullPrompt);
+      // Check if any placeholders remain in the prompt after replacement
+      const remainingPlaceholders = fullPrompt.match(/\$\(\s*[^)]+\s*\)/g);
+      if (remainingPlaceholders && remainingPlaceholders.length > 0) {
+        console.warn('[ScenarioGenerator] Unreplaced placeholders in prompt:', remainingPlaceholders);
+      }
+      
+      // Log a preview of the prompt (first 200 chars) to avoid excessive logging
+      console.log('[ScenarioGenerator] Prompt preview being sent to AI:', 
+        fullPrompt.substring(0, 200) + (fullPrompt.length > 200 ? '...' : ''));
+      
+      // Log full prompt to console for debugging (commented out to avoid excessive logging)
+      // console.log('[ScenarioGenerator] Full prompt being sent to AI:', fullPrompt);
 
       // Use promptData.prompt as it contains the actual prompt content.
       // There isn't a separate system_prompt on the Prompt object from promptUtils.ts

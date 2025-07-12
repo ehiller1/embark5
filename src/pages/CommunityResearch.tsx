@@ -88,34 +88,34 @@ const CommunityResearch: React.FC = () => {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-white shadow-sm py-4 px-6 border-b">
-        <div className="flex items-center gap-2">
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => navigate('/clergy-home')}
-            className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back
-          </Button>
-          <div className="flex flex-col">
-            <h1 className="text-2xl font-semibold text-gray-900">Assessing Your Neighborhood</h1>
-            <p className="text-muted-foreground text-sm">
-              Understanding the unique attributes and opportunities of your neighborhood environment.
-            </p>
-            <p className="mt-4 text-lg text-gray-600">
-           Follow the steps below to accumulate research on the characteristics of your neighborhood building a report that can help inform your discernment.
-         </p>
-          </div>
+    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+      <div className="bg-white px-6 pt-4 flex-shrink-0">
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={() => navigate('/clergy-home')}
+          className="flex items-center gap-1 text-muted-foreground hover:text-foreground mb-4"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back
+        </Button>
+      </div>
+      <header className="bg-white shadow-sm py-4 px-6 border-b flex-shrink-0">
+        <div className="flex flex-col">
+          <h1 className="text-2xl font-semibold text-gray-900">Assessing Your Neighborhood</h1>
+          <p className="text-muted-foreground text-sm">
+            Understanding the unique attributes and opportunities of your neighborhood environment.
+          </p>
+          <p className="mt-4 text-lg text-gray-600">
+            Follow the steps below to accumulate research on the characteristics of your neighborhood building a report that can help inform your discernment.
+          </p>
         </div>
       </header>
       
-      <div className="flex-1 flex flex-col overflow-x-auto min-h-0">
+      <div className="flex-1 overflow-hidden">
         <AssessmentSidebar>
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full max-w-6xl mx-auto w-full px-4">
-            <aside className="col-span-1 md:col-span-1 h-full w-full max-w-xs">
+            <aside className="col-span-1 md:col-span-1 h-full w-full max-w-xs overflow-y-auto">
               <AssessmentSidebarContent
                 pageType="community_research"
                 activeCategory={activeCategory}
@@ -123,16 +123,18 @@ const CommunityResearch: React.FC = () => {
                 refreshKey={refreshKey}
               />
             </aside>
-            <section className="col-span-1 md:col-span-4 flex flex-col overflow-auto p-4 pb-12 min-h-0 w-full max-w-5xl">
-              <div className="w-full mx-auto">
-                <CommunityResearchInterface
-                  activeCategory={activeCategory || ""}
-                  searchPrompt={searchPrompt || ""}
-                  onNext={handleNext}
-                />
+            <section className="col-span-1 md:col-span-4 flex flex-col h-full w-full max-w-5xl">
+              <div className="flex flex-col h-full">
+                <div className="flex-1 overflow-y-auto">
+                  <CommunityResearchInterface
+                    activeCategory={activeCategory || ""}
+                    searchPrompt={searchPrompt || ""}
+                    onNext={handleNext}
+                  />
+                </div>
                 
                 {/* Action buttons fixed to bottom of container */}
-                <div className="sticky bottom-0 left-0 right-0 bg-white border-t pt-4 pb-4 mt-8 w-full max-w-5xl mx-auto px-4">
+                <div className="sticky bottom-0 left-0 right-0 bg-white border-t pt-4 pb-4 mt-8 w-full max-w-5xl mx-auto px-4 flex-shrink-0">
                   <div className="flex flex-col sm:flex-row justify-between gap-4">
                     <Button 
                       variant="outline" 
@@ -147,9 +149,9 @@ const CommunityResearch: React.FC = () => {
                       onClick={handleNext} 
                       disabled={totalNoteCount === 0} 
                       size="lg" 
-                      className="px-4 sm:px-8 bg-[#47799f] hover:bg-[#47799f]/90 text-white whitespace-nowrap flex-shrink-0"
+                      className="text-lg px-8 py-6 bg-primary hover:bg-primary/90 text-white font-bold whitespace-nowrap flex-shrink-0"
                     >
-                      Next: Research Summary <ArrowRight className="ml-2 h-4 w-4" />
+                      Next Steps <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
                   </div>
                 </div>

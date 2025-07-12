@@ -128,15 +128,12 @@ export function PlanBuilder({
       let fullPrompt = promptData.prompt;
       fullPrompt = fullPrompt.replace('$(vocational_statement)', vocationalStatement?.statement || '');
 
-      if (!isGeneralPlan) {
-        fullPrompt = fullPrompt
-          .replace('$(scenario_details)', formatScenarioDetails(scenario))
-          .replace('$(selected_scenarios)', activeScenarios.map(formatScenarioDetails).join('\n'));
-      } else {
-        fullPrompt = fullPrompt
-          .replace('$(scenario_details)', '')
-          .replace('$(selected_scenarios)', '');
-      }
+      // Always use scenario_details from localStorage without fallback logic
+      const scenarioDetailsFromStorage = localStorage.getItem('scenario_details') || '';
+      
+      fullPrompt = fullPrompt
+        .replace('$(scenario_details)', scenarioDetailsFromStorage)
+        .replace('$(selected_scenarios)', !isGeneralPlan ? activeScenarios.map(formatScenarioDetails).join('\n') : '');
 
       fullPrompt = fullPrompt
         .replace('$(messages from previous conversation)', formatMessageHistory(messages))
@@ -268,7 +265,7 @@ Based on: ${enhancementInput}` }
           ) : isEditMode ? (
             <Tiptap content={plan} onChange={setPlan} />
           ) : (
-            <div dangerouslySetInnerHTML={{ __html: marked.parse(plan) }} />
+            <div dangerouslySetInnerHTML={{ __html: marked.parse(plan).toString() }} />
           )}
         </ScrollArea>
 

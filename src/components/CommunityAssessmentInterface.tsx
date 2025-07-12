@@ -107,7 +107,6 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
 ) }
                     </div>
                     <p className="text-sm md:text-base whitespace-pre-wrap break-words leading-relaxed">
-                      <strong>Community Assessment</strong><br />
                       Please share information about your local community to help us understand its demographics, needs, and opportunities. Your responses will guide our assessment and help us provide tailored recommendations for community engagement.
                     </p>
                     <div className="text-xs mt-2 opacity-70">
@@ -133,16 +132,19 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
                     >
                       {msg.sender === 'assistant' && (
                         <div className="flex items-center gap-2 mb-2">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage
-                              src={informationGathererAvatar?.avatar_url}
-                              alt={informationGathererAvatar?.name}
-                            />
-                            <AvatarFallback>{informationGathererAvatar?.name?.[0] || 'IG'}</AvatarFallback>
-                          </Avatar>
+                          {selectedCompanion && (
+                            <Avatar className="h-6 w-6">
+                              <AvatarImage
+                                src={selectedCompanion.avatar_url || '/default-avatar.png'}
+                                alt={selectedCompanion.companion}
+                              />
+                              <AvatarFallback>
+                                {selectedCompanion.companion?.[0] || 'C'}
+                              </AvatarFallback>
+                            </Avatar>
+                          )}
                           <span className="text-xs font-medium">
-                            {informationGathererAvatar?.name}
-                            {selectedCompanion && ` & ${selectedCompanion.companion}`}
+                            {selectedCompanion && selectedCompanion.companion}
                           </span>
                         </div>
                       )}
@@ -173,7 +175,7 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
+              placeholder="Type here what you want to say"
               className="flex-1 resize-none min-h-[60px] max-h-[120px]"
             />
             <Button
@@ -188,12 +190,11 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
           
           <div className="flex justify-end mt-2">
             <Button 
-              variant="outline" 
               disabled={disableNext}
-              onClick={() => console.log('Next step clicked')}
-              className="px-6"
+              onClick={() => window.location.href = '/research-summary'}
+              className="text-lg px-8 py-6 bg-primary hover:bg-primary/90 text-white font-bold"
             >
-              Next Step
+              Next Steps <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>

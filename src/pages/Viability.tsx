@@ -239,7 +239,7 @@ const Analysis = () => {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                  placeholder="Type your message..."
+                  placeholder="Type here what you want to say"
                   className="flex-1 min-w-0"
                   disabled={isLoading}
                 />

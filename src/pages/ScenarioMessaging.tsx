@@ -3,11 +3,12 @@ import { useEffect, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '@/integrations/lib/supabase';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
-import { MainLayout } from '@/components/MainLayout';
+// MainLayout import removed to prevent nested layouts
 import { Button } from '@/components/ui/button';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ArrowRight } from 'lucide-react';
 import { ScenarioItem } from '@/types/Scenario';
 import { RoundtableMessaging } from '@/components/RoundtableMessaging';
+import { PromptType } from '@/utils/promptUtils';
 
 export default function ScenarioMessagingPage() {
   const location = useLocation();
@@ -18,13 +19,28 @@ export default function ScenarioMessagingPage() {
   const [selectedScenarios, setSelectedScenarios] = useState<ScenarioItem[]>([]);
   const [isUnifiedRefinement, setIsUnifiedRefinement] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [companion, setCompanion] = useState<any>(null);
+  // Use a hardcoded prompt type since the user_settings table doesn't exist yet
+  // TODO: When the user_settings table is created, replace this with dynamic fetching
+  const [promptType, setPromptType] = useState<PromptType>('scenario_refinement');
   
+  // Log the prompt type being used
+  useEffect(() => {
+    console.log('Using prompt type:', promptType);
+  }, [promptType]);
+
   useEffect(() => {
     const fetchScenarios = async () => {
       // First priority: Get data passed through navigation state
       if (location.state?.scenarios && location.state?.isUnified !== undefined) {
         setSelectedScenarios(location.state.scenarios);
         setIsUnifiedRefinement(location.state.isUnified);
+        // Capture companion data if provided
+        if (location.state.companion) {
+          setCompanion(location.state.companion);
+          // Store to ensure consistency across page reloads
+          localStorage.setItem('selected_companion', JSON.stringify(location.state.companion));
+        }
         setIsLoading(false);
         return;
       }
@@ -113,20 +129,23 @@ export default function ScenarioMessagingPage() {
   }, [location.state, scenarioId, navigate, user]);
 
   return (
-    <MainLayout>
-      <div className="flex items-center mb-4">
+    <>
+      <div className="flex flex-col mb-6">
         <Button
           variant="ghost"
           size="sm"
-          className="mr-2"
+          className="mr-2 -ml-3 mb-4 self-start"
           onClick={() => navigate('/scenario')}
         >
           <ChevronLeft className="h-4 w-4 mr-2" />
           Back to Scenarios
         </Button>
-        <h1 className="text-xl font-semibold ml-4">
+        <h1 className="text-3xl font-bold">
           {isUnifiedRefinement ? 'Creating a Unified Story' : 'Refining Your Scenarios'}
         </h1>
+        <p className="text-sm text-muted-foreground mt-1 mb-4">
+          Engage with your Conversational Companion and customize your scenarios for transformative ministry.
+        </p>
       </div>
       
       {isLoading ? (
@@ -139,12 +158,24 @@ export default function ScenarioMessagingPage() {
             selectedScenarios={selectedScenarios}
             isUnifiedRefinement={isUnifiedRefinement}
             currentScenario={selectedScenarios[0]}
-            promptType="scenario_refinement"
+            promptType={promptType}
             churchAvatar={null}
             communityAvatar={null}
+            companion={companion}
           />
+          
+          {/* Next Steps button */}
+          <div className="flex justify-end mt-6">
+            <Button 
+              onClick={() => navigate('/narrative-build')} 
+              className="bg-teal-600 hover:bg-teal-700 text-white font-medium px-4 transition-colors"
+            >
+              Next Steps
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
         </div>
       )}
-    </MainLayout>
+    </>
   );
 }

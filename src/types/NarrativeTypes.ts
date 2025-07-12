@@ -67,6 +67,7 @@ export interface ScenarioItem {
   potentialChallengesBenefits?: string;
   successIndicators?: string;
   impactOnCommunity?: string; // Added to track impact on the community
+  vocational_statement_formatted?: string; // Added to store JSON formatted vocational statement
 }
 
 /** A simple message item (used outside narrative conversation) */

@@ -28,6 +28,7 @@ import Scenario from "./pages/Scenario";
 import ScenarioMessaging from "./pages/ScenarioMessaging";
 import NarrativeBuild from "./pages/NarrativeBuild";
 import { PlanBuilder } from "./pages/PlanBuild";
+import DiscernmentPlanPage from "./pages/DiscernmentPlanPage";
 
 import PrayersPage from "./pages/PrayersPage";
 import TheologicalResourcesPage from "./pages/TheologicalResourcesPage";
@@ -142,6 +143,7 @@ const App = () => {
                       <Route path="/narrative-build/:scenarioId" element={<ProtectedRoute allowedRoles={['Clergy']}><NarrativeBuild /></ProtectedRoute>} />
                       <Route path="/plan-build" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanBuilder /></ProtectedRoute>} />
                       <Route path="/plan-build/:scenarioId" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanBuilder /></ProtectedRoute>} />
+                      <Route path="/discernment-plan" element={<ProtectedRoute allowedRoles={['Clergy']}><DiscernmentPlanPage /></ProtectedRoute>} />
                                             
                       <Route path="/viability" element={<Viability />} />
                       <Route path="/vocational-discernment" element={<ProtectedRoute allowedRoles={['Clergy']}><VocationalDiscernment /></ProtectedRoute>} />

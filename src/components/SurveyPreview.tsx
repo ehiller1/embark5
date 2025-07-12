@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Button } from "./ui/button";
-import { Check, Link as LinkIcon, Edit, Save, Plus, Trash2, Loader2 } from "lucide-react";
+import { Check, Link as LinkIcon, Edit, Save, Plus, Trash2, Loader2, ArrowLeft, FileText, Printer, ArrowRight } from "lucide-react";
+import { useNavigate } from 'react-router-dom';
 import { toast } from "./ui/use-toast";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
-import { supabase } from "@/integrations/lib/supabase";
+
 
 interface Question {
   id: string;
@@ -28,13 +29,15 @@ interface SurveyPreviewProps {
 }
 
 export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId, churchId, isEditable = true }: SurveyPreviewProps) {
+  const navigate = useNavigate();
   const [survey, setSurvey] = useState(initialSurvey);
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  
+
   // Generate a church-specific URL
   const surveyLink = surveyId ? `${window.location.origin}/survey/${churchId}/${surveyId}` : '';
 
@@ -47,7 +50,6 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
 
   const handleCopyLink = async () => {
     if (!surveyLink) return;
-    
     try {
       await navigator.clipboard.writeText(surveyLink);
       setIsCopied(true);
@@ -55,7 +57,6 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
         title: "Link copied to clipboard",
         description: "Share this link with your community to collect responses.",
       });
-      
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
       console.error('Failed to copy link:', err);
@@ -177,12 +178,9 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
       questions: prev.questions.map(q => {
         if (q.id === questionId) {
           const updatedQuestion = { ...q, type };
-          
-          // Add default options for multiple choice if needed
           if (type === 'multiple_choice' && (!q.options || q.options.length === 0)) {
             updatedQuestion.options = ['Option 1', 'Option 2'];
           }
-          
           return updatedQuestion;
         }
         return q;
@@ -192,18 +190,14 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
 
   // Save survey changes
   const handleSaveSurvey = async () => {
-    if (!surveyId || !onSave) return;
-    
+    if (!onSave) return;
     setIsSaving(true);
-    
     try {
       await onSave(survey);
-      
       toast({
         title: "Survey saved",
         description: "Your survey has been updated successfully.",
       });
-      
       setEditMode(false);
     } catch (error) {
       console.error('Error saving survey:', error);
@@ -217,14 +211,51 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
     }
   };
 
+  const handlePrintSurvey = async () => {
+    setIsPrinting(true);
+    try {
+      // First save the survey if possible
+      if (onSave) {
+        await onSave(survey);
+      }
+      window.print();
+      toast({
+        title: "Print prepared",
+        description: "Your survey is ready to print or save as PDF.",
+      });
+    } catch (error) {
+      console.error('Error preparing print:', error);
+      toast({
+        title: "Error",
+        description: "Failed to prepare survey for printing. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const handleGoToEditor = () => {
+    if (onSave) {
+      onSave(survey).then(() => {
+        toast({
+          title: "Switching to editor",
+          description: "Now you can make detailed edits to your survey.",
+        });
+      });
+    }
+  };
+
+  const handleNextSteps = () => {
+    navigate('/church-assessment');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
-    
     try {
-      // Here you would typically send the responses to your backend
+      // Submit responses here
       console.log('Survey responses:', responses);
-      
       toast({
         title: "Responses submitted",
         description: "Thank you for completing the survey!",
@@ -241,7 +272,6 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
     }
   };
 
-  // Use useEffect to update the document title with the survey title
   useEffect(() => {
     const originalTitle = document.title;
     document.title = `Survey: ${survey.title}`;
@@ -253,6 +283,7 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+        {/* Header */}
         <div className="p-6 border-b">
           <div className="flex justify-between items-start">
             <div className="flex-1">
@@ -286,7 +317,6 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                   size="sm"
                   onClick={handleCopyLink}
                   className="flex items-center gap-1"
-                  asChild={false}
                 >
                   {isCopied ? (
                     <>
@@ -307,7 +337,6 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                   size="sm"
                   onClick={() => setEditMode(!editMode)}
                   className="flex items-center gap-1"
-                  asChild={false}
                 >
                   {editMode ? (
                     <>
@@ -322,13 +351,14 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                   )}
                 </Button>
               )}
-              <Button variant="outline" size="sm" onClick={onClose} asChild={false}>
+              <Button variant="outline" size="sm" onClick={onClose}>
                 <span>Close</span>
               </Button>
             </div>
           </div>
         </div>
         
+        {/* Content */}
         {editMode ? (
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-6">
@@ -362,7 +392,6 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                         size="sm"
                         onClick={() => toggleRequired(question.id)}
                         className={`text-xs ${question.required ? 'text-red-500' : 'text-gray-500'}`}
-                        asChild={false}
                       >
                         {question.required ? 'Required' : 'Optional'}
                       </Button>
@@ -371,13 +400,11 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                         size="sm"
                         onClick={() => removeQuestion(question.id)}
                         className="text-red-500"
-                        asChild={false}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
-                  
                   {question.type === 'multiple_choice' && (
                     <div className="mt-2 pl-6 space-y-2">
                       {question.options?.map((option, optIndex) => (
@@ -394,7 +421,6 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                             onClick={() => removeOption(question.id, optIndex)}
                             disabled={question.options?.length === 1}
                             className="text-red-500"
-                            asChild={false}
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -405,7 +431,6 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                         size="sm"
                         onClick={() => addOption(question.id)}
                         className="mt-2"
-                        asChild={false}
                       >
                         <Plus className="h-4 w-4 mr-1" /> Add Option
                       </Button>
@@ -418,40 +443,47 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                 variant="outline"
                 onClick={addQuestion}
                 className="w-full mt-4"
-                asChild={false}
               >
                 <Plus className="h-4 w-4 mr-1" /> Add Question
               </Button>
             </div>
             
-            <div className="mt-8 flex justify-end space-x-3">
+            <div className="mt-8 flex justify-between items-center">
               <Button
                 type="button"
+                onClick={() => navigate('/clergy-home')}
                 variant="outline"
-                onClick={() => setEditMode(false)}
-                asChild={false}
               >
-                <span>Cancel</span>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Home
               </Button>
-              <Button
-                type="button"
-                onClick={handleSaveSurvey}
-                disabled={isSaving}
-                className="bg-blue-600 hover:bg-blue-700"
-                asChild={false}
-              >
-                {isSaving ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    <span>Saving...</span>
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    <span>Save Survey</span>
-                  </>
-                )}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setEditMode(false)}
+                >
+                  <span>Cancel</span>
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleSaveSurvey}
+                  disabled={isSaving}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      <span>Save and Continue</span>
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         ) : (
@@ -540,10 +572,93 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                 </div>
               ))}
             </div>
-            
-            {/* Removed buttons as per requirements */}
           </form>
         )}
+        
+        {/* Footer with action buttons */}
+        <div className="p-6 border-t bg-gray-50 flex justify-between items-center">
+          <div className="flex space-x-2">
+            {editMode && (
+              <Button
+                onClick={() => addQuestion()}
+                className="flex items-center gap-1"
+                variant="outline"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Add Question</span>
+              </Button>
+            )}
+          </div>
+          <div className="flex space-x-2">
+            {/* Save Button */}
+            <Button
+              onClick={handleSaveSurvey}
+              disabled={isSaving}
+              className="flex items-center gap-1 bg-primary hover:bg-primary/90"
+            >
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  <span>Save Survey</span>
+                </>
+              )}
+            </Button>
+            
+            {/* Print Button */}
+            <Button
+              onClick={handlePrintSurvey}
+              disabled={isPrinting}
+              className="flex items-center gap-1"
+              variant="outline"
+            >
+              {isPrinting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Preparing...</span>
+                </>
+              ) : (
+                <>
+                  <Printer className="h-4 w-4" />
+                  <span>Print</span>
+                </>
+              )}
+            </Button>
+            
+            {/* Edit Survey Button - Only in view mode */}
+            {!editMode && isEditable && (
+              <Button
+                onClick={handleGoToEditor}
+                className="flex items-center gap-1"
+                variant="outline"
+              >
+                <Edit className="h-4 w-4" />
+                <span>Edit Survey</span>
+              </Button>
+            )}
+            
+            {/* Next Steps Button */}
+            <Button
+              onClick={handleNextSteps}
+              className="flex items-center gap-1 bg-primary hover:bg-primary/90"
+            >
+              <span>Next Steps</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            
+            {/* Close Button */}
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   );

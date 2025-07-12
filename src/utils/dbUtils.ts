@@ -468,82 +468,34 @@ export async function saveScenarioDetails(
 }
 
 /**
- * Saves vocational statement to localStorage and the resource_library table in a standardized JSON format
- * @param vocationalStatement The vocational statement content to save (string, object, or VocationalStatement)
- * @param userId The user ID
- * @returns Promise resolving to the saved resource ID
+ * Saves the vocational statement to localStorage and the resource-library table
+ * @param statement The vocational statement content to save
+ * @param userId The ID of the user saving the statement
+ * @returns Promise with success status and any error
  */
-export async function saveVocationalStatement(
-  vocationalStatement: string | any,
-  userId: string
-): Promise<string | null> {
+export const saveVocationalStatement = async (statement: string, userId: string) => {
   try {
-    // Standardize the format to JSON
-    let formattedContent: string;
-    let vocationalObject: any;
+    // Save to localStorage first for immediate access
+    localStorage.setItem('vocational_statement', statement);
     
-    // Step 1: Convert input to a standard object format
-    if (typeof vocationalStatement === 'string') {
-      try {
-        // Try to parse as JSON first
-        vocationalObject = JSON.parse(vocationalStatement);
-      } catch (e) {
-        // If not valid JSON, create a simple object with the string as mission_statement
-        vocationalObject = {
-          mission_statement: vocationalStatement
-        };
-      }
-    } else {
-      // It's already an object
-      vocationalObject = vocationalStatement;
-    }
-    
-    // Step 2: Ensure the object has required fields
-    if (!vocationalObject.mission_statement) {
-      // If no mission_statement field, try to use other fields or create a default
-      if (vocationalObject.statement) {
-        vocationalObject.mission_statement = vocationalObject.statement;
-      } else if (vocationalObject.content) {
-        vocationalObject.mission_statement = vocationalObject.content;
-      } else {
-        vocationalObject.mission_statement = 'Untitled Vocational Statement';
-      }
-    }
-    
-    // Step 3: Convert to JSON string for storage
-    formattedContent = JSON.stringify(vocationalObject);
-    
-    // Save to localStorage in standardized JSON format
-    localStorage.setItem('vocational_statement', formattedContent);
-    
-    // Derive a title for the database entry
-    let title = vocationalObject.mission_statement;
-    if (title.length > 100) {
-      title = title.substring(0, 97) + '...';
-    }
-    
-    // Save to database
-    const { data, error } = await supabase
+    // Then save to the database resource-library table
+    const { error } = await supabase
       .from('resource_library')
-      .insert({
+      .upsert({
+        name: 'vocational_statement',
+        content: statement,
         user_id: userId,
-        title: title,
-        content: formattedContent,
         resource_type: 'vocational_statement',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
-      })
-      .select('id')
-      .single();
-      
-    if (error) {
-      console.error('Error saving vocational statement to database:', error);
-      return null;
-    }
+      }, {
+        onConflict: 'user_id,name'
+      });
     
-    return data.id;
+    if (error) throw error;
+    return { success: true, error: null };
   } catch (error) {
-    console.error('Error in saveVocationalStatement:', error);
-    return null;
+    console.error('Error saving vocational statement:', error);
+    return { success: false, error };
   }
-}
+};

@@ -385,6 +385,52 @@ const SurveySummaryPage = () => {
   // Use a ref to track whether data has been loaded already to prevent infinite loops
   const dataLoadedRef = React.useRef(false);
 
+  // Define fallback summary data
+  const fallbackSummary: SurveySummary = {
+    summary: {
+      key_themes: [
+        'Sustainability and environmental stewardship',
+        'Community engagement and outreach',
+        'Financial viability and resource sharing',
+        'Preserving spiritual mission while adapting space'
+      ],
+      sentiment: {
+        overall: 'mostly positive',
+        summary_text: 'The congregation is optimistic about repurposing church properties into sustainable ministries, with enthusiasm for environmental projects and community partnerships, though some express concerns about losing traditional identity.'
+      },
+      potential_risks: {
+        items: [
+          'Loss of historical or spiritual identity',
+          'Insufficient funding or volunteer support',
+          'Community resistance to change',
+          'Regulatory or zoning challenges'
+        ],
+        number_of_persons_identifying_risks: 7
+      },
+      potential_opportunities: {
+        items: [
+          'Creation of community gardens and food programs',
+          'Hosting sustainability workshops and events',
+          'Partnerships with local nonprofits and schools',
+          'Improved use of underutilized property spaces'
+        ],
+        number_of_persons_identifying_opportunities: 15
+      },
+      dreams_and_aspirations: [
+        'To become a model for green ministry in the region',
+        'To offer shelter and resources to those in need',
+        'To engage youth in environmental projects',
+        'To create an inclusive space for all community members'
+      ],
+      fears_and_concerns: [
+        'That the church will lose its traditional character',
+        'That projects will not be financially sustainable',
+        'That older members may feel left out of new initiatives',
+        "That partnerships may dilute the church's mission"
+      ]
+    }
+  };
+
   useEffect(() => {
     // Skip if there's no user or we're already loading
     if (!user || isLoading) return;
@@ -421,29 +467,76 @@ const SurveySummaryPage = () => {
         // Fetch conversation history and survey responses
         const conversations = await fetchConversationHistory(user.church_id);
         
-        // Fetch text field responses for each conversation if available
-        const enhancedConversations = await Promise.all(conversations.map(async (conversation) => {
-          try {
-            // Query the survey_responses table to get text field responses
-            const { data: responses } = await supabase
-              .from('survey_responses')
-              .select('response_data')
-              .eq('user_id', conversation.user_id)
-              .eq('church_id', user.church_id)
-              .maybeSingle();
-              
-            if (responses && responses.response_data) {
-              return {
-                ...conversation,
-                text_field_responses: responses.response_data
-              };
-            }
-            return conversation;
-          } catch (err) {
-            console.error('[SurveySummary] Error fetching text field responses:', err);
-            return conversation;
+        let enhancedConversations = [...conversations];
+        
+        try {
+          // Check if survey_responses table exists and is accessible
+          const { count, error: tableCheckError } = await supabase
+            .from('survey_responses')
+            .select('*', { count: 'exact', head: true });
+            
+          if (tableCheckError) {
+            console.error('[SurveySummary] Error checking survey_responses table:', tableCheckError);
+            // Continue with original conversations if table check fails
+          } else {
+            console.log('[SurveySummary] survey_responses table check:', { count });
+            
+            // Only attempt to fetch responses if table exists
+            enhancedConversations = await Promise.all(conversations.map(async (conversation) => {
+              try {
+                // Skip if user_id is missing
+                if (!conversation.user_id) {
+                  console.log('[SurveySummary] Skipping response fetch - missing user_id for conversation:', conversation.id);
+                  return conversation;
+                }
+                
+                // Log the query parameters for debugging
+                console.log('[SurveySummary] Fetching responses with params:', {
+                  user_id: conversation.user_id,
+                  church_id: user.church_id
+                });
+                
+                // Try a simpler query first to validate parameters
+                const { error: paramCheckError } = await supabase
+                  .from('survey_responses')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('user_id', conversation.user_id);
+                  
+                if (paramCheckError) {
+                  console.error('[SurveySummary] Parameter validation failed:', paramCheckError);
+                  return conversation;
+                }
+                
+                // If parameter check passes, try the full query
+                const { data: responses, error } = await supabase
+                  .from('survey_responses')
+                  .select('response_data')
+                  .eq('user_id', conversation.user_id)
+                  .eq('church_id', user.church_id)
+                  .maybeSingle();
+                
+                if (error) {
+                  console.error('[SurveySummary] Supabase error fetching responses:', error);
+                  return conversation;
+                }
+                  
+                if (responses && responses.response_data) {
+                  return {
+                    ...conversation,
+                    text_field_responses: responses.response_data
+                  };
+                }
+                return conversation;
+              } catch (err) {
+                console.error('[SurveySummary] Error fetching text field responses:', err);
+                return conversation;
+              }
+            }));
           }
-        }));
+        } catch (fetchError) {
+          console.error('[SurveySummary] Critical error in response fetching:', fetchError);
+          // Continue with original conversations if the entire process fails
+        }
         
         setConversations(enhancedConversations);
         
@@ -463,6 +556,9 @@ const SurveySummaryPage = () => {
           // Generate summary
           const summary = await generateSurveySummary(conversations, promptToUse);
           setSummaryData(summary);
+        } else {
+          // Set fallback summary data if no conversations found
+          setSummaryData(fallbackSummary);
         }
         
         // Mark that we've loaded the data
@@ -533,146 +629,17 @@ const SurveySummaryPage = () => {
     );
   }
 
-  // Show empty state if no conversations
-  if (conversations.length === 0) {
-    // Fallback summary data for sustainable ministry repurposing
-    const fallbackSummary: SurveySummary = {
-      summary: {
-        key_themes: [
-          'Sustainability and environmental stewardship',
-          'Community engagement and outreach',
-          'Financial viability and resource sharing',
-          'Preserving spiritual mission while adapting space'
-        ],
-        sentiment: {
-          overall: 'mostly positive',
-          summary_text: 'The congregation is optimistic about repurposing church properties into sustainable ministries, with enthusiasm for environmental projects and community partnerships, though some express concerns about losing traditional identity.'
-        },
-        potential_risks: {
-          items: [
-            'Loss of historical or spiritual identity',
-            'Insufficient funding or volunteer support',
-            'Community resistance to change',
-            'Regulatory or zoning challenges'
-          ],
-          number_of_persons_identifying_risks: 7
-        },
-        potential_opportunities: {
-          items: [
-            'Creation of community gardens and food programs',
-            'Hosting sustainability workshops and events',
-            'Partnerships with local nonprofits and schools',
-            'Improved use of underutilized property spaces'
-          ],
-          number_of_persons_identifying_opportunities: 15
-        },
-        dreams_and_aspirations: [
-          'To become a model for green ministry in the region',
-          'To offer shelter and resources to those in need',
-          'To engage youth in environmental projects',
-          'To create an inclusive space for all community members'
-        ],
-        fears_and_concerns: [
-          'That the church will lose its traditional character',
-          'That projects will not be financially sustainable',
-          'That older members may feel left out of new initiatives',
-          'That partnerships may dilute the church’s mission'
-        ]
-      }
-    };
-    setSummaryData(fallbackSummary);
+  // Show empty state if no conversations and no summary data
+  if (conversations.length === 0 && !summaryData) {
     return (
       <div className="container mx-auto py-8 px-4">
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Data</AlertTitle>
           <AlertDescription>
-            No survey data found for your church. Displaying example summary:
+            No survey data found for your church. Please wait while we load example data...
           </AlertDescription>
         </Alert>
-        {/* Render fallback summary cards */}
-        <div className="mt-8">
-          <h2 className="text-2xl font-bold mb-4">Example: Community Opinion on Sustainable Ministry Repurposing</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <Card>
-              <CardHeader>
-                <CardTitle>Key Themes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="list-disc list-inside text-base">
-                  {fallbackSummary.summary.key_themes.map((theme, idx) => (
-                    <li key={idx}>{theme}</li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Sentiment</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-2 font-semibold">Overall: {fallbackSummary.summary.sentiment.overall}</div>
-                <div>{fallbackSummary.summary.sentiment.summary_text}</div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Opportunities</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="list-disc list-inside text-base">
-                  {fallbackSummary.summary.potential_opportunities.items.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {fallbackSummary.summary.potential_opportunities.number_of_persons_identifying_opportunities} identified
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Risks</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="list-disc list-inside text-base">
-                  {fallbackSummary.summary.potential_risks.items.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-                <div className="mt-2 text-xs text-muted-foreground">
-                  {fallbackSummary.summary.potential_risks.number_of_persons_identifying_risks} identified
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Dreams & Aspirations</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="list-disc list-inside text-base">
-                  {fallbackSummary.summary.dreams_and_aspirations.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle>Fears & Concerns</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="list-disc list-inside text-base">
-                  {fallbackSummary.summary.fears_and_concerns.map((item, idx) => (
-                    <li key={idx}>{item}</li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
       </div>
     );
   }

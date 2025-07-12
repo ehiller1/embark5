@@ -16,7 +16,7 @@ export const RoundtableInput: React.FC<RoundtableInputProps> = ({
   onSend, 
   isSending,
   // Enhanced placeholder hint for addressing scenarios
-  placeholder = "Type your comment… (use @ScenarioName to address a scenario)",
+  placeholder = "Type here what you want to say",
   value,
   onChange,
 }) => {

@@ -98,10 +98,10 @@ export function VocationalStatementDialog({
             .eq('id', initialStatementData.id);
             
           // Still use the utility to update localStorage in a standardized way
-          await saveVocationalStatement(vocationalObject, user.id);
+          await saveVocationalStatement(JSON.stringify(vocationalObject), user.id);
         } else {
           // For add mode, use the utility function to save to both localStorage and database
-          await saveVocationalStatement(vocationalObject, user.id);
+          await saveVocationalStatement(JSON.stringify(vocationalObject), user.id);
         }
       } else {
         // For adapt mode or when user is not available, just save to localStorage

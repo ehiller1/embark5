@@ -215,7 +215,7 @@ export function ChurchAssessmentInterface({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type your message..."
+              placeholder="Type here what you want to say"
               className="flex-1 resize-none min-h-[60px] max-h-[120px]"
             />
             <Button

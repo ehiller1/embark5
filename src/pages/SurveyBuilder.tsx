@@ -8,7 +8,7 @@ import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/lib/supabase";
 import { useOpenAI } from "@/hooks/useOpenAI";
 import { SurveyPreview } from "@/components/SurveyPreview";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import jsPDF from 'jspdf';
 
 const SURVEY_SYSTEM_PROMPT = `You are an expert survey designer helping church leaders create effective community surveys. Follow these guidelines:
@@ -437,6 +437,10 @@ Based on the conversation, create appropriate survey questions.`
       {generatedSurvey && (
         <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
           <DialogContent className="p-0 max-w-6xl w-full max-h-[90vh] overflow-hidden">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Survey Preview</DialogTitle>
+              <DialogDescription>Preview and edit your generated survey</DialogDescription>
+            </DialogHeader>
             <SurveyPreview
               survey={generatedSurvey}
               onClose={() => setPreviewOpen(false)}

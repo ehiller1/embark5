@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/lib/auth/AuthProvider";
 import { ConversationInterface, type Message } from "@/components/ConversationInterface";
 import { useSelectedCompanion } from "@/hooks/useSelectedCompanion";
+import { Companion as ConversationCompanion } from "@/types/Companion";
 import { SurveyEditor } from "@/components/SurveyEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FileText, Loader2, ArrowLeft } from "lucide-react";
+import { FileText, Loader2, ArrowLeft, Save, ArrowRight } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/lib/supabase";
 import { useOpenAI } from "@/hooks/useOpenAI";
@@ -34,6 +35,9 @@ export interface SurveyTemplate {
 
 // State to store the system prompt
 
+import jsPDF from "jspdf";
+
+
 const SurveyBuild = () => {
   const { isAuthenticated, user } = useAuth();
   const navigate = useNavigate();
@@ -47,6 +51,41 @@ const SurveyBuild = () => {
   const [mode, setMode] = useState<'conversation' | 'editor' | 'preview'>('conversation');
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   const [systemPrompt, setSystemPrompt] = useState<string>("");
+  
+  // Print/download PDF for current survey template
+  const handleDownloadPdf = () => {
+    if (!surveyTemplate) return;
+    const doc = new jsPDF();
+    let y = 15;
+
+    doc.setFontSize(18);
+    doc.text(surveyTemplate.title || 'Survey', 10, y);
+    y += 10;
+
+    doc.setFontSize(12);
+    doc.text(surveyTemplate.description || '', 10, y, { maxWidth: 190 });
+    y += 30;
+
+    (surveyTemplate.fields || []).forEach((field: Field, index: number) => {
+      if (y > 280) {
+        doc.addPage();
+        y = 15;
+      }
+      doc.setFontSize(14);
+      doc.text(`${index + 1}. ${field.label}`, 10, y);
+      y += 8;
+      if ((field.type === 'radio' || field.type === 'checkbox' || field.type === 'select') && field.options) {
+        doc.setFontSize(12);
+        field.options.forEach((option: string) => {
+          doc.text(`- ${option}`, 15, y);
+          y += 6;
+        });
+      }
+      y += 10;
+    });
+
+    doc.save(`${(surveyTemplate.title || 'survey').replace(/\s+/g, '_').toLowerCase()}_survey.pdf`);
+  };
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -192,8 +231,9 @@ const SurveyBuild = () => {
       
       toast({
         title: "Success",
-        description: "Survey saved successfully!",
+        description: "Survey saved successfully.",
       });
+      navigate('/survey-summary');
       
       // Update the template with the saved ID
       setSurveyTemplate(prev => prev ? { ...prev, id: savedSurvey.id } : null);
@@ -406,11 +446,22 @@ Based on the conversation, create appropriate survey questions.`
         )}
         
         {mode === 'editor' ? (
-          <SurveyEditor
-            initialData={surveyTemplate}
-            onSave={handleSaveSurvey}
-            onCancel={() => !isSaving && setMode('conversation')}
-          />
+          <>
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant="outline"
+                onClick={handleDownloadPdf}
+                disabled={isSaving}
+              >
+                Print
+              </Button>
+            </div>
+            <SurveyEditor
+              initialData={surveyTemplate}
+              onSave={handleSaveSurvey}
+              onCancel={() => !isSaving && setMode('conversation')}
+            />
+          </>
         ) : (
           <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
             <div className="mb-8">
@@ -468,21 +519,13 @@ Based on the conversation, create appropriate survey questions.`
                 </div>
               ))}
             </div>
-            
-            <div className="mt-8 flex justify-end">
-              <Button variant="outline" onClick={() => setMode('editor')} className="mr-2">
-                Edit Survey
-              </Button>
-              <Button onClick={() => setMode('conversation')}>
-                Back to Conversation
-              </Button>
-            </div>
           </div>
         )}
       </div>
     );
   }
 
+  // Rest of the component's return statement for conversation mode
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 pt-8 sm:px-6 lg:px-8">
@@ -523,30 +566,56 @@ Based on the conversation, create appropriate survey questions.`
               initialMessage="Welcome to the Survey Builder! I'll help you create an effective survey for your community. What would you like to learn from your survey?"
               className="h-[60vh]"
               companionName={selectedCompanion?.companion || 'Companion'}
-              selectedCompanion={selectedCompanion}
+              selectedCompanion={selectedCompanion ? {
+                id: selectedCompanion.UUID?.toString() || 'default-id',
+                name: selectedCompanion.companion || 'Companion',
+                description: selectedCompanion.traits || 'A helpful companion',
+                avatar_url: selectedCompanion.avatar_url,
+                companion_type: selectedCompanion.companion_type
+              } : null}
             />
           </div>
         </div>
         
-        <div className="mt-6 flex justify-end">
-          <Button 
+        {/* Add Generate Survey button */}
+        <div className="mt-6 flex justify-center">
+          <Button
             onClick={handleBuildSurvey}
-            disabled={!surveyConversation.length || isGenerating}
-            className="bg-primary hover:bg-primary/90"
+            disabled={isGenerating || !surveyConversation.length}
+            size="lg"
+            className="text-lg px-8 py-6 bg-primary hover:bg-primary/90 text-white font-bold"
           >
             {isGenerating ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generating...
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Generating Survey...
               </>
             ) : (
-              <>
-                <FileText className="mr-2 h-4 w-4" />
-                Generate Survey
-              </>
+              'Generate Survey'
             )}
           </Button>
         </div>
+        
+        <div className="mt-12 flex justify-between items-center p-6">
+  <Button
+    onClick={() => navigate('/clergy-home')}
+    size="lg"
+    variant="outline"
+    className="text-lg px-8 py-6"
+  >
+    <ArrowLeft className="mr-2 h-5 w-5" />
+    Home
+  </Button>
+  <Button
+    onClick={() => navigate('/survey-summary')}
+    size="lg"
+    variant="default"
+    className="text-lg px-8 py-6 bg-primary hover:bg-primary/90 text-white font-bold"
+  >
+    Next Steps
+    <ArrowRight className="ml-2 h-5 w-5" />
+  </Button>
+</div>
       </div>
     </div>
   );
