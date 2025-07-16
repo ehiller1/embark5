@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/lib/auth/AuthProvider";
 import { ConversationInterface, type Message } from "@/components/ConversationInterface";
-import { SurveyPreview } from "@/components/SurveyPreview";
+import { NeighborhoodSurveyPreview } from "@/components/NeighborhoodSurveyPreview";
 import { SurveyEditor } from "@/components/SurveyEditor";
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2, ArrowLeft, ArrowRight, Copy, Check } from "lucide-react";
@@ -321,10 +321,16 @@ const SurveyNeighborhoodBuild = () => {
         title: survey.title,
         description: survey.description,
         created_by: user.id,
+        church_id: churchId, // Save church_id directly in the church_id field
+        survey_type: 'neighborhood', // Add survey_type as a top-level column
         metadata: {
-          survey_type: 'neighborhood',
-          template_data: survey,
-          church_id: churchId
+          template_data: {
+            // Store the original template data
+            title: survey.title,
+            description: survey.description,
+            // Store questions in the standardized location
+            questions: survey.questions
+          }
         },
         updated_at: new Date().toISOString()
       };
@@ -686,7 +692,7 @@ const SurveyNeighborhoodBuild = () => {
 
       <main className="flex-1">
         <div className="p-6">
-          <div className="max-w-4xl mx-auto bg-white rounded-lg shadow overflow-hidden">
+          <div className="max-w-6xl mx-auto bg-white rounded-lg shadow overflow-hidden">
             <div className="p-6">
               <div className="border rounded-lg overflow-hidden mb-6">
                 <ConversationInterface 
@@ -694,9 +700,9 @@ const SurveyNeighborhoodBuild = () => {
                   onError={handleError}
                   systemPrompt={NEIGHBORHOOD_SYSTEM_PROMPT}
                   initialMessage="Welcome to the Neighborhood Survey Builder! I'll help you create an effective survey to understand your local community. What would you like to learn about your neighborhood?"
-                  className="h-[60vh]"
+                  className="h-[70vh]"
                   companionName={selectedCompanion?.companion || 'Companion'}
-                  selectedCompanion={selectedCompanion}
+                  selectedCompanion={selectedCompanion as any}
                 />
               </div>
               
@@ -718,14 +724,6 @@ const SurveyNeighborhoodBuild = () => {
                     </>
                   )}
                 </Button>
-                
-                <Button
-                  onClick={() => navigate('/church-assessment')}
-                  className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-white"
-                >
-                  <span>Next Steps</span>
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
               </div>
             </div>
           </div>
@@ -734,10 +732,10 @@ const SurveyNeighborhoodBuild = () => {
       
       {/* Survey Preview Modal */}
       {generatedSurvey && mode === 'conversation' && (
-        <SurveyPreview
+        <NeighborhoodSurveyPreview
           survey={generatedSurvey}
           onClose={handleClosePreview}
-          onSave={(survey) => {
+          onSave={(survey: SurveyEditorTemplate) => {
             handleSaveSurvey(survey as SurveyEditorTemplate)
               .then(() => setMode('editor'))
               .catch(err => console.error('Error saving survey:', err));

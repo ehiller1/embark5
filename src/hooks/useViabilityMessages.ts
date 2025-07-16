@@ -70,23 +70,9 @@ export function useViabilityMessages() {
       textInputs.input4.trim()
     );
 
-    let initialContent = `Thank you for taking the time to share information about your faith community. `;
+    let initialContent = `Now share other thoughts your have about your community and your neighborhood. `;
 
-    if (hasInputs) {
-      initialContent += `Based on the details you've provided, I can help you evaluate your church's readiness for a property repurposing discernment process.`;
-      
-      if (textInputs.input1.trim()) {
-        initialContent += `\n\nI understand your community is currently facing some challenges. This assessment will help you consider how property repurposing might address those needs.`;
-      }
-      
-      if (textInputs.input2.trim()) {
-        initialContent += `\n\nYour leadership team's readiness is an important factor in this process. We'll explore how to build on your current strengths.`;
-      }
-    } else {
-      initialContent += `This tool is designed to help you evaluate your community's readiness for a property repurposing discernment process.`;
-    }
-
-    initialContent += `\n\nHow This Works\n\n1. Assessment: We'll review key aspects of your community's current situation.\n2. Analysis: I'll help you understand potential opportunities and challenges.\n3. Next Steps: We'll identify concrete actions to move forward.\n\nYou can ask specific questions about your community's readiness, or we can work through the assessment together. What would you like to explore first?`;
+    initialContent += `\n\nHow This Works\n\n1. vWe'll review key aspects of your community's current situation.\n2. I'll help you understand potential opportunities and challenges.\n3. We'll identify concrete actions to move forward.\n\nYou can ask specific questions about your community's readiness, or we can work through the assessment together. What would you like to explore first?`;
     
     const hardcodedContent = initialContent;
     
@@ -112,7 +98,7 @@ export function useViabilityMessages() {
     messageProcessingRef.current = true;
     
     try {
-      // Add user message to the chat immediately for better UX
+// Add user message to the chat immediately for better UX
       const userMessage: Message = {
         id: Date.now(),
         sender: "user",
@@ -136,10 +122,11 @@ export function useViabilityMessages() {
         throw new Error(error as string || 'Failed to get prompt');
       }
 
-      // Generate AI response with full conversation history
+      // Generate AI response with conversation history and the viability prompt
       const response = await generateResponse({
         messages: [
-          { role: "system", content: data.prompt },
+          // Use the viability prompt as the first user message
+          { role: "user", content: data.prompt },
           ...messages
             .filter(msg => msg.sender === 'assistant' || msg.sender === 'user')
             .map(msg => ({
@@ -150,6 +137,7 @@ export function useViabilityMessages() {
         ],
         maxTokens: 800,
         temperature: 0.7,
+        systemPrompt: '' // Explicitly set to empty string to override default
       });
 
       if (!response.text) {

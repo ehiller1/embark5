@@ -1,23 +1,53 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Newspaper, MessageSquare, ShoppingCart, ArrowRight } from 'lucide-react';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
+import { supabase } from '@/integrations/lib/supabase';
 
 // MainLayout will be applied by the router, so no need to include it here.
 
 const ParishHomePage: React.FC = () => {
-  // In a real app, you might fetch church-specific info here based on user's church_id
-  const churchName = "Your Church Community"; // Placeholder
+  const { profile, isLoading } = useUserProfile();
+  const [churchName, setChurchName] = useState<string>("");
+  
+  useEffect(() => {
+    // Get church name from profile if available
+    if (profile && profile.church_id) {
+      const fetchChurchName = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('church_profile')
+            .select('name')
+            .eq('church_id', profile.church_id)
+            .single();
+            
+          if (error) {
+            console.error('Error fetching church name:', error);
+            return;
+          }
+          
+          if (data && data.name) {
+            setChurchName(data.name);
+          }
+        } catch (error) {
+          console.error('Error in church name fetch:', error);
+        }
+      };
+      
+      fetchChurchName();
+    }
+  }, [profile]);
 
   return (
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <header className="mb-10 pb-6 border-b border-gray-200">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl gradient-text">
-          Welcome to {churchName}!
+          {isLoading ? 'Welcome!' : `Welcome to ${churchName} Discernment Process!`}
         </h1>
         <p className="mt-4 text-lg text-gray-600 max-w-3xl">
-          Connect with your church, share your voice, and support our community's growth.
+          Join the discernment.  Share your voice.  Support our community's growth.
         </p>
       </header>
 

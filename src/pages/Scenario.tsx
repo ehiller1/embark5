@@ -234,17 +234,14 @@ export default function ScenarioPage() {
             </div>
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            {finalizedScenarios.length > 0 && (
-              <Button onClick={handleRefineScenarios} variant="outline">
-                Refine All Scenarios
-              </Button>
-            )}
+            {/* 'Refine All Scenarios' button removed as requested */}
             {selectionCount > 0 && (
               <Button
                 onClick={() => handleRefinementSelection(false)}
                 disabled={!storedCompanion}
+                className="btn-next-step"
               >
-                Refine Selected ({selectionCount})
+                Next Step: Refine Scenario ({selectionCount})
               </Button>
             )}
           </div>

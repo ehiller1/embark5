@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Check, AlertTriangle, Loader2 } from 'lucide-react';
 import { cn } from '@/integrations/lib/utils';
@@ -10,6 +10,7 @@ import { NarrativeMessage } from '@/types/NarrativeTypes';
 import { renderMessageContent } from '@/utils/messageUtils';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { HookVocationalStatement } from '@/types/VocationalTypes';
 
 interface EnhancedNarrativeConversationProps {
   messages: NarrativeMessage[];
@@ -21,6 +22,7 @@ interface EnhancedNarrativeConversationProps {
   onRetry: () => void;
   onGenerateCustomStatement?: () => Promise<void>;
   onSaveVocationalStatement?: () => Promise<void>;
+  selectedSecondaryStatement?: HookVocationalStatement | null;
 }
 
 export const EnhancedNarrativeConversation: React.FC<EnhancedNarrativeConversationProps> = ({
@@ -32,7 +34,8 @@ export const EnhancedNarrativeConversation: React.FC<EnhancedNarrativeConversati
   error,
   onRetry,
   onGenerateCustomStatement,
-  onSaveVocationalStatement
+  onSaveVocationalStatement,
+  selectedSecondaryStatement
 }) => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -278,6 +281,37 @@ export const EnhancedNarrativeConversation: React.FC<EnhancedNarrativeConversati
       <ScrollArea className="h-full pr-4" ref={scrollRef as any}>
         <div className="space-y-4 p-1">
           <div className="flex flex-col space-y-4">
+            {/* Display selected secondary vocational statement as a card if available */}
+            {selectedSecondaryStatement && (
+              <Card className="border-primary border-2 bg-primary/5 mb-4">
+                <CardHeader className="flex flex-row items-start space-x-3 p-5 bg-muted/30">
+                  <div className="flex-grow">
+                    <CardTitle className="text-xl leading-tight">{selectedSecondaryStatement.name}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="flex-grow p-5 text-base space-y-3">
+                  {selectedSecondaryStatement.mission_statement && (
+                    <div>
+                      <h4 className="font-semibold text-base mb-1">Mission Statement:</h4>
+                      <p>{selectedSecondaryStatement.mission_statement}</p>
+                    </div>
+                  )}
+                  {selectedSecondaryStatement.contextual_explanation && (
+                    <div>
+                      <h4 className="font-semibold text-base mb-1">Contextual Explanation:</h4>
+                      <p>{selectedSecondaryStatement.contextual_explanation}</p>
+                    </div>
+                  )}
+                  {(!selectedSecondaryStatement.mission_statement && selectedSecondaryStatement.content) && (
+                    <div>
+                      <h4 className="font-semibold text-base mb-1">Content:</h4>
+                      <p>{selectedSecondaryStatement.content}</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+            
             {messages.length > 0 ? (
               messages.map((message, index) => (
                 <Card
@@ -367,7 +401,6 @@ export const EnhancedNarrativeConversation: React.FC<EnhancedNarrativeConversati
               ) : (
                 <>
                   <p className="text-muted-foreground mb-2">No messages yet.</p>
-                  <p className="text-sm text-muted-foreground">Type a message below to start the conversation.</p>
                 </>
               )}
             </div>

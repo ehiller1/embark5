@@ -94,15 +94,15 @@ export function Header() {
                     <Home className="h-4 w-4 mr-2 text-journey-pink" />
                     <span>Home</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleNavigation('/conversation-parish')} className="flex items-center cursor-pointer">
-                    <Users className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Parish Conversations</span>
-                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleNavigation('/conversation-parish-survey')} className="flex items-center cursor-pointer">
                     <MessageCircle className="h-4 w-4 mr-2 text-journey-pink" />
-                    <span>Community Survey</span>
+                    <span>Surveying the Community</span>
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleNavigation('/marketplace')} className="flex items-center cursor-pointer">
+                  <DropdownMenuItem onClick={() => handleNavigation('/conversation-parish')} className="flex items-center cursor-pointer">
+                    <Users className="h-4 w-4 mr-2 text-journey-pink" />
+                    <span>Discernment Plan Conversations </span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleNavigation('/crowdfunding-marketplace')} className="flex items-center cursor-pointer">
                     <ShoppingCart className="h-4 w-4 mr-2 text-journey-pink" />
                     <span>Support Our Mission</span>
                   </DropdownMenuItem>

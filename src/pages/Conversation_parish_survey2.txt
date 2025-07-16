@@ -1,0 +1,876 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useToast } from '@/components/ui/use-toast';
+import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ControlledConversationInterface } from '@/components/ControlledConversationInterface';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Loader2 } from 'lucide-react';
+
+import { supabase } from '@/integrations/lib/supabase';
+import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { v4 as uuidv4 } from 'uuid';
+
+// Types
+interface Message {
+  id: string;
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+}
+
+interface ParishCompanion {
+  id: string;
+  name: string;
+  description?: string;
+  avatar_url?: string;
+  speech_pattern?: string;
+  knowledge_domains?: string;
+  companion_type?: string;
+}
+
+// Survey types
+interface SurveyField {
+  id: string;
+  type: 'text' | 'textarea' | 'radio' | 'checkbox' | 'select';
+  label: string;
+  required: boolean;
+  options?: string[];
+}
+
+interface SurveyTemplate {
+  id?: string;
+  title: string;
+  description: string;
+  fields: SurveyField[];
+}
+
+// Hook to load current user's church ID
+function useChurchId(): { churchId: string | null; loading: boolean } {
+  const [churchId, setChurchId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!userId) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('church_id')
+        .eq('id', userId)
+        .single();
+
+      if (!profileError && profile?.church_id) {
+        setChurchId(profile.church_id);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  return { churchId, loading };
+}
+
+export default function ConversationParishSurvey(): JSX.Element {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { churchId, loading: churchLoading } = useChurchId();
+
+  // Parish companion state
+  const [companions, setCompanions] = useState<ParishCompanion[]>([]);
+  const [loadingCompanions, setLoadingCompanions] = useState(false);
+  const [companionsError, setCompanionsError] = useState<string | null>(null);
+  const [selectedCompanion, setSelectedCompanion] = useState<ParishCompanion | null>(null);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
+  const [isCompanionModalOpen, setIsCompanionModalOpen] = useState(false);
+  const [detailCompanion, setDetailCompanion] = useState<ParishCompanion | null>(null);
+
+  // Conversation state
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loadingPrompt, setLoadingPrompt] = useState(true);
+  const [loadingConversation, setLoadingConversation] = useState(false);
+  const [conversationId, setConversationId] = useState<number | null>(null);
+  const hasInitialized = useRef(false);
+
+  // Survey state
+  const [surveyTemplate, setSurveyTemplate] = useState<SurveyTemplate | null>(null);
+  const [surveyResponses, setSurveyResponses] = useState<Record<string, any>>({});
+  const [loadingSurvey, setLoadingSurvey] = useState(false);
+  const [submittingSurvey, setSubmittingSurvey] = useState(false);
+  const [surveySubmitted, setSurveySubmitted] = useState(false);
+
+  // Load companions
+  useEffect(() => {
+    const loadCompanions = async () => {
+      setLoadingCompanions(true);
+      try {
+        const { data: companionsData, error } = await supabase
+          .from('Companion_parish')
+          .select('*');
+        if (error) throw error;
+
+        const mapped = (companionsData || []).map(item => ({
+          id: item.UUID ?? '',
+          name: item.companion ?? '',
+          description: item.traits ?? '',
+          knowledge_domains: item.knowledge_domains ?? '',
+          avatar_url: item.avatar_url ?? ''
+        }));
+
+        setCompanions(mapped);
+      } catch (err: any) {
+        setCompanionsError(err.message);
+        setCompanions([]);
+      } finally {
+        setLoadingCompanions(false);
+      }
+    };
+    loadCompanions();
+  }, []);
+
+  // Load selected companion key from localStorage when ready
+  useEffect(() => {
+    if (!churchLoading && !loadingCompanions) {
+      const stored = localStorage.getItem('parish_companion');
+      if (stored) {
+        try {
+          setSelectedCompanion(JSON.parse(stored));
+        } catch {}
+      }
+    }
+  }, [churchLoading, loadingCompanions]);
+
+  // Fetch survey template
+  const fetchSurveyTemplate = useCallback(async () => {
+    if (!churchId) return;
+    
+    setLoadingSurvey(true);
+    try {
+      console.log('[fetchSurveyTemplate] Fetching survey for church_id:', churchId);
+      
+      // Get the latest survey template for this church (newest first)
+      const { data, error } = await supabase
+        .from('survey_templates')
+        .select('*')
+        .eq('church_id', churchId)
+        .order('updated_at', { ascending: false }) // newest record first
+        .limit(1)
+        .single();
+      
+      if (error) throw error;
+      
+      console.log('[fetchSurveyTemplate] Raw survey data received:', JSON.stringify(data));
+      
+      if (data) {
+        // Try to get template data from different possible locations
+        const templateData = data.metadata?.template_data || data.template_data || data.metadata;
+        console.log('[fetchSurveyTemplate] Extracted template data:', templateData);
+        
+        if (templateData) {
+          setSurveyTemplate(templateData);
+        } else {
+          console.error('[fetchSurveyTemplate] No template data found in response');
+        }
+      } else {
+        console.log('[fetchSurveyTemplate] No survey templates found for this church');
+      }
+    } catch (err) {
+      console.error('Error fetching survey template:', err);
+      // Don't show an error toast as the survey might not exist yet
+    } finally {
+      setLoadingSurvey(false);
+    }
+  }, [churchId]);
+
+  // Fetch survey template when churchId is available
+  useEffect(() => {
+    if (churchId) {
+      console.log('[Survey] Church ID available, fetching survey template:', churchId);
+      fetchSurveyTemplate();
+    } else {
+      console.log('[Survey] No church ID available yet, waiting...');
+    }
+  }, [churchId, fetchSurveyTemplate]);
+
+  // Handle survey response changes
+  const handleSurveyResponseChange = (fieldId: string, value: any) => {
+    setSurveyResponses(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+  };
+
+  // Handle survey submission
+  const handleSubmitSurvey = async () => {
+    if (!churchId || !surveyTemplate) return;
+    
+    // Validate required fields
+    const missingRequired = surveyTemplate.fields
+      .filter(field => field.required && !surveyResponses[field.id])
+      .map(field => field.label);
+    
+    if (missingRequired.length > 0) {
+      toast({
+        title: "Missing Required Fields",
+        description: `Please fill out the following required fields: ${missingRequired.join(', ')}`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setSubmittingSurvey(true);
+    try {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error('Unauthenticated');
+      const userId = userData.user.id;
+      
+      // Step 1: Check if a user_survey record exists for this template and user
+      const { data: existingUserSurvey, error: userSurveyError } = await supabase
+        .from('user_surveys')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('survey_template_id', surveyTemplate.id)
+        .maybeSingle();
+
+      if (userSurveyError) throw userSurveyError;
+      
+      // Step 2: Create or update the user_survey record
+      let userSurveyId: string;
+      
+      if (existingUserSurvey) {
+        // Update existing user survey status
+        const { error: updateError } = await supabase
+          .from('user_surveys')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', existingUserSurvey.id);
+          
+        if (updateError) throw updateError;
+        
+        userSurveyId = existingUserSurvey.id;
+      } else {
+        // Create new user survey
+        const { data: newUserSurvey, error: createError } = await supabase
+          .from('user_surveys')
+          .insert({
+            user_id: userId,
+            survey_template_id: surveyTemplate.id,
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            church_id: churchId // Adding church_id for easier querying
+          })
+          .select('id')
+          .single();
+          
+        if (createError || !newUserSurvey) throw createError || new Error('Failed to create survey record');
+        
+        userSurveyId = newUserSurvey.id;
+      }
+      
+      // Step 3: Save each question response
+      const responsePromises = Object.entries(surveyResponses).map(async ([questionId, response]) => {
+        // Check if response exists for this question
+        const { data: existingResponse } = await supabase
+          .from('survey_responses')
+          .select('id')
+          .eq('user_survey_id', userSurveyId)
+          .eq('question_id', questionId)
+          .maybeSingle();
+        
+        if (existingResponse) {
+          // Update existing response
+          return supabase
+            .from('survey_responses')
+            .update({
+              response: response
+            })
+            .eq('id', existingResponse.id);
+        } else {
+          // Create new response
+          return supabase
+            .from('survey_responses')
+            .insert({
+              user_survey_id: userSurveyId,
+              question_id: questionId,
+              response: response
+            });
+        }
+      });
+      
+      // Wait for all responses to be saved
+      const results = await Promise.all(responsePromises);
+      
+      // Check for errors in any of the response operations
+      const errors = results.filter(result => result.error).map(result => result.error);
+      if (errors.length > 0) {
+        console.error('Errors saving survey responses:', errors);
+        throw new Error('Some responses failed to save');
+      }
+      
+      toast({
+        title: "Success",
+        description: "Your survey responses have been submitted. Thank you!",
+      });
+      
+      // Mark survey as submitted
+      setSurveySubmitted(true);
+      
+    } catch (err: any) {
+      console.error('Error submitting survey:', err);
+      toast({
+        title: "Error",
+        description: err.message || "Failed to submit survey responses",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmittingSurvey(false);
+    }
+  };
+
+  // Save conversation
+ const saveConversation = useCallback(
+  async (msgs: Message[]): Promise<boolean> => {
+    if (!churchId || !selectedCompanion) return false;
+
+    try {
+      // Get the authenticated user ID
+      const { data: userData, error: userError } = await supabase.auth.getUser();
+      console.log('[saveConversation] Supabase userData:', userData);
+      console.log('[saveConversation] Supabase userError:', userError);
+      if (userError || !userData.user) throw userError || new Error('Unauthenticated');
+      const userId = userData.user.id;
+      
+      // Filter out system and assistant messages before saving
+      const filteredMessages = msgs.filter(msg => msg.role === 'user');
+      console.log('[saveConversation] Filtered messages:', 
+        `${msgs.length - filteredMessages.length} system/assistant message(s) removed, ${filteredMessages.length} user message(s) retained`);
+      console.log('[saveConversation] Only saving user messages to conversation_history');
+      
+      // Transform messages to use sender instead of role to match DB format
+      const transformedMessages = filteredMessages.map(msg => ({
+        id: msg.id,
+        sender: msg.role,  // Convert role to sender
+        content: msg.content,
+        timestamp: msg.timestamp
+      }));
+      
+      console.log('[saveConversation] Transformed messages to use sender instead of role:',
+        transformedMessages.length > 0 ? JSON.stringify(transformedMessages[0]).substring(0, 100) + '...' : 'No messages');
+
+      // Upsert into your table—note the use of `conversation_history` and `conversation_page`
+      const { data, error } = await supabase
+        .from('conversation_history')
+        .upsert({
+          id: conversationId ?? undefined,
+          user_id: userId,
+          church_id: churchId,
+          conversation_history: { messages: transformedMessages }, // Use transformed messages with sender instead of role
+          conversation_page: 'parish_survey'
+        })
+        .select('id')
+        .single();
+
+      if (error) {
+        console.error('[saveConversation] Supabase upsert error:', error);
+        throw error;
+      }
+      setConversationId(data.id);
+      return true;
+    } catch {
+      // Fallback to localStorage if the DB write fails
+      try {
+        // Also filter system messages for localStorage fallback
+        const filteredMessages = msgs.filter(msg => msg.role !== 'system');
+        const storage = JSON.parse(localStorage.getItem('conversations') || '{}');
+        const key = `church_${churchId}_companion_${selectedCompanion.id}`;
+        storage[key] = { messages: filteredMessages, savedAt: new Date().toISOString() };
+        localStorage.setItem('conversations', JSON.stringify(storage));
+        return true;
+      } catch {
+        return false;
+      }
+    }
+  },
+  [churchId, selectedCompanion, conversationId]
+);
+
+  // Generate AI response with detailed logging
+  const generateAIResponse = useCallback(
+    async (msgs: Message[]): Promise<Message> => {
+      setLoadingConversation(true);
+      const requestId = uuidv4().substring(0, 8);
+      
+      try {
+        // Prepare and log the request
+        const formatted = msgs.map(({ role, content }) => ({ role, content }));
+        const requestBody = { 
+          messages: formatted, 
+          model: 'gpt-4',
+          request_id: requestId
+        };
+
+        console.group(`[${requestId}] OpenAI API Request`);
+        console.log('Request Payload:', {
+          messages: formatted.map(m => ({
+            role: m.role,
+            content: m.content.substring(0, 100) + (m.content.length > 100 ? '...' : '')
+          })),
+          model: 'gpt-4'
+        });
+        console.log('Full Messages:', formatted);
+        console.groupEnd();
+
+        // Make the API call
+        const { data, error } = await supabase.functions.invoke('openai', {
+          body: requestBody
+        });
+
+        if (error) {
+          console.error(`[${requestId}] OpenAI API Error:`, error);
+          throw error;
+        }
+
+        // Log the raw response
+        console.group(`[${requestId}] OpenAI API Raw Response`);
+        console.log('Raw Response:', data);
+        console.groupEnd();
+
+        // Process the response
+        let content = '';
+        if (data?.text) {
+          content = data.text;
+          try {
+            const parsed = JSON.parse(data.text);
+            console.log(`[${requestId}] Parsed Response:`, parsed);
+            
+            if (parsed.messages?.length) {
+              content = parsed.messages[0].content;
+            } else if (parsed.content) {
+              content = parsed.content;
+            }
+          } catch (parseError) {
+            console.log(`[${requestId}] Response is not JSON, using as plain text`);
+          }
+        } else if (data?.choices?.[0]?.message?.content) {
+          content = data.choices[0].message.content;
+        } else {
+          console.error(`[${requestId}] Unrecognized response format:`, data);
+          throw new Error('Unrecognized API response');
+        }
+
+        if (!content) {
+          console.error(`[${requestId}] Empty content in response`);
+          throw new Error('Empty response from AI');
+        }
+
+        // Log the processed response
+        console.log(`[${requestId}] Processed AI Response:`, {
+          contentLength: content.length,
+          contentPreview: content.substring(0, 100) + (content.length > 100 ? '...' : '')
+        });
+
+        return {
+          id: uuidv4(),
+          role: 'assistant',
+          content,
+          timestamp: new Date().toISOString()
+        };
+      } catch (error) {
+        console.error(`[${requestId}] Error in generateAIResponse:`, {
+          error,
+          errorMessage: error instanceof Error ? error.message : 'Unknown error'
+        });
+        throw error;
+      } finally {
+        setLoadingConversation(false);
+      }
+    },
+    []
+  );
+
+  // Initialize conversation
+  const initConversation = useCallback(async () => {
+    setLoadingPrompt(true);
+    try {
+      const { data: promptRecord } = await supabase
+        .from('prompts')
+        .select('prompt')
+        .eq('prompt_type', 'survey')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      if (!promptRecord?.prompt) throw new Error('No survey prompt found');
+
+      const { data: authData } = await supabase.auth.getUser();
+      const userId = authData.user?.id;
+      if (!userId) throw new Error('Unauthenticated');
+
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('church_id')
+        .eq('id', userId)
+        .single();
+      if (!profileData?.church_id) throw new Error('No church ID');
+
+      const { data: churchProfiles } = await supabase
+        .from('church_profile')
+        .select('*')
+        .eq('church_id', profileData.church_id);
+      const churchProfile = churchProfiles?.[0] || {};
+
+      const params = {
+        accomplish: churchProfile.accomplish || '',
+        community_description: churchProfile.community_description || '',
+        dream: churchProfile.dream || '',
+        parish_companion: selectedCompanion?.name || 'Your Companion',
+        active_members: churchProfile.number_of_active_members || '',
+        pledging_members: churchProfile.number_of_pledging_members || ''
+      };
+
+      let systemContent = promptRecord.prompt;
+      Object.entries(params).forEach(([key, val]) => {
+        systemContent = systemContent.replace(
+          new RegExp(`\\$\\(${key}\\)`, 'g'),
+          val as string
+        );
+      });
+      if (selectedCompanion?.knowledge_domains) {
+        systemContent += `\n\nExpertise areas: ${selectedCompanion.knowledge_domains}`;
+      }
+
+      const systemMessage: Message = {
+        id: uuidv4(),
+        role: 'system',
+        content: systemContent,
+        timestamp: new Date().toISOString()
+      };
+      const initialAssistant: Message = {
+        id: uuidv4(),
+        role: 'assistant',
+        content: "Welcome! I'm here to help you with the parish survey. What would you like to share?",
+        timestamp: new Date().toISOString()
+      };
+
+      setMessages([systemMessage, initialAssistant]);
+      await saveConversation([systemMessage, initialAssistant]);
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    } finally {
+      setLoadingPrompt(false);
+    }
+  }, [selectedCompanion, saveConversation, toast]);
+
+  // Initialize once
+  useEffect(() => {
+    if (selectedCompanion && churchId && !hasInitialized.current) {
+      hasInitialized.current = true;
+      if (messages.length === 0) {
+        initConversation();
+      }
+    }
+  }, [selectedCompanion, churchId, initConversation, messages.length]);
+
+  // Auto-save on unload or unmount
+  useEffect(() => {
+    // Skip if no messages or companion, or if there are no user messages to save
+    if (messages.length === 0 || !selectedCompanion || !messages.some(msg => msg.role === 'user')) return;
+    
+    const handler = () => { void saveConversation(messages); };
+    window.addEventListener('beforeunload', handler);
+    
+    // Only save on component unmount, not on every messages change
+    return () => {
+      window.removeEventListener('beforeunload', handler);
+      void saveConversation(messages);
+    };
+  }, [selectedCompanion, saveConversation]); // Remove messages dependency
+
+  // Prompt for companion selection
+  useEffect(() => {
+    if (!churchLoading && !selectedCompanion && !loadingCompanions) {
+      setIsCompanionModalOpen(true);
+    }
+  }, [churchLoading, loadingCompanions, selectedCompanion]);
+
+  // Handlers
+  const handleSendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || !churchId) return;
+      if (!selectedCompanion) {
+        toast({ title: 'Error', description: 'Please select a companion first', variant: 'destructive' });
+        setIsCompanionModalOpen(true);
+        return;
+      }
+      setLoadingConversation(true);
+      const userMsg: Message = {
+        id: uuidv4(),
+        role: 'user',
+        content: trimmed,
+        timestamp: new Date().toISOString()
+      };
+      const updated = [...messages, userMsg];
+      setMessages(updated);
+      await saveConversation(updated);
+
+      try {
+        const aiMsg = await generateAIResponse(updated);
+        const next = [...updated, aiMsg];
+        setMessages(next);
+        await saveConversation(next);
+      } catch (err: any) {
+        toast({ title: 'Error', description: err.message, variant: 'destructive' });
+      } finally {
+        setLoadingConversation(false);
+      }
+    },
+    [churchId, selectedCompanion, messages, saveConversation, generateAIResponse, toast]
+  );
+
+  const handleImageError = useCallback((id: string) => {
+    setImageErrors(prev => ({ ...prev, [id]: true }));
+  }, []);
+
+  const handleCompanionSelect = useCallback((companion: ParishCompanion) => {
+    setSelectedCompanion(companion);
+    localStorage.setItem('parish_companion', JSON.stringify(companion));
+    setIsCompanionModalOpen(false);
+  }, []);
+
+  // Combined save of survey + conversation
+  const handleNextSteps = async () => {
+    try {
+      await handleSubmitSurvey();
+      await saveConversation(messages);
+      toast({ title: 'Saved', description: 'Survey and conversation stored.' });
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message, variant: 'destructive' });
+    }
+  };
+
+  // Render a survey question based on its type
+  const renderSurveyQuestion = (field: SurveyField) => {
+    switch (field.type) {
+      case 'text':
+        return (
+          <Input 
+            value={surveyResponses[field.id] || ''}
+            onChange={(e) => handleSurveyResponseChange(field.id, e.target.value)}
+            placeholder="Your answer"
+            className="max-w-md"
+            disabled={surveySubmitted}
+          />
+        );
+      case 'textarea':
+        return (
+          <Textarea
+            value={surveyResponses[field.id] || ''}
+            onChange={(e) => handleSurveyResponseChange(field.id, e.target.value)}
+            placeholder="Your answer"
+            className="max-w-md"
+            disabled={surveySubmitted}
+          />
+        );
+      case 'radio':
+        return (
+          <div className="space-y-2">
+            {field.options?.map((option, i) => (
+              <div key={i} className="flex items-center">
+                <input
+                  type="radio"
+                  id={`${field.id}-${i}`}
+                  name={field.id}
+                  checked={surveyResponses[field.id] === option}
+                  onChange={() => handleSurveyResponseChange(field.id, option)}
+                  className="mr-2"
+                  disabled={surveySubmitted}
+                />
+                <Label htmlFor={`${field.id}-${i}`}>{option}</Label>
+              </div>
+            ))}
+          </div>
+        );
+      case 'checkbox':
+        return (
+          <div className="space-y-2">
+            {field.options?.map((option, i) => {
+              const values = surveyResponses[field.id] || [];
+              return (
+                <div key={i} className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id={`${field.id}-${i}`}
+                    checked={values.includes(option)}
+                    onChange={(e) => {
+                      const currentValues = [...(surveyResponses[field.id] || [])];
+                      if (e.target.checked) {
+                        handleSurveyResponseChange(field.id, [...currentValues, option]);
+                      } else {
+                        handleSurveyResponseChange(
+                          field.id,
+                          currentValues.filter(v => v !== option)
+                        );
+                      }
+                    }}
+                    className="mr-2"
+                    disabled={surveySubmitted}
+                  />
+                  <Label htmlFor={`${field.id}-${i}`}>{option}</Label>
+                </div>
+              );
+            })}
+          </div>
+        );
+      case 'select':
+        return (
+          <select
+            value={surveyResponses[field.id] || ''}
+            onChange={(e) => handleSurveyResponseChange(field.id, e.target.value)}
+            className="w-full max-w-md p-2 border border-gray-300 rounded"
+            disabled={surveySubmitted}
+          >
+            <option value="">Select an option</option>
+            {field.options?.map((option, i) => (
+              <option key={i} value={option}>{option}</option>
+            ))}
+    {loadingSurvey ? (
+      <Card className="mb-8">
+        <CardContent className="flex items-center justify-center p-8">
+          <Loader2 className="h-8 w-8 animate-spin mr-2" />
+          <p>Loading survey...</p>
+        </CardContent>
+      </Card>
+    ) : surveyTemplate ? (
+      <Card className="mb-8">
+        <CardHeader>
+          <CardTitle>{surveyTemplate.title || 'Survey'}</CardTitle>
+          <CardDescription>{surveyTemplate.description || 'Please complete this survey'}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {surveySubmitted ? (
+            <div className="bg-green-50 p-4 rounded-md text-green-800 mb-4">
+              Thank you for completing the survey! Your responses have been submitted.
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {surveyTemplate.fields.map((field, index) => (
+                <div key={field.id} className="border-b border-gray-200 pb-4 last:border-0">
+                  <div className="mb-2 flex items-start">
+                    <span className="font-medium mr-1">{index + 1}.</span>
+                    <span className="font-medium">{field.label}</span>
+                    {field.required && <span className="text-red-500 ml-1">*</span>}
+                  </div>
+                  {renderSurveyQuestion(field)}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    ) : null}
+
+    {/* Companion-selection dialog */}
+    <Dialog open={isCompanionModalOpen} onOpenChange={setIsCompanionModalOpen}>
+      <DialogContent className="w-full max-w-[800px] max-h-[600px] overflow-y-auto p-6">
+        <DialogHeader>
+          <DialogTitle className="text-lg font-semibold">Choose a Companion</DialogTitle>
+          <p className="text-sm text-muted-foreground mt-1">
+            Select one of the companions below to start the conversation.
+          </p>
+        </DialogHeader>
+        <div className="grid grid-cols-3 gap-3 py-2">
+          {loadingCompanions && <p className="text-xs col-span-3">Loading companions...</p>}
+          {companionsError && (
+            <p className="text-xs text-red-500 col-span-3">Error: {companionsError}</p>
+          )}
+          {companions.map((companion) => (
+            <div key={companion.id} className="relative">
+              <input
+                type="radio"
+                name="companion_select"
+                className="absolute top-2 left-2 h-4 w-4 text-[#C46659] focus:ring-[#C46659]"
+                checked={selectedCompanion?.id === companion.id}
+                onChange={() => setSelectedCompanion(companion)}
+              />
+              <Button
+                variant="outline"
+                className="flex-col items-start h-auto p-3 text-left space-y-2 w-full"
+                onClick={() => setDetailCompanion(companion)}
+              >
+                <Avatar className="h-16 w-16 self-center">
+                  <AvatarFallback>{companion.name.charAt(0)}</AvatarFallback>
+                  {companion.avatar_url && <AvatarImage src={companion.avatar_url} />}
+                </Avatar>
+                <div className="w-full">
+                  <p className="font-medium truncate leading-snug">{companion.name}</p>
+                  {companion.knowledge_domains && (
+                    <p className="text-xs text-muted-foreground line-clamp-2">
+                      {companion.knowledge_domains}
+                    </p>
+                  )}
+                </div>
+              </Button>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+
+    {/* Companion detail dialog */}
+    {detailCompanion && (
+      <Dialog open={!!detailCompanion} onOpenChange={() => setDetailCompanion(null)}>
+        <DialogContent className="max-w-md p-6">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-semibold flex items-center gap-2">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback>{detailCompanion.name.charAt(0)}</AvatarFallback>
+                {detailCompanion.avatar_url && <AvatarImage src={detailCompanion.avatar_url} />}
+              </Avatar>
+              {detailCompanion.name}
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm my-2 whitespace-pre-line">
+            {detailCompanion.description || 'No description provided.'}
+          </p>
+          {detailCompanion.knowledge_domains && (
+            <p className="text-sm text-muted-foreground">
+              Domains: {detailCompanion.knowledge_domains}
+            </p>
+         )}
+        </Dialog>
+
+        <div className="h-[500px] bg-white rounded-xl shadow-sm border overflow-hidden">
+          {loadingPrompt ? (
+            <div className="flex items-center justify-center h-full">Loading...</div>
+          ) : (
+            <ControlledConversationInterface
+              messages={messages.filter(m => m.role !== 'system')}
+              onSendMessage={handleSendMessage}
+              isLoading={loadingConversation}
+            />
+          )}
+        </div>
+
+        {/* Bottom Next Steps button */}
+        <div className="flex justify-end mt-6">
+          <Button
+            onClick={handleNextSteps}
+            disabled={submittingSurvey}
+            className="btn-next-step"
+          >
+            Next Step: Submit Survey and your Opinions
+          </Button>
+        </div>
+      </div>
+  );
+}

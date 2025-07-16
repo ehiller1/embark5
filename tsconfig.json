@@ -26,5 +26,6 @@
     "noEmit": true
   },
   "include": ["src"],
+  "exclude": ["src/pages/Conversation.bak"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

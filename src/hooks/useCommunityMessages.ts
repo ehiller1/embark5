@@ -19,8 +19,7 @@ const STORAGE_KEY = "community_assessment_messages";
 export function useCommunityMessages() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [autoScroll, setAutoScroll] = useState(true);
-  const [isInitialMessageGenerated, setIsInitialMessageGenerated] = useState(false);
-  const initialMessageInProgressRef = useRef(false);
+  const [isFirstUserMessageSent, setIsFirstUserMessageSent] = useState(false);
   const messageProcessingRef = useRef(false);
   const { selectedCompanion } = useSelectedCompanion();
   const { generateResponse, isLoading } = useOpenAI();
@@ -45,7 +44,8 @@ export function useCommunityMessages() {
         if (parsedMessages.length > 0) {
           console.log('[useCommunityMessages] Loaded stored messages:', parsedMessages.length);
           setMessages(parsedMessages);
-          setIsInitialMessageGenerated(true);
+          // Mark as first user message sent if we have stored messages
+          setIsFirstUserMessageSent(true);
         }
       }
     } catch (error) {
@@ -60,90 +60,11 @@ export function useCommunityMessages() {
     }
   }, [messages]);
 
-  // Generate initial message
+  // This function is kept for compatibility but doesn't generate a message anymore
   const generateInitialMessage = async () => {
-    // Skip if already generated or in progress
-    if (isInitialMessageGenerated || initialMessageInProgressRef.current || messages.length > 0) {
-      console.log('[useCommunityMessages] Skipping initial message generation - already exists');
-      return;
-    }
-    
-    // Set both flags before any async operations
-    initialMessageInProgressRef.current = true;
-    setIsInitialMessageGenerated(true);
-    
-    console.log('[useCommunityMessages] Starting initial message generation');
-    
-    // Add a temporary loading message
-    const loadingMessage: Message = {
-      id: Date.now(),
-      sender: "assistant",
-      content: "Thinking...",
-      timestamp: new Date(),
-    };
-    setMessages([loadingMessage]);
-
-    try {
-      // Get the community assessment prompt
-      const { success, data, error } = await getAndPopulatePrompt('community_assessment', {
-        companion_name: selectedCompanion?.companion || '',
-        companion_type: selectedCompanion?.companion_type || '',
-        companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : '',
-        companion_speech_pattern: selectedCompanion?.speech_pattern || '',
-        companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
-        companion_avatar: selectedCompanion?.avatar_url || '',
-        location: localStorage.getItem('user_location') || '[Location not specified]',
-        community_avatar_name: sectionAvatar?.name || 'Information Gatherer',
-        community_avatar_description: sectionAvatar?.description || 'An assistant focused on community assessment'
-      });
-
-      if (!success || !data) {
-        throw new Error(error as string || 'Failed to get prompt');
-      }
-
-      console.log('[useCommunityMessages] Successfully retrieved prompt');
-
-      // Generate AI response
-      const response = await generateResponse({
-        messages: [
-          { role: "system", content: data.prompt },
-          { role: "user", content: "I want to understand my community and its role in the discernment process." }
-        ],
-        maxTokens: 500,
-        temperature: 0.7,
-      });
-
-      if (!response.text) {
-        throw new Error(response.error || "Failed to generate response");
-      }
-      
-      // Replace the loading message with the actual response
-      const aiMessage: Message = {
-        id: Date.now(),
-        sender: "assistant",
-        content: response.text.trim(),
-        timestamp: new Date(),
-      };
-      
-      setMessages([aiMessage]);
-      console.log('[useCommunityMessages] Initial message generated successfully');
-    } catch (error) {
-      console.error('[useCommunityMessages] Error generating initial message:', error);
-      const errorMessage: Message = {
-        id: Date.now(),
-        sender: "assistant",
-        content: "I apologize, but I encountered an error while generating the initial message. Please try refreshing the page.",
-        timestamp: new Date(),
-      };
-      setMessages([errorMessage]);
-      toast({
-        title: "Error",
-        description: "Failed to generate initial message. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      initialMessageInProgressRef.current = false;
-    }
+    // No-op - we don't want to generate an initial message automatically
+    console.log('[useCommunityMessages] Initial message generation skipped - will be generated after first user input');
+    return;
   };
 
   // Handle sending messages
@@ -170,17 +91,7 @@ export function useCommunityMessages() {
         throw new Error(error as string || 'Failed to get prompt');
       }
 
-      // Create message history for the API
-      const messageHistory = [
-        { role: "system", content: data.prompt },
-        ...messages.map((msg) => ({
-          role: msg.sender === "user" ? "user" : "assistant",
-          content: msg.content,
-        })),
-        { role: "user", content },
-      ];
-
-      // Add user message and loading message in a single update
+      // Add user message
       const userMessage: Message = {
         id: Date.now(),
         sender: "user",
@@ -195,7 +106,26 @@ export function useCommunityMessages() {
         timestamp: new Date(),
       };
       
+      // Add user message and loading message
       setMessages(prev => [...prev, userMessage, loadingMessage]);
+
+      // Track that first user message has been sent
+      if (!isFirstUserMessageSent) {
+        setIsFirstUserMessageSent(true);
+      }
+      
+      // Create message history for the API - include the initial system message
+      // and all existing messages plus the new user message
+      const messageHistory = [
+        { role: "system", content: data.prompt },
+        // If this is the first user message, include the initial system message prompt
+        ...(messages.length === 0 ? [{ role: "user", content: "I want to understand my community and its role in the discernment process." }] : []),
+        ...messages.map((msg) => ({
+          role: msg.sender === "user" ? "user" : "assistant",
+          content: msg.content,
+        })),
+        { role: "user", content },
+      ];
 
       // Generate AI response
       const response = await generateResponse({
@@ -245,10 +175,12 @@ export function useCommunityMessages() {
 
   return {
     messages,
+    setMessages,
     isLoading,
     generateInitialMessage,
     handleSendMessage,
     autoScroll,
-    setAutoScroll
+    setAutoScroll,
+    isFirstUserMessageSent,
   };
 }

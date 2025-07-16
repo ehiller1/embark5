@@ -6,7 +6,6 @@ import { toast } from "./ui/use-toast";
 import { Input } from "./ui/input";
 import { Textarea } from "./ui/textarea";
 
-
 interface Question {
   id: string;
   text: string;
@@ -15,7 +14,7 @@ interface Question {
   required: boolean;
 }
 
-interface SurveyPreviewProps {
+interface NeighborhoodSurveyPreviewProps {
   survey: {
     title: string;
     description: string;
@@ -28,176 +27,171 @@ interface SurveyPreviewProps {
   isEditable?: boolean;
 }
 
-export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId, churchId, isEditable = true }: SurveyPreviewProps) {
+export function NeighborhoodSurveyPreview({
+  survey: initialSurvey,
+  onClose,
+  onSave,
+  surveyId,
+  churchId,
+  isEditable = false,
+}: NeighborhoodSurveyPreviewProps) {
   const navigate = useNavigate();
-  const [survey, setSurvey] = useState(initialSurvey);
-  const [responses, setResponses] = useState<Record<string, string>>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isCopied, setIsCopied] = useState(false);
-  const [isPrinting, setIsPrinting] = useState(false);
+  const [survey, setSurvey] = useState({...initialSurvey});
   const [editMode, setEditMode] = useState(false);
+  const [responses, setResponses] = useState<Record<string, string>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [surveyUrl, setSurveyUrl] = useState<string | null>(null);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [isCopied, setIsCopied] = useState(false);
 
-  // Generate a church-specific URL
-  const surveyLink = surveyId ? `${window.location.origin}/survey/${churchId}/${surveyId}` : '';
-
-  const handleResponseChange = (questionId: string, value: string) => {
-    setResponses(prev => ({
-      ...prev,
-      [questionId]: value
-    }));
-  };
-
-  const handleCopyLink = async () => {
-    if (!surveyLink) return;
-    try {
-      await navigator.clipboard.writeText(surveyLink);
-      setIsCopied(true);
-      toast({
-        title: "Link copied to clipboard",
-        description: "Share this link with your community to collect responses.",
-      });
-      setTimeout(() => setIsCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy link:', err);
-      toast({
-        title: "Error",
-        description: "Failed to copy link to clipboard.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Edit survey title
+  // Handle title change in edit mode
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSurvey(prev => ({
       ...prev,
-      title: e.target.value
+      title: e.target.value,
     }));
   };
 
-  // Edit survey description
+  // Handle description change in edit mode
   const handleDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setSurvey(prev => ({
       ...prev,
-      description: e.target.value
+      description: e.target.value,
     }));
   };
 
-  // Edit question text
-  const handleQuestionTextChange = (questionId: string, text: string) => {
+  // Handle question text change in edit mode
+  const handleQuestionTextChange = (questionId: string, newText: string) => {
     setSurvey(prev => ({
       ...prev,
       questions: prev.questions.map(q => 
-        q.id === questionId ? { ...q, text } : q
-      )
+        q.id === questionId ? { ...q, text: newText } : q
+      ),
     }));
   };
 
-  // Edit question options
-  const handleOptionChange = (questionId: string, index: number, value: string) => {
+  // Handle question type change in edit mode
+  const handleQuestionTypeChange = (questionId: string, newType: 'text' | 'multiple_choice' | 'rating' | 'boolean') => {
+    setSurvey(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => 
+        q.id === questionId ? { 
+          ...q, 
+          type: newType,
+          // Initialize options if switching to multiple_choice and none exist
+          options: newType === 'multiple_choice' && (!q.options || q.options.length === 0) 
+            ? ['Option 1', 'Option 2'] 
+            : q.options 
+        } : q
+      ),
+    }));
+  };
+
+  // Handle question required toggle in edit mode
+  const handleQuestionRequiredChange = (questionId: string, isRequired: boolean) => {
+    setSurvey(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => 
+        q.id === questionId ? { ...q, required: isRequired } : q
+      ),
+    }));
+  };
+
+  // Handle option text change for multiple choice questions
+  const handleOptionTextChange = (questionId: string, optionIndex: number, newText: string) => {
     setSurvey(prev => ({
       ...prev,
       questions: prev.questions.map(q => {
         if (q.id === questionId && q.options) {
           const newOptions = [...q.options];
-          newOptions[index] = value;
+          newOptions[optionIndex] = newText;
           return { ...q, options: newOptions };
         }
         return q;
-      })
+      }),
     }));
   };
 
-  // Add option to multiple choice question
+  // Add a new option to a multiple choice question
   const addOption = (questionId: string) => {
     setSurvey(prev => ({
       ...prev,
       questions: prev.questions.map(q => {
         if (q.id === questionId) {
-          const options = q.options || [];
-          return { ...q, options: [...options, `Option ${options.length + 1}`] };
+          const currentOptions = q.options || [];
+          return { 
+            ...q, 
+            options: [...currentOptions, `Option ${currentOptions.length + 1}`] 
+          };
         }
         return q;
-      })
+      }),
     }));
   };
 
-  // Remove option from multiple choice question
-  const removeOption = (questionId: string, index: number) => {
+  // Remove an option from a multiple choice question
+  const removeOption = (questionId: string, optionIndex: number) => {
     setSurvey(prev => ({
       ...prev,
       questions: prev.questions.map(q => {
         if (q.id === questionId && q.options && q.options.length > 1) {
           const newOptions = [...q.options];
-          newOptions.splice(index, 1);
+          newOptions.splice(optionIndex, 1);
           return { ...q, options: newOptions };
         }
         return q;
-      })
+      }),
     }));
   };
 
-  // Toggle question required status
-  const toggleRequired = (questionId: string) => {
-    setSurvey(prev => ({
-      ...prev,
-      questions: prev.questions.map(q => 
-        q.id === questionId ? { ...q, required: !q.required } : q
-      )
-    }));
-  };
-
-  // Add new question
+  // Add a new question to the survey
   const addQuestion = () => {
-    const newQuestion: Question = {
-      id: `q${Date.now()}`,
-      text: 'New question',
-      type: 'text',
-      required: true
-    };
-
+    const newQuestionId = `q${Date.now()}`;
     setSurvey(prev => ({
       ...prev,
-      questions: [...prev.questions, newQuestion]
+      questions: [
+        ...prev.questions,
+        {
+          id: newQuestionId,
+          text: 'New Question',
+          type: 'text',
+          required: false,
+        }
+      ],
     }));
   };
 
-  // Remove question
+  // Remove a question from the survey
   const removeQuestion = (questionId: string) => {
     setSurvey(prev => ({
       ...prev,
-      questions: prev.questions.filter(q => q.id !== questionId)
+      questions: prev.questions.filter(q => q.id !== questionId),
     }));
   };
 
-  // Change question type
-  const changeQuestionType = (questionId: string, type: Question['type']) => {
-    setSurvey(prev => ({
+  // Handle survey response changes
+  const handleResponseChange = (questionId: string, value: string) => {
+    setResponses(prev => ({
       ...prev,
-      questions: prev.questions.map(q => {
-        if (q.id === questionId) {
-          const updatedQuestion = { ...q, type };
-          if (type === 'multiple_choice' && (!q.options || q.options.length === 0)) {
-            updatedQuestion.options = ['Option 1', 'Option 2'];
-          }
-          return updatedQuestion;
-        }
-        return q;
-      })
+      [questionId]: value,
     }));
   };
 
-  // Save survey changes
+  // Handle saving the survey
   const handleSaveSurvey = async () => {
     if (!onSave) return;
+    
     setIsSaving(true);
     try {
-      await onSave(survey);
-      toast({
-        title: "Survey saved",
-        description: "Your survey has been updated successfully.",
-      });
+      const result = await onSave(survey);
+      if (result.success) {
+        toast({
+          title: "Success",
+          description: "Survey saved successfully.",
+        });
+      }
       setEditMode(false);
     } catch (error) {
       console.error('Error saving survey:', error);
@@ -235,19 +229,8 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
     }
   };
 
-  const handleGoToEditor = () => {
-    if (onSave) {
-      onSave(survey).then(() => {
-        toast({
-          title: "Switching to editor",
-          description: "Now you can make detailed edits to your survey.",
-        });
-      });
-    }
-  };
-
   const handleNextSteps = () => {
-    navigate('/church-assessment');
+    navigate('/community-assessment');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -300,119 +283,102 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                     onChange={handleDescriptionChange}
                     className="w-full"
                     placeholder="Survey Description"
-                    rows={2}
+                    rows={3}
                   />
                 </div>
               ) : (
-                <>
+                <div>
                   <h2 className="text-2xl font-bold">{survey.title}</h2>
                   <p className="text-gray-600 mt-1">{survey.description}</p>
-                </>
-              )}
-            </div>
-            <div className="flex space-x-2 ml-4">
-              {surveyLink && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleCopyLink}
-                  className="flex items-center gap-1"
-                >
-                  {isCopied ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      <span>Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <LinkIcon className="h-4 w-4" />
-                      <span>Copy Link</span>
-                    </>
-                  )}
-                </Button>
+                </div>
               )}
             </div>
           </div>
         </div>
         
-        {/* Content */}
+        {/* Survey Content */}
         {editMode ? (
           <div className="flex-1 overflow-y-auto p-6">
             <div className="space-y-6">
               {survey.questions.map((question, index) => (
-                <div key={question.id} className="p-4 border rounded-md">
+                <div key={question.id} className="bg-gray-50 p-4 rounded-lg border">
                   <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-gray-700">{index + 1}.</span>
-                        <Input
-                          value={question.text}
-                          onChange={(e) => handleQuestionTextChange(question.id, e.target.value)}
-                          className="flex-1"
-                          placeholder="Question text"
-                        />
-                      </div>
+                    <h3 className="font-medium">Question {index + 1}</h3>
+                    <Button
+                      onClick={() => removeQuestion(question.id)}
+                      size="sm"
+                      variant="ghost"
+                      className="text-red-500"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Question Text</label>
+                      <Input
+                        value={question.text}
+                        onChange={(e) => handleQuestionTextChange(question.id, e.target.value)}
+                        className="mt-1 w-full"
+                      />
                     </div>
-                    <div className="flex items-center gap-2">
+                    
+                    <div className="flex items-center space-x-2">
+                      <label className="block text-sm font-medium text-gray-700">Required:</label>
+                      <input
+                        type="checkbox"
+                        checked={question.required}
+                        onChange={(e) => handleQuestionRequiredChange(question.id, e.target.checked)}
+                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      />
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">Question Type</label>
                       <select
                         value={question.type}
-                        onChange={(e) => changeQuestionType(question.id, e.target.value as Question['type'])}
-                        className="text-sm border rounded p-1"
+                        onChange={(e) => handleQuestionTypeChange(question.id, e.target.value as any)}
+                        className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
                       >
                         <option value="text">Text</option>
                         <option value="multiple_choice">Multiple Choice</option>
                         <option value="rating">Rating</option>
                         <option value="boolean">Yes/No</option>
                       </select>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleRequired(question.id)}
-                        className={`text-xs ${question.required ? 'text-red-500' : 'text-gray-500'}`}
-                      >
-                        {question.required ? 'Required' : 'Optional'}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeQuestion(question.id)}
-                        className="text-red-500"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
                     </div>
+                    
+                    {question.type === 'multiple_choice' && (
+                      <div className="space-y-2">
+                        <label className="block text-sm font-medium text-gray-700">Options</label>
+                        {question.options?.map((option, optionIndex) => (
+                          <div key={optionIndex} className="flex items-center space-x-2">
+                            <Input
+                              value={option}
+                              onChange={(e) => handleOptionTextChange(question.id, optionIndex, e.target.value)}
+                              className="flex-1"
+                            />
+                            <Button
+                              onClick={() => removeOption(question.id, optionIndex)}
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-500"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => addOption(question.id)}
+                          className="mt-2"
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> Add Option
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {question.type === 'multiple_choice' && (
-                    <div className="mt-2 pl-6 space-y-2">
-                      {question.options?.map((option, optIndex) => (
-                        <div key={optIndex} className="flex items-center gap-2">
-                          <Input
-                            value={option}
-                            onChange={(e) => handleOptionChange(question.id, optIndex, e.target.value)}
-                            className="flex-1"
-                            placeholder={`Option ${optIndex + 1}`}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeOption(question.id, optIndex)}
-                            disabled={question.options?.length === 1}
-                            className="text-red-500"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addOption(question.id)}
-                        className="mt-2"
-                      >
-                        <Plus className="h-4 w-4 mr-1" /> Add Option
-                      </Button>
-                    </div>
-                  )}
                 </div>
               ))}
               
@@ -428,11 +394,11 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
             <div className="mt-8 flex justify-between items-center">
               <Button
                 type="button"
-                onClick={onClose}
+                onClick={() => setEditMode(false)}
                 variant="outline"
               >
                 <ArrowLeft className="h-4 w-4 mr-2" />
-                Back to Editor
+                Back to Preview
               </Button>
               <div className="flex items-center gap-2">
                 <Button
@@ -555,35 +521,25 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
         {/* Footer with action buttons */}
         <div className="p-6 border-t bg-gray-50 flex justify-between items-center">
           <div className="flex space-x-2">
-            {editMode && (
+            {/* Edit Survey Button */}
+            {!editMode && (
               <Button
-                onClick={() => addQuestion()}
+                onClick={() => setEditMode(true)}
                 className="flex items-center gap-1"
                 variant="outline"
               >
-                <Plus className="h-4 w-4" />
-                <span>Add Question</span>
+                <Edit className="h-4 w-4 mr-1" />
+                <span>Edit Survey</span>
               </Button>
             )}
           </div>
           <div className="flex space-x-2">
-            {/* Save Button */}
+            {/* Close/Cancel Button */}
             <Button
-              onClick={handleSaveSurvey}
-              disabled={isSaving}
-              className="btn-next-step"
+              onClick={editMode ? () => setEditMode(false) : onClose}
+              variant="outline"
             >
-              {isSaving ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Saving...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4" />
-                  <span>Next Step: Save Survey</span>
-                </>
-              )}
+              <span>{editMode ? 'Cancel' : 'Close'}</span>
             </Button>
             
             {/* Print Button */}
@@ -600,19 +556,34 @@ export function SurveyPreview({ survey: initialSurvey, onClose, onSave, surveyId
                 </>
               ) : (
                 <>
-                  <Printer className="h-4 w-4" />
+                  <Printer className="h-4 w-4 mr-1" />
                   <span>Print</span>
                 </>
               )}
             </Button>
             
-            {/* Next Steps Button */}
+            {/* Combined Save & Next Steps Button */}
             <Button
-              onClick={handleNextSteps}
+              onClick={editMode ? handleSaveSurvey : handleNextSteps}
+              disabled={isSaving}
               className="btn-next-step"
             >
-              <span>Next Steps</span>
-              <ArrowRight className="h-4 w-4" />
+              {isSaving ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  <span>Saving...</span>
+                </>
+              ) : editMode ? (
+                <>
+                  <Save className="h-4 w-4 mr-1" />
+                  <span>Next Step: Save Survey</span>
+                </>
+              ) : (
+                <>
+                  <span>Next Step</span>
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </>
+              )}
             </Button>
           </div>
         </div>

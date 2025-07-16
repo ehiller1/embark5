@@ -95,6 +95,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
         role: user.user_metadata?.role || 'Clergy',
         first_name: user.user_metadata?.firstName || user.user_metadata?.first_name || '',
         last_name: user.user_metadata?.lastName || user.user_metadata?.last_name || '',
+        preferred_name: user.user_metadata?.preferredName || user.user_metadata?.preferred_name || '',
         church_name: user.user_metadata?.churchName || user.user_metadata?.church_name || '',
         church_id: user.user_metadata?.church_id || '',
         created_at: new Date().toISOString(),

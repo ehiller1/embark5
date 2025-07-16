@@ -76,7 +76,7 @@ export const RoundtableConversation: React.FC<RoundtableConversationProps> = ({
                   message.role === 'user'
                     ? 'bg-teal-600 text-white' 
                     : 'bg-slate-100 text-slate-800',
-                  "whitespace-pre-wrap"
+                  "whitespace-pre-wrap break-words overflow-hidden"
                 )}>
                   {formatMessageContent(message.content)}
                 </div>

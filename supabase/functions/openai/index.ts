@@ -30,16 +30,11 @@ serve(async (req) => {
     const requestData = await req.json()
     console.log('Received request data:', JSON.stringify(requestData).substring(0, 200) + '...');
     
-    const { prompt, maxTokens = 1024, temperature = 0.7, systemPrompt } = requestData
+    const { prompt, maxTokens = 1024, temperature = 0.7 } = requestData
 
     if (!prompt) {
       console.error('Missing prompt in request');
       throw new Error('Prompt is required')
-    }
-
-    if (!systemPrompt) {
-      console.error('Missing system prompt in request');
-      throw new Error('System prompt is required')
     }
 
     console.log('Request data:', { 
@@ -49,8 +44,8 @@ serve(async (req) => {
       promptPreview: prompt.substring(0, 100) + '...'
     });
 
-    // If this is a JSON-generating request, check if system prompt indicates that
-    const isJsonRequest = systemPrompt.toLowerCase().includes("json");
+    // Check if this is a JSON-generating request based on prompt content
+    const isJsonRequest = prompt.toLowerCase().includes("json");
     if (isJsonRequest) {
       console.log('Detected JSON-generating request, will ensure proper formatting');
     }
@@ -66,18 +61,28 @@ serve(async (req) => {
         controller.abort();
       }, 60000); // 60 second timeout
       
-      const openAIPayload = {
+      // Create messages array with only user message, no system messages
+      const messages = [
+        { 
+          role: "user", 
+          content: prompt 
+        }
+      ];
+      
+      console.log('Created message array with only user message, no system message');
+      
+      // Define the payload type to support response_format
+      type OpenAIPayload = {
+        model: string;
+        messages: Array<{role: string; content: string}>;
+        temperature: number;
+        max_tokens: number;
+        response_format?: {type: string};
+      };
+      
+      const openAIPayload: OpenAIPayload = {
         model: "gpt-4o-mini",
-        messages: [
-          { 
-            role: "system", 
-            content: systemPrompt
-          },
-          { 
-            role: "user", 
-            content: prompt 
-          }
-        ],
+        messages,
         temperature: temperature,
         max_tokens: maxTokens,
       };

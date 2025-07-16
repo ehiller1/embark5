@@ -456,9 +456,9 @@ export default function ResearchSummary(): JSX.Element {
               <Button 
                 onClick={() => navigate('/narrative-build')}
                 size="lg" 
-                className="px-8 bg-journey-blue text-white hover:bg-journey-blue/90"
+                className="btn-next-step"
               >
-                Next Steps <ArrowRight className="ml-2 h-4 w-4" />
+                Next Steps: Identify Transformational Ministries <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>

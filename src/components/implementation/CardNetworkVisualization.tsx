@@ -308,40 +308,72 @@ export function CardNetworkVisualization({
           
           <div className="flex justify-end space-x-2 mt-4">
             <Button variant="outline" onClick={() => setShowNodeDetailModal(false)}>Close</Button>
-            <Button onClick={handleStartChat}>Start Conversation</Button>
+            <Button 
+              onClick={() => {
+                setConnectionModalSourceCardId(selectedNode?.id || null);
+                setShowNodeDetailModal(false);
+                setIsCreatingConnection(true);
+              }}
+              variant="outline"
+              className="flex items-center gap-1"
+            >
+              <Link className="h-4 w-4" /> Add Connection
+            </Button>
+            <Button onClick={handleStartChat} className="flex items-center gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+              </svg>
+              Start Conversation
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
       
-      <div className="flex justify-end space-x-2 p-2 bg-slate-50 border-b">
-        <Dialog open={isCreatingCategory} onOpenChange={setIsCreatingCategory}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Group people together</DialogTitle>
-              <DialogDescription>
-                Create a new group to organize people in your community.
-              </DialogDescription>
-            </DialogHeader>
-            <CategoryCreationPanel onSuccess={() => setIsCreatingCategory(false)} />
-          </DialogContent>
-        </Dialog>
-        
-        <Dialog open={isCreatingConnection} onOpenChange={setIsCreatingConnection}>
+      <div className="flex justify-between items-center p-4 bg-slate-50 border-b">
+        <div className="space-x-2 flex items-center">
+          <h3 className="text-sm font-medium text-slate-700">Network Visualization</h3>
+          <span className="text-xs text-slate-500">{graphData.nodes.length} people/groups · {graphData.links.length} connections</span>
+        </div>
+        <div className="space-x-2 flex">
+          <Dialog open={isCreatingCategory} onOpenChange={setIsCreatingCategory}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="flex items-center gap-1">
+                <Plus className="h-4 w-4" /> New Category
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create a Category</DialogTitle>
+                <DialogDescription>
+                  Create a new category to organize people and groups by color coding them.
+                </DialogDescription>
+              </DialogHeader>
+              <CategoryCreationPanel onSuccess={() => setIsCreatingCategory(false)} />
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={isCreatingConnection} onOpenChange={setIsCreatingConnection}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" className="flex items-center gap-1">
+                <Link className="h-4 w-4" /> New Connection
+              </Button>
+            </DialogTrigger>
 
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Connect two people or groups together</DialogTitle>
-              <DialogDescription>
-                Connect people or groups together that share a similar point of view.
-              </DialogDescription>
-            </DialogHeader>
-            <ConnectionCreationPanel 
-              cards={cards} 
-              onSuccess={handleConnectionCreated}
-              initialSourceCardId={connectionModalSourceCardId || undefined}
-            />
-          </DialogContent>
-        </Dialog>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create a Connection</DialogTitle>
+                <DialogDescription>
+                  Connect people or groups together to show relationships between them.
+                </DialogDescription>
+              </DialogHeader>
+              <ConnectionCreationPanel 
+                cards={cards} 
+                onSuccess={handleConnectionCreated}
+                initialSourceCardId={connectionModalSourceCardId || undefined}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
       
       <div className="flex-1 w-full">
@@ -383,7 +415,61 @@ export function CardNetworkVisualization({
               }
               
               // Draw node label if zoomed in enough
-              if (globalScale > 0.7) {
+              // Show tooltip with node info when hovering
+              if (n === selectedNode) {
+                const tooltipPadding = 6;
+                const tooltipHeight = fontSize * 3 + tooltipPadding * 2;
+                const tooltipWidth = Math.max(textWidth + tooltipPadding * 2, 100);
+                
+                // Draw tooltip background
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+                ctx.strokeStyle = '#e2e8f0';
+                ctx.lineWidth = 1 / globalScale;
+                ctx.beginPath();
+                ctx.roundRect(
+                  (node.x || 0) - tooltipWidth / 2,
+                  (node.y || 0) - nodeSize - tooltipHeight - 5,
+                  tooltipWidth,
+                  tooltipHeight,
+                  3 / globalScale
+                );
+                ctx.fill();
+                ctx.stroke();
+                
+                // Draw tooltip text
+                ctx.fillStyle = '#1e293b';
+                ctx.font = `${fontSize}px Sans-Serif`;
+                ctx.textAlign = 'center';
+                ctx.fillText(
+                  label,
+                  (node.x || 0),
+                  (node.y || 0) - nodeSize - tooltipHeight + fontSize + tooltipPadding
+                );
+                
+                ctx.font = `${fontSize * 0.8}px Sans-Serif`;
+                ctx.fillStyle = '#64748b';
+                ctx.fillText(
+                  n.type.charAt(0).toUpperCase() + n.type.slice(1),
+                  (node.x || 0),
+                  (node.y || 0) - nodeSize - tooltipHeight + fontSize * 2 + tooltipPadding
+                );
+                
+                // Show categories if any
+                if (n.categories.length > 0) {
+                  const category = categories.find(c => c.id === n.categories[0]);
+                  if (category) {
+                    ctx.fillStyle = category.color;
+                    ctx.fillText(
+                      category.name,
+                      (node.x || 0),
+                      (node.y || 0) - nodeSize - tooltipHeight + fontSize * 3 + tooltipPadding
+                    );
+                  }
+                }
+              }
+              
+              // Always render node labels if zoomed in enough
+              if (globalScale > 0.6) {
                 ctx.font = `${fontSize}px Sans-Serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
@@ -437,9 +523,10 @@ export function CardNetworkVisualization({
                 ctx.lineTo(targetPos.x, targetPos.y);
               }
               
-              // Make connections more visible with stronger color and thickness
-              ctx.strokeStyle = '#666';
-              ctx.lineWidth = Math.max(2, l.strength) / globalScale;
+              // Make connections more visible with stronger color and thickness based on strength
+              const opacity = 0.3 + (l.strength * 0.14); // 0.3 to 1.0 based on strength
+              ctx.strokeStyle = `rgba(102, 102, 102, ${opacity})`;
+              ctx.lineWidth = (1 + l.strength * 0.8) / globalScale; // Thickness varies with strength
               ctx.stroke();
               
               // Add a subtle glow effect
@@ -450,8 +537,8 @@ export function CardNetworkVisualization({
               
               // Draw arrowhead if zoomed in enough
               if (globalScale > 0.5) { 
-                const arrowLength = 8 / globalScale;
-                // arrowWidth not used directly in the drawing
+                const arrowLength = (6 + l.strength) / globalScale; // Size varies with strength
+                const arrowWidth = (3 + l.strength * 0.5) / globalScale; // Width varies with strength
                 
                 // Calculate angle for arrowhead
                 let angle = Math.atan2(targetPos.y - sourcePos.y, targetPos.x - sourcePos.x);
@@ -475,7 +562,8 @@ export function CardNetworkVisualization({
                   targetPos.y - arrowLength * Math.sin(angle + Math.PI/6)
                 );
                 ctx.closePath();
-                ctx.fillStyle = '#aaa';
+                const arrowOpacity = 0.4 + (l.strength * 0.12); // Opacity varies with strength
+                ctx.fillStyle = `rgba(102, 102, 102, ${arrowOpacity})`;
                 ctx.fill();
               }
             }}

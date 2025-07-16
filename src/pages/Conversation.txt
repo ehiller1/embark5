@@ -1,13 +1,13 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
-import { useAuth } from "@/integrations/lib/auth/AuthProvider";
-import { ConversationInterface } from "@/components/ConversationInterface";
+//import { useEffect, useState } from "react";
+//import { useNavigate, useLocation } from "react-router-dom";
+//import { useAuth } from "@/integrations/lib/auth/AuthProvider";
+//import { ConversationInterface } from "@/components/ConversationInterface";
 import { Button } from "@/components/ui/button";
 import { HelpCircle, ArrowRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { AvatarSidebar } from "@/components/narrative-build/AvatarSidebar";
 import { useSelectedCompanion, useCompanionSubscriber } from "@/hooks/useSelectedCompanion";
-import { AvatarRole } from "@/types/NarrativeTypes";
+//import { AvatarRole } from "@/types/NarrativeTypes";
 
 import { INFORMATION_GATHERER } from '@/constants/avatars';
 import { PageAvatarDisplay } from "@/components/avatars/PageAvatarDisplay";

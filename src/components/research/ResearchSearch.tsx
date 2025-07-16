@@ -30,12 +30,18 @@ export function ResearchSearch({
   hasValidationError = false,
   pageType,
 }: ResearchSearchProps) {
+  const [clickedResults, setClickedResults] = React.useState<string[]>([]);
+  
   const handleResultClick = (result: SearchResult) => {
     console.log('[ResearchSearch] Result clicked:', {
       resultId: result.id,
       resultType: result.type,
       timestamp: new Date().toISOString()
     });
+    // Add this result ID to the clickedResults array if not already there
+    if (!clickedResults.includes(result.id)) {
+      setClickedResults([...clickedResults, result.id]);
+    }
     onSaveResult(result);
   };
 
@@ -109,7 +115,10 @@ export function ResearchSearch({
               {results.map((result) => (
                 <Card
                   key={result.id}
-                  className="cursor-pointer transition-all hover:shadow-md hover:bg-accent/20 active:bg-accent/40 focus:outline-none focus:ring-2 focus:ring-[#47799f] focus:ring-offset-2"
+                  className={`cursor-pointer transition-all ${clickedResults.includes(result.id) 
+                    ? 'shadow-md bg-[#47799f]/20 border-[#47799f]' 
+                    : 'hover:shadow-md hover:bg-accent/20 active:bg-accent/40'} 
+                    focus:outline-none focus:ring-2 focus:ring-[#47799f] focus:ring-offset-2`}
                   onClick={() => handleResultClick(result)}
                 >
                   <CardContent className="p-4 relative">

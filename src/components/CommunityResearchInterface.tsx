@@ -1,9 +1,8 @@
-// src/components/CommunityResearchInterface.tsx
 import { useState, useEffect } from "react";
 import { useUserProfile } from "@/integrations/lib/auth/UserProfileProvider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useSerpApi } from "@/hooks/useSerpApi";
 import { useOpenAI } from "@/hooks/useOpenAI";
@@ -11,54 +10,45 @@ import { usePrompts } from "@/hooks/usePrompts";
 import { EditNoteModal } from "./EditNoteModal";
 import { ResearchSearch } from "./research/ResearchSearch";
 import { ResearchNotes } from "./research/ResearchNotes";
-import { ResearchLayout } from "./research/ResearchLayout";
 import { SearchResult, Note } from '@/types/research';
 
 interface CommunityResearchInterfaceProps {
   activeCategory: string;
   searchPrompt: string;
+  panel: "search" | "notes";
   onNext?: () => void;
 }
 
-// Updated to make functions accessible from parent component
-export function CommunityResearchInterface({ activeCategory, searchPrompt, onNext }: CommunityResearchInterfaceProps) {
+// Custom hook for shared state/logic
+function useCommunityResearchState(activeCategory: string, searchPrompt: string) {
   const { profile, isLoading: isProfileLoading } = useUserProfile();
   const [location, setLocation] = useState(localStorage.getItem('user_location') || '');
   const [searchQuery, setSearchQuery] = useState(searchPrompt || "");
   const [inputQuery, setInputQuery] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [notes, setNotes] = useState<Record<string, Note[]>>(() => {
-    try {
-      return JSON.parse(localStorage.getItem('community_research_notes') || '{}');
-    } catch {
-      return {};
-    }
+    try { return JSON.parse(localStorage.getItem('community_research_notes') || '{}'); }
+    catch { return {}; }
   });
   const [currentNote, setCurrentNote] = useState("");
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [validationError, setValidationError] = useState("");
-  const [totalNoteCount, setTotalNoteCount] = useState(0);
 
   const { search } = useSerpApi();
   const { toast } = useToast();
+  const { generateResponse } = useOpenAI();
+  const { getPromptByType } = usePrompts();
 
   useEffect(() => {
     if (profile && !isProfileLoading) {
       const userCity = profile.city;
       const userState = profile.state;
-      if (userCity && userState) {
-        setLocation(`${userCity}, ${userState}`);
-      } else if (userCity) {
-        setLocation(userCity);
-      } else if (userState) {
-        setLocation(userState);
-      }
+      if (userCity && userState) setLocation(`${userCity}, ${userState}`);
+      else if (userCity) setLocation(userCity);
+      else if (userState) setLocation(userState);
     }
-  }, [profile, isProfileLoading, setLocation]);
-
-  const { generateResponse } = useOpenAI();
-  const { getPromptByType } = usePrompts();
+  }, [profile, isProfileLoading]);
 
   useEffect(() => {
     if (activeCategory && searchPrompt) {
@@ -69,15 +59,10 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
     }
   }, [activeCategory, searchPrompt, location]);
 
-  useEffect(() => {
-    const count = Object.values(notes).reduce((sum, catNotes) => sum + catNotes.length, 0);
-    setTotalNoteCount(count);
-  }, [notes]);
-
   const onSaveLocation = () => {
     localStorage.setItem('user_location', location);
     toast({ title: 'Location Saved' });
-  }
+  };
 
   const validateSearchInputs = () => {
     if (!location.trim()) {
@@ -97,15 +82,12 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
     try {
       const promptResult = await getPromptByType('community_research');
       let systemPrompt = 'You are a helpful community research assistant. Provide concise insights about the community based on the search query.';
-      
       if (promptResult.success && 'data' in promptResult && promptResult.data?.prompt) {
         systemPrompt = promptResult.data.prompt
           .replace('{location}', location || '[location]')
           .replace('{category}', activeCategory || '[category]');
       }
-      
       const userPrompt = `Based on the search query "${query}", provide insights about "${activeCategory}" in ${location}.`;
-      
       const response = await generateResponse({
         messages: [
           { role: 'system', content: systemPrompt },
@@ -114,7 +96,6 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
         temperature: 0.7,
         maxTokens: 300
       });
-      
       return response.text || 'Unable to generate AI insight at this time.';
     } catch (error) {
       console.error('[CommunityResearchInterface] Error generating AI insight:', error);
@@ -128,30 +109,28 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
 
     setIsLoading(true);
     try {
-      const query = searchQuery.includes(location) ? `${inputQuery} ${searchQuery}` : `${location} ${inputQuery} ${searchQuery}`;
+      const query = searchQuery.includes(location)
+        ? `${inputQuery} ${searchQuery}` : `${location} ${inputQuery} ${searchQuery}`;
       const webResults = await search(query);
       const aiInsight = await generateAIInsight(query);
-      
-      const formattedWebResults: SearchResult[] = webResults.map(res => ({ 
-        id: res.id || crypto.randomUUID(), 
+      const formattedWebResults: SearchResult[] = webResults.map(res => ({
+        id: res.id || crypto.randomUUID(),
         title: res.title || '',
         snippet: res.snippet || '',
         type: 'web'
       }));
-      
       const results: SearchResult[] = [
         { id: crypto.randomUUID(), title: 'AI Insight', snippet: aiInsight, type: 'ai' },
         ...formattedWebResults,
       ];
-      
       setSearchResults(results);
       toast({ title: 'Search completed', description: `${results.length} results found.` });
     } catch (error) {
       console.error('[CommunityResearchInterface] Search failed:', error);
-      toast({ 
-        title: 'Search Failed', 
-        description: 'Unable to search. Please try again.', 
-        variant: 'destructive' 
+      toast({
+        title: 'Search Failed',
+        description: 'Unable to search. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsLoading(false);
@@ -164,15 +143,15 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
     const content = result.type === 'ai'
       ? `AI Insight:\n${result.snippet}`
       : `${titlePrefix}${result.snippet}`;
-    const newNote: Note = { 
-      id: crypto.randomUUID(), 
-      category: activeCategory, 
-      content, 
-      timestamp: new Date().toISOString() 
+    const newNote: Note = {
+      id: crypto.randomUUID(),
+      category: activeCategory,
+      content,
+      timestamp: new Date().toISOString()
     };
-    const updated = { 
-      ...notes, 
-      [activeCategory]: [...(notes[activeCategory] || []), newNote] 
+    const updated = {
+      ...notes,
+      [activeCategory]: [...(notes[activeCategory] || []), newNote]
     };
     setNotes(updated);
     localStorage.setItem('community_research_notes', JSON.stringify(updated));
@@ -181,15 +160,15 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
 
   const saveNote = () => {
     if (!currentNote.trim() || !activeCategory) return;
-    const newNote: Note = { 
-      id: crypto.randomUUID(), 
-      category: activeCategory, 
-      content: currentNote, 
-      timestamp: new Date().toISOString() 
+    const newNote: Note = {
+      id: crypto.randomUUID(),
+      category: activeCategory,
+      content: currentNote,
+      timestamp: new Date().toISOString()
     };
-    const updated = { 
-      ...notes, 
-      [activeCategory]: [...(notes[activeCategory] || []), newNote] 
+    const updated = {
+      ...notes,
+      [activeCategory]: [...(notes[activeCategory] || []), newNote]
     };
     setNotes(updated);
     localStorage.setItem('community_research_notes', JSON.stringify(updated));
@@ -200,7 +179,7 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
   const updateNote = (id: string, content: string) => {
     const updatedNotes = {
       ...notes,
-      [activeCategory]: notes[activeCategory].map(note => 
+      [activeCategory]: notes[activeCategory].map(note =>
         note.id === id ? { ...note, content } : note
       )
     };
@@ -209,98 +188,164 @@ export function CommunityResearchInterface({ activeCategory, searchPrompt, onNex
     toast({ title: 'Note Updated' });
   };
 
-  const saveAllNotes = () => {
-    localStorage.setItem('community_assessment_data', JSON.stringify(notes));
-    toast({ 
-      title: 'Success', 
-      description: 'All notes saved successfully' 
-    });
+  return {
+    location, setLocation, onSaveLocation,
+    searchQuery, setSearchQuery,
+    inputQuery, setInputQuery,
+    searchResults, setSearchResults,
+    isLoading, setIsLoading,
+    notes, setNotes,
+    currentNote, setCurrentNote,
+    editingNote, setEditingNote,
+    validationError,
+    handleSearch,
+    saveNoteFromResult,
+    saveNote,
+    updateNote,
   };
+}
 
-  // Handle saving notes and navigation
-  const saveAndNavigate = () => {
-    saveAllNotes();
-    onNext?.();
-  };
+export function CommunityResearchInterface({
+  activeCategory,
+  searchPrompt,
+  panel = "search",
+  onNext,
+}: CommunityResearchInterfaceProps) {
+  const research = useCommunityResearchState(activeCategory, searchPrompt);
 
   return (
-    <ResearchLayout title="Collect Web Research About Your Neighborhood">
-      {/* 1) Location Input Card - Moved above research components as requested */}
-      <Card className="w-full mb-6">
-        <CardContent className="pt-4">
-          <div className="space-y-4">
-            <div>
+    <div className="flex flex-col gap-6 h-full">
+      {panel === "search" && (
+        <>
+          {/* Location Section */}
+          <Card className="w-full">
+            <CardContent className="pt-4">
               <label className="text-sm font-medium mb-1 block">
                 Location <span className="text-red-500">*</span>
               </label>
               <div className="flex gap-2 w-full">
                 <Input
-                  value={location}
-                  onChange={e => setLocation(e.target.value)}
+                  value={research.location}
+                  onChange={e => research.setLocation(e.target.value)}
                   placeholder="City, state, region"
-                  className={`flex-1 ${!location && validationError ? 'border-red-500' : ''}`}
+                  className={`flex-1 ${!research.location && research.validationError ? 'border-red-500' : ''}`}
                   required
                 />
-                <Button 
-                  onClick={onSaveLocation}
-                  disabled={!location}
+                <Button
+                  onClick={research.onSaveLocation}
+                  disabled={!research.location}
                   className="bg-[#47799f] hover:bg-[#47799f]/90 whitespace-nowrap"
                 >
                   Save
                 </Button>
               </div>
-              {validationError && (
+              {research.validationError && (
                 <div className="px-4 pb-2 text-red-500 text-sm">
-                  {validationError}
+                  {research.validationError}
                 </div>
               )}
+            </CardContent>
+          </Card>
+          
+          {/* Search Section */}
+          <div className="flex flex-col gap-4 mt-4">
+            <h2 className="text-xl font-semibold">Search for {activeCategory || "Community Information"}</h2>
+            <div className="flex gap-2">
+              <Input
+                type="text"
+                placeholder="Enter search query"
+                value={research.inputQuery}
+                onChange={(e) => research.setInputQuery(e.target.value)}
+                className="flex-1"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") research.handleSearch();
+                }}
+              />
+              <Button onClick={research.handleSearch} disabled={research.isLoading}>
+                {research.isLoading ? "Searching..." : "Search"}
+              </Button>
+            </div>
+            {research.validationError && (
+              <p className="text-red-500 text-sm">{research.validationError}</p>
+            )}
+          </div>
+
+          {/* Search Results */}
+          {research.searchResults.length > 0 && (
+            <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
+              <h3 className="text-lg font-medium">Search Results</h3>
+              <ResearchSearch
+                query={research.inputQuery}
+                onQueryChange={research.setInputQuery}
+                onSearch={research.handleSearch}
+                results={research.searchResults}
+                isLoading={research.isLoading}
+                onSaveResult={research.saveNoteFromResult}
+                activeCategory={activeCategory}
+                hasValidationError={!!research.validationError}
+                pageType="community_research"
+              />
+            </div>
+          )}
+        </>
+      )}
+      
+      {panel === "notes" && (
+        <>
+          {/* Notes Section */}
+          <div className="flex flex-col gap-4 h-full">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Your Notes</h3>
+              <span className="text-sm text-muted-foreground">
+                {Object.values(research.notes).reduce((total, categoryNotes) => total + categoryNotes.length, 0)} notes total
+              </span>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              <ResearchNotes
+                notes={research.notes[activeCategory] || []}
+                currentNote={research.currentNote}
+                onNoteChange={research.setCurrentNote}
+                onSaveNote={research.saveNote}
+                onEditNote={research.setEditingNote}
+                activeCategory={activeCategory}
+              />
+            </div>
+            <div className="flex flex-col gap-2 mt-auto">
+              <Input
+                type="text"
+                placeholder="Add a note..."
+                value={research.currentNote}
+                onChange={(e) => research.setCurrentNote(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    research.saveNote();
+                  }
+                }}
+              />
+              <Button onClick={research.saveNote} variant="outline" className="self-end">
+                Add Note
+              </Button>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </>
+      )}
       
-      {/* 2) Inner two-column grid for Search + Notes */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-0 w-full">
-        <div className="h-full min-h-0 w-full">
-          <ResearchSearch
-            query={inputQuery}
-            onQueryChange={setInputQuery}
-            onSearch={handleSearch}
-            results={searchResults}
-            isLoading={isLoading}
-            onSaveResult={saveNoteFromResult}
-            activeCategory={activeCategory}
-            hasValidationError={!!validationError}
-            pageType="community_research"
-          />
-        </div>
-        <div className="h-full min-h-0 w-full">
-          <ResearchNotes
-            notes={notes[activeCategory] || []}
-            currentNote={currentNote}
-            onNoteChange={setCurrentNote}
-            onSaveNote={saveNote}
-            onEditNote={setEditingNote}
-            activeCategory={activeCategory}
-          />
-        </div>
-      </div>
-
-      {/* Action buttons have been moved to the main page */}
-
-      {/* 4) Edit Note modal */}
-      {editingNote && (
+      {/* Edit Note Modal */}
+      {research.editingNote && (
         <EditNoteModal
-          open
-          initialContent={editingNote.content}
-          onClose={() => setEditingNote(null)}
+          open={!!research.editingNote}
+          initialContent={research.editingNote?.content || ''}
+          onClose={() => research.setEditingNote(null)}
           onSave={(content) => {
-            updateNote(editingNote.id, content);
-            setEditingNote(null);
+            if (research.editingNote) {
+              research.updateNote(research.editingNote.id, content);
+              research.setEditingNote(null);
+            }
           }}
-          title={`Edit Note in ${editingNote.category}`}
+          title={`Edit Note in ${research.editingNote?.category || activeCategory}`}
         />
       )}
-    </ResearchLayout>
+    </div>
   );
 }

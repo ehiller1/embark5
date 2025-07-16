@@ -262,9 +262,9 @@ const CommunityProfilePage = (): ReactElement => {
         variant: "default" 
       });
       
-      // Navigate back to clergy home page after a short delay to show the success message
+      // Navigate to SurveyBuild.tsx after a short delay to show the success message
       setTimeout(() => {
-        navigate('/clergy-home');
+        navigate('/survey-build');
       }, 1000);
 
     } catch (error) {
@@ -622,19 +622,20 @@ const CommunityProfilePage = (): ReactElement => {
     onClick={handleSave}
     disabled={saving}
     size="lg"
-    className="text-lg px-8 py-6 bg-gradient-journey hover:opacity-90 transition-opacity duration-300 shadow-md hover:shadow-lg disabled:bg-gray-300 disabled:shadow-none disabled:cursor-not-allowed"
+    className="btn-next-step"
   >
-    <Save className="mr-2 h-5 w-5" />
-    {saving ? 'Saving Profile...' : 'Save Community Profile'}
-  </Button>
-  <Button
-    onClick={() => navigate('/survey-build')}
-    size="lg"
-    variant="default"
-    className="text-lg px-8 py-6 ml-2 bg-primary hover:bg-primary/90 text-white font-bold"
-  >
-    Next Steps
-    <ArrowRight className="ml-2 h-5 w-5" />
+    {saving ? (
+      <>
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+        Saving Profile...
+      </>
+    ) : (
+      <>
+        <Save className="mr-2 h-5 w-5" />
+        Next Steps:  Collect Research
+        <ArrowRight className="ml-2 h-5 w-5" />
+      </>
+    )}
   </Button>
 </div>
 

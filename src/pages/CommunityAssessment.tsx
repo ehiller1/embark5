@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { CommunityAssessmentInterface } from '@/components/CommunityAssessmentInterface';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { AssessmentSidebar } from '@/components/AssessmentSidebar';
 
@@ -10,10 +10,20 @@ export default function CommunityAssessment() {
   const navigate = useNavigate();
   const { session } = useAuth();
   const [sessionKey, setSessionKey] = useState<string>('initial');
+  const [userMessageCount, setUserMessageCount] = useState<number>(0);
+  const [showReminderMessage, setShowReminderMessage] = useState<boolean>(false);
 
   useEffect(() => {
     setSessionKey(session?.access_token?.substring(0, 8) || 'no-session');
   }, [session]);
+  
+  // Reset message counter when component unmounts
+  useEffect(() => {
+    return () => {
+      setUserMessageCount(0);
+      setShowReminderMessage(false);
+    };
+  }, []);
 
   return (
     <AssessmentSidebar>
@@ -21,17 +31,7 @@ export default function CommunityAssessment() {
 
         {/* MAIN CONTENT */}
         <main className="flex-1 flex flex-col px-6 lg:px-8 py-6">
-          {/* 1) SINGLE BACK BUTTON */}
-          <div className="mb-6">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate('/clergy-home')}
-              className="flex items-center gap-1 text-journey-pink hover:bg-journey-lightPink/20"
-            >
-              <ArrowLeft className="h-4 w-4" /> Back
-            </Button>
-          </div>
+          {/* Back button removed */}
 
           {/* 2) TITLE */}
           <h1 className="text-4xl font-serif font-semibold bg-clip-text text-transparent bg-gradient-journey mb-4">
@@ -53,7 +53,31 @@ export default function CommunityAssessment() {
             <CommunityAssessmentInterface
               key={sessionKey}
               disableNext  // this prop removes the “Next” button inside the form
+              onUserMessageSent={() => {
+                const newCount = userMessageCount + 1;
+                setUserMessageCount(newCount);
+                
+                // Show reminder message every 10 messages
+                if (newCount > 0 && newCount % 10 === 0) {
+                  setShowReminderMessage(true);
+                  // Reset counter after showing reminder
+                  setUserMessageCount(0);
+                }
+              }}
+              showReminderMessage={showReminderMessage}
+              onReminderMessageShown={() => setShowReminderMessage(false)}
+              reminderMessage="You have provided a lot of information. Do you want to continue or I can integrate everything you said and you can just click the Next Step button and we can move on"
             />
+          </div>
+          
+          {/* Next Steps Button */}
+          <div className="mt-6 flex justify-end">
+            <Button 
+              onClick={() => navigate('/neighborhood-survey')}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md flex items-center"
+            >
+              Next Steps: Create A Summary Report <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
           </div>
         </main>
       </div>

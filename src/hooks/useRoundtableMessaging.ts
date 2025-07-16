@@ -132,8 +132,17 @@ export function useRoundtableMessaging(systemPromptType: PromptType | null) {
         "single_selected_scenario-details": singleScenarioDetail, // Matches $(single_selected_scenario-details)
         message_history: messageHistory, // Matches $(message_history)
         scenario_details: scenarioDetails, // Matches $(scenario_details) - scenarioDetails is the mapped string of all selected
+        selected_scenario: scenarioDetails, // Required for scenario_interrogatory
         church_avatar: churchAvatarInfo,
         community_avatar: communityAvatarInfo,
+        companion_avatar: JSON.stringify({ // Required for scenario_interrogatory - convert to string
+          name: companionName,
+          type: companionType,
+          traits: companionTraits,
+          speech_pattern: companionSpeechPattern,
+          knowledge_domains: companionKnowledgeDomains
+        }),
+        messages_entered: messageHistory, // Required for scenario_interrogatory
         companion_name: companionName,
         companion_type: companionType,
         companion_traits: companionTraits,

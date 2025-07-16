@@ -342,20 +342,106 @@ export default function Implementation() {
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center mb-4">
-          <div className="flex space-x-2">
-            <Sheet open={isCreatingCard} onOpenChange={setIsCreatingCard}>
-              <SheetTrigger asChild>
-                <Button className="flex items-center gap-2"><Plus size={16}/> <span>Group them together</span></Button>
-              </SheetTrigger>
-              <SheetContent className="w-full sm:max-w-md">
-                <SheetHeader><SheetTitle>Add New Person or Group</SheetTitle><SheetDescription>Create a new card representing an individual or group within your congregation.</SheetDescription></SheetHeader>
-                <CardCreationPanel onSuccess={(newCard) => { setIsCreatingCard(false); setNewlyCreatedCardsForModal([newCard]); setActiveCardIds(prev => Array.from(new Set([...prev, newCard.id]))); }} />
-              </SheetContent>
-            </Sheet>
-            <Dialog open={isCreatingCategory} onOpenChange={setIsCreatingCategory}><DialogTrigger asChild><Button variant="outline"><Plus className="h-4 w-4 mr-1"/> Add Person/Group Category</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Create New Category</DialogTitle><DialogDescription>Add a new category to organize your cards.</DialogDescription></DialogHeader><CategoryCreationPanel onSuccess={() => setIsCreatingCategory(false)} /></DialogContent></Dialog>
-            <Dialog open={isCreatingConnection} onOpenChange={setIsCreatingConnection}><DialogTrigger asChild><Button variant="outline"><Link className="h-4 w-4 mr-1"/> Add Connection</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Create New Connection</DialogTitle><DialogDescription>Connect two people or groups in your network.</DialogDescription></DialogHeader><ConnectionCreationPanel cards={cards} onSuccess={handleConnectionCreated} initialSourceCardId={connectionModalSourceCardId || undefined} /></DialogContent></Dialog>
+        {/* Action Buttons - Clear Workflow Steps */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          {/* Step 1: Create People & Groups */}
+          <div className="p-4 rounded-lg bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-start mb-2">
+              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mr-3">1</div>
+              <div className="flex-1">
+                <h3 className="text-lg font-medium mb-1">Create People & Groups</h3>
+                <p className="text-slate-500 text-sm mb-4">Add the key individuals and groups from your community</p>
+                
+                <Sheet open={isCreatingCard} onOpenChange={setIsCreatingCard}>
+                  <SheetTrigger asChild>
+                    <Button className="w-full justify-center">
+                      <Plus size={16} className="mr-2"/> Add Person or Group
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent className="w-full sm:max-w-md">
+                    <SheetHeader>
+                      <SheetTitle>Add New Person or Group</SheetTitle>
+                      <SheetDescription>Create a new card representing an individual or group within your congregation.</SheetDescription>
+                    </SheetHeader>
+                    <CardCreationPanel 
+                      onSuccess={(newCard) => { 
+                        setIsCreatingCard(false); 
+                        setNewlyCreatedCardsForModal([newCard]); 
+                        setActiveCardIds(prev => Array.from(new Set([...prev, newCard.id]))); 
+                        toast({ 
+                          title: "Success", 
+                          description: `${newCard.type === 'individual' ? 'Person' : 'Group'} created successfully` 
+                        });
+                      }} 
+                    />
+                  </SheetContent>
+                </Sheet>
+              </div>
+            </div>
+          </div>
+          
+          {/* Step 2: Organize with Categories */}
+          <div className="p-4 rounded-lg bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-start mb-2">
+              <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold mr-3">2</div>
+              <div className="flex-1">
+                <h3 className="text-lg font-medium mb-1">Organize with Categories</h3>
+                <p className="text-slate-500 text-sm mb-4">Create categories to group similar people together</p>
+                
+                <Dialog open={isCreatingCategory} onOpenChange={setIsCreatingCategory}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full justify-center">
+                      <Plus className="h-4 w-4 mr-2"/> Create Category
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Category</DialogTitle>
+                      <DialogDescription>Add a new category to organize people and groups.</DialogDescription>
+                    </DialogHeader>
+                    <CategoryCreationPanel 
+                      onSuccess={() => {
+                        setIsCreatingCategory(false);
+                        toast({ 
+                          title: "Success", 
+                          description: "Category created successfully" 
+                        });
+                      }} 
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
+          </div>
+          
+          {/* Step 3: Build Connections */}
+          <div className="p-4 rounded-lg bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
+            <div className="flex items-start mb-2">
+              <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold mr-3">3</div>
+              <div className="flex-1">
+                <h3 className="text-lg font-medium mb-1">Build Connections</h3>
+                <p className="text-slate-500 text-sm mb-4">Define relationships between people and groups</p>
+                
+                <Dialog open={isCreatingConnection} onOpenChange={setIsCreatingConnection}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" className="w-full justify-center">
+                      <Link className="h-4 w-4 mr-2"/> Create Connection
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create New Connection</DialogTitle>
+                      <DialogDescription>Connect two people or groups and define their relationship.</DialogDescription>
+                    </DialogHeader>
+                    <ConnectionCreationPanel 
+                      cards={cards} 
+                      onSuccess={handleConnectionCreated} 
+                      initialSourceCardId={connectionModalSourceCardId || undefined} 
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
+            </div>
           </div>
         </div>
 

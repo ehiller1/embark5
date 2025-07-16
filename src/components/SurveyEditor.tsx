@@ -111,20 +111,24 @@ export function SurveyEditor({ initialData, onSave, onCancel }: SurveyEditorProp
 
   const handleSave = async () => {
     try {
+      console.log('[SurveyEditor] handleSave called, current survey:', survey);
       setIsSaving(true);
+      console.log('[SurveyEditor] Calling parent onSave function');
       await onSave(survey);
+      console.log('[SurveyEditor] Parent onSave function completed successfully');
       toast({
         title: "Success",
         description: "Survey saved successfully!",
       });
     } catch (error) {
-      console.error('Error saving survey:', error);
+      console.error('[SurveyEditor] Error saving survey:', error);
       toast({
         title: "Error",
         description: "Failed to save survey. Please try again.",
         variant: "destructive",
       });
     } finally {
+      console.log('[SurveyEditor] Setting isSaving to false');
       setIsSaving(false);
     }
   };

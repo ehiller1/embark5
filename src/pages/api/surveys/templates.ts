@@ -42,8 +42,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       query = query.eq('id', id);
     }
     
-    // Filter by church_id in the metadata
-    query = query.filter('metadata->church_id', 'eq', churchId);
+    // Filter by church_id directly in the church_id field
+    query = query.eq('church_id', churchId);
     
     // Apply survey type filter if provided
     if (surveyType) {

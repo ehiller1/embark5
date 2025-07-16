@@ -14,6 +14,14 @@
       "destination": "/favicon.ico"
     },
     {
+      "source": "/clergy",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/parish",
+      "destination": "/index.html"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

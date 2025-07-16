@@ -238,8 +238,8 @@ export function ChurchAssessmentInterface({
             </Button>
             <Button 
               variant="outline" 
-              onClick={() => window.location.href = '/research-summary'}
-              className="px-6 bg-journey-blue text-white hover:bg-journey-blue/90"
+              onClick={() => window.location.href = '/scenario'}
+              className="btn-next-step"
             >
               Next Step <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

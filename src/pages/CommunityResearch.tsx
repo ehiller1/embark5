@@ -1,5 +1,3 @@
-
-// src/pages/CommunityResearch.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
@@ -25,8 +23,7 @@ const CommunityResearch: React.FC = () => {
       navigate('/');
     }
   }, [isAuthenticated, navigate]);
-  
-  // Track note count from localStorage
+
   useEffect(() => {
     const checkNoteCount = () => {
       try {
@@ -48,39 +45,33 @@ const CommunityResearch: React.FC = () => {
         setTotalNoteCount(0);
       }
     };
-    
     checkNoteCount();
-    
-    // Add storage event listener to detect changes from the component
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'community_research_notes') {
         checkNoteCount();
       }
     };
-    
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
-  
+
   const handleSelectCategory = (cat: string, prompt?: string) => {
     setActiveCategory(cat);
     if (prompt) setSearchPrompt(prompt);
   };
 
   const handleNext = () => {
-    // Save notes and navigate
     saveAllNotes();
-    navigate('/church-assessment');
+    navigate('/community-assessment');
   };
-  
+
   const saveAllNotes = () => {
-    // Get notes from localStorage and save them to community_assessment_data
     const notes = localStorage.getItem('community_research_notes');
     if (notes) {
       localStorage.setItem('community_assessment_data', notes);
-      toast({ 
-        title: 'Success', 
-        description: 'All notes saved successfully' 
+      toast({
+        title: 'Success',
+        description: 'All notes saved successfully'
       });
     }
   };
@@ -88,11 +79,12 @@ const CommunityResearch: React.FC = () => {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 overflow-hidden">
+    <div className="flex flex-col min-h-screen bg-gray-50">
+      {/* Header */}
       <div className="bg-white px-6 pt-4 flex-shrink-0">
         <Button 
-          variant="ghost" 
-          size="sm" 
+          variant="ghost"
+          size="sm"
           onClick={() => navigate('/clergy-home')}
           className="flex items-center gap-1 text-muted-foreground hover:text-foreground mb-4"
         >
@@ -101,64 +93,72 @@ const CommunityResearch: React.FC = () => {
         </Button>
       </div>
       <header className="bg-white shadow-sm py-4 px-6 border-b flex-shrink-0">
-        <div className="flex flex-col">
-          <h1 className="text-2xl font-semibold text-gray-900">Assessing Your Neighborhood</h1>
-          <p className="text-muted-foreground text-sm">
-            Understanding the unique attributes and opportunities of your neighborhood environment.
-          </p>
-          <p className="mt-4 text-lg text-gray-600">
-            Follow the steps below to accumulate research on the characteristics of your neighborhood building a report that can help inform your discernment.
-          </p>
-        </div>
+        <h1 className="text-2xl font-semibold text-gray-900">Assessing Your Neighborhood</h1>
+        <p className="text-muted-foreground text-sm">
+          Understanding the unique attributes and opportunities of your neighborhood environment.
+        </p>
+        <p className="mt-4 text-lg text-gray-600">
+          Follow the steps below to accumulate research on the characteristics of your neighborhood, building a report that can help inform your discernment.
+        </p>
       </header>
-      
-      <div className="flex-1 overflow-hidden">
-        <AssessmentSidebar>
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 h-full max-w-6xl mx-auto w-full px-4">
-            <aside className="col-span-1 md:col-span-1 h-full w-full max-w-xs overflow-y-auto">
-              <AssessmentSidebarContent
-                pageType="community_research"
-                activeCategory={activeCategory}
-                onSelectCategory={handleSelectCategory}
-                refreshKey={refreshKey}
+      {/* Main Content */}
+      <div className="flex flex-1 overflow-auto">
+        {/* Sidebar: Fixed width, scrollable */}
+        <aside className="w-64 min-w-[220px] max-w-xs bg-white border-r overflow-y-auto">
+          <div className="sticky top-0">
+            <AssessmentSidebarContent
+              pageType="community_research"
+              activeCategory={activeCategory}
+              onSelectCategory={handleSelectCategory}
+              refreshKey={refreshKey}
+            />
+          </div>
+        </aside>
+        {/* Main: Two-column content area */}
+        <main className="flex-1 flex flex-col bg-gray-50 min-h-[800px]">
+          <div className="flex flex-col md:flex-row">
+            {/* Search & Results */}
+            <section className="w-full md:w-1/2 p-6 flex flex-col gap-6">
+              <CommunityResearchInterface
+                activeCategory={activeCategory || ""}
+                searchPrompt={searchPrompt || ""}
+                onNext={handleNext}
+                panel="search"
               />
-            </aside>
-            <section className="col-span-1 md:col-span-4 flex flex-col h-full w-full max-w-5xl">
-              <div className="flex flex-col h-full">
-                <div className="flex-1 overflow-y-auto">
-                  <CommunityResearchInterface
-                    activeCategory={activeCategory || ""}
-                    searchPrompt={searchPrompt || ""}
-                    onNext={handleNext}
-                  />
-                </div>
-                
-                {/* Action buttons fixed to bottom of container */}
-                <div className="sticky bottom-0 left-0 right-0 bg-white border-t pt-4 pb-4 mt-8 w-full max-w-5xl mx-auto px-4 flex-shrink-0">
-                  <div className="flex flex-col sm:flex-row justify-between gap-4">
-                    <Button 
-                      variant="outline" 
-                      onClick={saveAllNotes} 
-                      size="lg" 
-                      className="px-4 sm:px-8 border-[#47799f] text-[#47799f] hover:bg-[#47799f]/10 whitespace-nowrap"
-                    >
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Research
-                    </Button>
-                    <Button 
-                      onClick={handleNext} 
-                      disabled={totalNoteCount === 0} 
-                      size="lg" 
-                      className="text-lg px-8 py-6 bg-primary hover:bg-primary/90 text-white font-bold whitespace-nowrap flex-shrink-0"
-                    >
-                      Next Steps <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </div>
+            </section>
+            {/* Notes */}
+            <section className="w-full md:w-1/2 p-6 border-l border-gray-200 bg-white flex flex-col gap-6">
+              <CommunityResearchInterface
+                activeCategory={activeCategory || ""}
+                searchPrompt={searchPrompt || ""}
+                onNext={handleNext}
+                panel="notes"
+              />
             </section>
           </div>
-        </AssessmentSidebar>
+        </main>
+      </div>
+      {/* Bottom Action Bar */}
+      <div className="sticky bottom-0 left-0 w-full bg-white border-t py-4 z-50">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between gap-4">
+          <Button
+            variant="outline"
+            onClick={saveAllNotes}
+            size="lg"
+            className="px-4 sm:px-8 border-[#47799f] text-[#47799f] hover:bg-[#47799f]/10 whitespace-nowrap"
+          >
+            <Save className="mr-2 h-4 w-4" />
+            Save Research
+          </Button>
+          <Button
+            onClick={handleNext}
+            disabled={totalNoteCount === 0}
+            size="lg"
+            className="btn-next-step"
+          >
+            Next Steps: Opinions about your Neighborhood <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -22,7 +22,7 @@ export default function ScenarioMessagingPage() {
   const [companion, setCompanion] = useState<any>(null);
   // Use a hardcoded prompt type since the user_settings table doesn't exist yet
   // TODO: When the user_settings table is created, replace this with dynamic fetching
-  const [promptType, setPromptType] = useState<PromptType>('scenario_refinement');
+  const [promptType, setPromptType] = useState<PromptType>('scenario_interrogatory');
   
   // Log the prompt type being used
   useEffect(() => {
@@ -168,9 +168,9 @@ export default function ScenarioMessagingPage() {
           <div className="flex justify-end mt-6">
             <Button 
               onClick={() => navigate('/narrative-build')} 
-              className="bg-teal-600 hover:bg-teal-700 text-white font-medium px-4 transition-colors"
+              className="btn-next-step"
             >
-              Next Steps
+              Next Steps: Create a Community Mission Statement
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>

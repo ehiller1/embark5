@@ -15,7 +15,7 @@ import { MainLayout } from "./components/MainLayout";
 
 // Import all the page components
 import Index from "./pages/Index";
-import Conversation from "./pages/Conversation";
+// import Conversation from "./pages/Conversation.tsx.bak";
 import CommunityAssessment from "./pages/CommunityAssessment.tsx";
 import CommunityResearch from "./pages/CommunityResearch";
 import ChurchAssessment from "./pages/ChurchAssessment.tsx";
@@ -43,7 +43,9 @@ import SerpApiTest from "./pages/SerpApiTest";
 import NotFound from "./pages/NotFound";
 import Unauthorized from './pages/Unauthorized';
 import TestPage from "./pages/TestPage";
+import ParishLandingPage from "./pages/ParishLandingPage";
 import ConversationParishSurvey from './pages/Conversation_parish_survey';
+import ParishCompanionSelection from './pages/ParishCompanionSelection';
 import CrowdfundingMarketplace from './pages/CrowdfundingMarketplace';
 import ConversationParish from './pages/Conversation_parish';
 import SurveySummary from './pages/survey_summary';
@@ -107,13 +109,15 @@ const App = () => {
                   <Routes>
                     <Route element={<MainLayout />}>
                       {/* Public Routes */}
-                      <Route path="/" element={<Index />} />
+                      <Route path="/" element={<Index />} /> {/* Main landing page (Clergy-focused) */}
+                      <Route path="/clergy" element={<Index />} /> {/* Explicit clergy landing page */}
+                      <Route path="/parish" element={<ParishLandingPage />} /> {/* Parish-specific landing page */}
                       <Route path="/test" element={<TestPage />} />
-                                            <Route path="/serpapi-test" element={<SerpApiTest />} />
+                      <Route path="/serpapi-test" element={<SerpApiTest />} />
                       <Route path="/unauthorized" element={<Unauthorized />} />
 
                       {/* Routes requiring any authenticated user */}
-                      <Route path="/conversation" element={<ProtectedRoute><Conversation /></ProtectedRoute>} />
+                      {/* <Route path="/conversation" element={<ProtectedRoute><Conversation /></ProtectedRoute>} /> */}
                       <Route path="/prayers" element={<ProtectedRoute><PrayersPage /></ProtectedRoute>} />
                       <Route path="/theological-resources" element={<ProtectedRoute><TheologicalResourcesPage /></ProtectedRoute>} />
                       <Route path="/case-studies" element={<ProtectedRoute><CaseStudiesPage /></ProtectedRoute>} />
@@ -153,6 +157,7 @@ const App = () => {
                       <Route path="/surveys/:id/summary" element={<ProtectedRoute allowedRoles={['Clergy']}><SurveySummary /></ProtectedRoute>} />
 
                       {/* Parish-only routes */}
+                      <Route path="/select-parish-companion" element={<ProtectedRoute allowedRoles={['Parish']}><ParishCompanionSelection /></ProtectedRoute>} />
                       <Route path="/conversation-parish-survey" element={<ProtectedRoute allowedRoles={['Parish']}><ConversationParishSurvey /></ProtectedRoute>} />
                       <Route path="/conversation-parish" element={<ProtectedRoute allowedRoles={['Parish']}><ConversationParish /></ProtectedRoute>} />
                                             <Route path="/survey-summary" element={<ProtectedRoute allowedRoles={['Clergy', 'Parish']}><SurveySummary /></ProtectedRoute>} />

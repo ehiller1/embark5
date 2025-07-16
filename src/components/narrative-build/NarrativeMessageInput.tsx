@@ -15,6 +15,7 @@ interface NarrativeMessageInputProps {
   isLoading: boolean;
   showDefineNarrativeButton: boolean;
   handleNavigateToScenario: () => void;
+  handleFinalizeMissionStatement?: () => void; // New handler for mission statement customization
   avatars?: {
     name: string;
     role: string;
@@ -31,6 +32,7 @@ export const NarrativeMessageInput: React.FC<NarrativeMessageInputProps> = ({
   isLoading,
   showDefineNarrativeButton,
   handleNavigateToScenario,
+  handleFinalizeMissionStatement,
   avatars = [],
   onDirectMessage
 }) => {
@@ -52,14 +54,7 @@ export const NarrativeMessageInput: React.FC<NarrativeMessageInputProps> = ({
   
   return (
     <div className="pt-2">
-      {!showDefineNarrativeButton && (
-        <Alert className="mb-4 bg-accent/10 border-accent/20">
-          <Sparkles className="h-4 w-4 text-accent" />
-          <AlertDescription>
-            Continue to refine your mission statement using the text box below.
-          </AlertDescription>
-        </Alert>
-      )}
+      {/* Alert removed as requested */}
       
       <form onSubmit={handleSubmit} className="flex flex-col space-y-2">
         <div className="relative">
@@ -127,14 +122,14 @@ export const NarrativeMessageInput: React.FC<NarrativeMessageInputProps> = ({
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    onClick={handleNavigateToScenario}
+                    onClick={handleFinalizeMissionStatement || handleNavigateToScenario}
                     className="bg-primary text-primary-foreground hover:bg-primary/90 flex gap-2"
                   >
                     <ArrowRight className="h-4 w-4" />
-                    <span>Continue to Scenario Planning</span>
+                    <span>Next Step: Finalize the Mission</span>
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Skip to scenario planning with your current progress</TooltipContent>
+                <TooltipContent>Finalize your mission statement based on your conversation</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>

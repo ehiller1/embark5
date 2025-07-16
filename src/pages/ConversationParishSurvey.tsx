@@ -75,7 +75,7 @@ interface TextFieldResponse {
 interface SurveyQuestion {
   id: string;
   text: string;
-  type: 'text' | 'multiple_choice' | 'rating' | 'boolean';
+  type: 'text' | 'multiple_choice' | 'rating' | 'boolean' | 'checkbox';
   options?: string[];
   required: boolean;
 }
@@ -86,13 +86,20 @@ interface SurveyTemplate {
   description: string;
   created_by: string;
   created_at: string;
-  metadata: {
+  metadata?: {
     church_id: string;
     survey_type: string;
-    template_data: {
-      questions: SurveyQuestion[];
+    template_data?: {
+      questions?: SurveyQuestion[];
     };
+    questions?: SurveyQuestion[];
   };
+  church_id: string;
+  survey_type: string;
+  template_data?: {
+    questions?: SurveyQuestion[];
+  };
+  questions?: SurveyQuestion[];
 }
 
 // Hook to load current user's church ID
@@ -127,65 +134,146 @@ function useChurchId(): { churchId: string | null; loading: boolean } {
 
 // Utility function to convert survey template to the expected structure
 function convertSurveyFormat(template: SurveyTemplate): SurveyStructure {
-  // Base structure
-  const surveyStructure: SurveyStructure = {
-    overall_direction: template.description || "Please complete this survey to help us understand our community better.",
-    "text field section": [],
-    "conversational section": []
-  };
-  
-  // Get questions from template data
-  const questions = template.metadata.template_data.questions || [];
-  
-  // Group questions by type
-  const textQuestions = questions.filter(q => q.type === 'text');
-  const interactiveQuestions = questions.filter(
-    q => ['multiple_choice', 'rating', 'boolean'].includes(q.type)
-  );
-  
-  // Create text field sections (one section per text question for better organization)
-  textQuestions.forEach((question, index) => {
-    surveyStructure["text field section"].push({
-      title: `Written Response ${index + 1}`,
-      question: question.text,
-      sample_text: "Type your detailed thoughts here...",
-      question_id: question.id // Store original question ID for response mapping
-    });
-  });
-  
-  // Create conversational sections (group by 3-4 questions per section)
-  const chunkSize = 3;
-  for (let i = 0; i < interactiveQuestions.length; i += chunkSize) {
-    const chunk = interactiveQuestions.slice(i, i + chunkSize);
-    const section: ConversationalSection = {
-      title: `Interactive Questions - Part ${Math.floor(i / chunkSize) + 1}`,
-      conversation_prompt: "Let's discuss the following topics. I'll guide you through each question:",
-      text_fields: [],
-      questions: chunk.map(q => ({
-        id: q.id,
-        text: q.text,
-        type: q.type,
-        options: q.options || []
-      }))
+  try {
+    console.log('Converting survey template:', template);
+    
+    // Check if template data is in the expected location
+    let templateData = template.metadata?.template_data;
+    
+    // If not found in the expected location, try to find it elsewhere in the structure
+    if (!templateData || !templateData.questions) {
+      console.log('Template data not found in expected location, searching for questions...');
+      
+      // Try to find questions directly in metadata
+      if (template.metadata?.questions) {
+        console.log('Found questions directly in metadata');
+        templateData = { questions: template.metadata.questions };
+      }
+      // Check if the entire template might be the template_data
+      else if (template.questions) {
+        console.log('Found questions directly in template root');
+        templateData = { questions: template.questions };
+      }
+      // Last resort: check if the template itself is structured as expected
+      else if (Array.isArray(template.metadata)) {
+        console.log('Template metadata is an array, checking for questions');
+        templateData = { questions: template.metadata };
+      }
+      
+      if (!templateData || !templateData.questions) {
+        console.error('Could not locate questions in template:', template);
+        throw new Error('Invalid template data structure - questions not found');
+      }
+    }
+    
+    console.log('Using template data:', templateData);
+    
+    // Ensure questions is an array
+    const questions = Array.isArray(templateData.questions) ? 
+      templateData.questions : 
+      [templateData.questions];
+    
+    console.log('Extracted questions:', questions);
+    
+    // Filter questions by type
+    const textFieldQuestions = questions.filter(q => q.type === 'text');
+    const multipleChoiceQuestions = questions.filter(q => 
+      q.type === 'multiple_choice' || q.type === 'checkbox' || q.type === 'rating'
+    );
+    
+    console.log('Text field questions:', textFieldQuestions);
+    console.log('Multiple choice questions:', multipleChoiceQuestions);
+    
+    // Base structure
+    const surveyStructure: SurveyStructure = {
+      overall_direction: template.description || "Please complete this survey to help us understand our community better.",
+      "text field section": [],
+      "conversational section": []
     };
     
-    // Add text fields for capturing responses during conversation
-    chunk.forEach(question => {
-      section.text_fields.push({
-        header: question.text,
-        sample_text: question.type === 'multiple_choice' 
-          ? "Select from: " + (question.options || []).join(", ")
-          : question.type === 'rating' 
-            ? "Rate from 1-5" 
-            : "Yes/No",
-        question_id: question.id // Store original question ID
+    // Create text field sections (one section per text question for better organization)
+    textFieldQuestions.forEach((question, index) => {
+      surveyStructure["text field section"].push({
+        title: `Written Response ${index + 1}`,
+        question: question.text,
+        sample_text: "Type your detailed thoughts here...",
+        question_id: question.id // Store original question ID for response mapping
       });
     });
     
-    surveyStructure["conversational section"].push(section);
+    // Create conversational sections (group by 3-4 questions per section)
+    const chunkSize = 3;
+    for (let i = 0; i < multipleChoiceQuestions.length; i += chunkSize) {
+      const chunk = multipleChoiceQuestions.slice(i, i + chunkSize);
+      const section: ConversationalSection = {
+        title: `Interactive Questions - Part ${Math.floor(i / chunkSize) + 1}`,
+        conversation_prompt: "Let's discuss the following topics. I'll guide you through each question:",
+        text_fields: [],
+        questions: chunk.map(q => ({
+          id: q.id,
+          text: q.text,
+          type: q.type,
+          options: q.options || []
+        }))
+      };
+      
+      // Add text fields for capturing responses during conversation
+      chunk.forEach(question => {
+        section.text_fields.push({
+          header: question.text,
+          sample_text: question.type === 'multiple_choice' 
+            ? "Select from: " + (question.options || []).join(", ")
+            : question.type === 'rating' 
+              ? "Rate from 1-5" 
+              : "Yes/No",
+          question_id: question.id // Store original question ID
+        });
+      });
+      
+      surveyStructure["conversational section"].push(section);
+    }
+    
+    // If no sections were created, add a default conversational section
+    if (surveyStructure["text field section"].length === 0 && 
+        surveyStructure["conversational section"].length === 0) {
+      surveyStructure["text field section"].push({
+        title: 'Default Survey Question',
+        question: 'Please share your thoughts:',
+        sample_text: 'Enter your response here...'
+      });
+      
+      surveyStructure["conversational section"].push({
+        title: 'Additional Information',
+        conversation_prompt: 'Please provide any additional information:',
+        text_fields: [{
+          header: 'Additional Comments',
+          sample_text: 'Enter any additional comments here...'
+        }]
+      });
+    }
+    
+    console.log('Converted survey structure:', surveyStructure);
+    return surveyStructure;
+  } catch (error) {
+    console.error('Error converting survey format:', error);
+    // Return a default structure instead of throwing
+    return {
+      overall_direction: 'Please complete the following survey.',
+      "text field section": [{
+        title: 'Default Survey Question',
+        question: 'Please share your thoughts:',
+        sample_text: 'Enter your response here...'
+      }],
+      "conversational section": [{
+        title: 'Additional Information',
+        conversation_prompt: 'Please provide any additional information:',
+        text_fields: [{
+          header: 'Additional Comments',
+          sample_text: 'Enter any additional comments here...'
+        }]
+      }]
+    };
   }
-  
-  return surveyStructure;
 }
 
 // Helper function to initialize responses from survey structure
@@ -258,6 +346,7 @@ export default function ConversationParishSurvey(): JSX.Element {
   const [textFieldResponses, setTextFieldResponses] = useState<TextFieldResponse[]>([]);
   const [currentSection, setCurrentSection] = useState<number>(0);
   const [isTextFieldSection, setIsTextFieldSection] = useState<boolean>(true);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
 
   // Load companions
   useEffect(() => {
@@ -299,6 +388,14 @@ export default function ConversationParishSurvey(): JSX.Element {
       }
     }
   }, [churchLoading, loadingCompanions]);
+  
+  // Function declarations moved before usage
+  // This section is now moved before handleSelectCompanion
+  
+  // This section is now moved before handleSelectCompanion
+  
+  // Declare handleSelectCompanion after initConversation is defined
+  let handleSelectCompanion: (companion: ParishCompanion) => void;
 
   // Save conversation
  const saveConversation = useCallback(
@@ -465,15 +562,41 @@ export default function ConversationParishSurvey(): JSX.Element {
         .eq('church_id', profileData.church_id);
       const churchProfile = churchProfiles?.[0] || {};
 
-      // Fetch the latest survey template for this church
-      const { data: surveyTemplates } = await supabase
+      // Fetch the latest survey template for this church using church_id field
+      console.log('Fetching survey template with church_id:', profileData.church_id);
+      
+      let { data: surveyTemplates, error: surveyError } = await supabase
         .from('survey_templates')
         .select('*')
-        .eq('metadata->>church_id', profileData.church_id)
+        .eq('church_id', profileData.church_id)
         .order('created_at', { ascending: false })
         .limit(1);
       
-      console.log('Fetched survey templates:', surveyTemplates);
+      if (surveyError) {
+        console.error('Error fetching survey templates:', surveyError);
+      }
+      
+      console.log('Fetched survey templates using church_id field:', surveyTemplates);
+      
+      // If no templates found with direct church_id field, try fallback to metadata->church_id
+      // This is for backward compatibility
+      if (!surveyTemplates || surveyTemplates.length === 0) {
+        console.log('No templates found with direct church_id, trying metadata->church_id fallback');
+        const { data: fallbackTemplates, error: fallbackError } = await supabase
+          .from('survey_templates')
+          .select('*')
+          .filter('metadata->church_id', 'eq', profileData.church_id)
+          .order('created_at', { ascending: false })
+          .limit(1);
+          
+        if (fallbackError) {
+          console.error('Error in fallback survey template fetch:', fallbackError);
+        } else if (fallbackTemplates && fallbackTemplates.length > 0) {
+          console.log('Found survey template using metadata->church_id fallback:', fallbackTemplates);
+          // Use the fallback templates instead
+          surveyTemplates = fallbackTemplates;
+        }
+      }
       
       let surveyData: SurveyStructure | null = null;
       
@@ -578,15 +701,28 @@ export default function ConversationParishSurvey(): JSX.Element {
     }
   }, [selectedCompanion, saveConversation, toast]);
 
+  // Now define handleSelectCompanion after initConversation is defined
+  handleSelectCompanion = useCallback((companion: ParishCompanion) => {
+    setSelectedCompanion(companion);
+    localStorage.setItem('parish_companion', JSON.stringify(companion));
+    setIsCompanionModalOpen(false);
+    
+    // Initialize conversation with the selected companion
+    if (!hasInitialized.current) {
+      initConversation();
+    }
+  }, [initConversation]);
+
   // Initialize once
   useEffect(() => {
     if (selectedCompanion && churchId && !hasInitialized.current) {
       hasInitialized.current = true;
+      // Only initialize if we haven't already
       if (messages.length === 0) {
         initConversation();
       }
     }
-  }, [selectedCompanion, churchId, initConversation, messages.length]);
+  }, [selectedCompanion, churchId, initConversation]); // Removed messages.length dependency
 
   // Auto-save on unload or unmount
   useEffect(() => {
@@ -725,13 +861,15 @@ export default function ConversationParishSurvey(): JSX.Element {
       const { data: userData } = await supabase.auth.getUser();
       if (!userData?.user?.id) throw new Error('Not authenticated');
       
-      // Get the survey template id
+      // Get the survey template id using church_id field
       const { data: templates } = await supabase
         .from('survey_templates')
         .select('id')
-        .eq('metadata->>church_id', churchId)
+        .eq('church_id', churchId)
         .order('created_at', { ascending: false })
         .limit(1);
+      
+      console.log('Found survey templates using church_id field:', templates);
       
       if (!templates || templates.length === 0) throw new Error('Survey template not found');
       
@@ -798,72 +936,56 @@ export default function ConversationParishSurvey(): JSX.Element {
     }
   };
 
-  // Render the current section based on survey structure
-  const renderCurrentSection = () => {
+  // Render the survey section based on survey structure
+  const renderSurveySection = () => {
     if (!surveyStructure) {
       return (
-        <>
-          {/* TEXT INPUT BOXES */}
-          <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 border rounded-lg shadow-sm bg-white">
-              <h3 className="font-medium text-lg mb-2">Parish History</h3>
-              <Textarea 
-                id="parishInput1" 
-                className="w-full p-2 border rounded-md" 
-                rows={3} 
-                placeholder="Share information about your parish's history and founding..."
-                value={textInputs.input1}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input1', e.target.value)}
-              />
-            </div>
-            <div className="p-4 border rounded-lg shadow-sm bg-white">
-              <h3 className="font-medium text-lg mb-2">Community Demographics</h3>
-              <Textarea 
-                id="parishInput2" 
-                className="w-full p-2 border rounded-md" 
-                rows={3} 
-                placeholder="Describe the demographics of your parish community..."
-                value={textInputs.input2}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input2', e.target.value)}
-              />
-            </div>
-            <div className="p-4 border rounded-lg shadow-sm bg-white">
-              <h3 className="font-medium text-lg mb-2">Current Ministries</h3>
-              <Textarea 
-                id="parishInput3" 
-                className="w-full p-2 border rounded-md" 
-                rows={3} 
-                placeholder="List your parish's current ministries and programs..."
-                value={textInputs.input3}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input3', e.target.value)}
-              />
-            </div>
-            <div className="p-4 border rounded-lg shadow-sm bg-white">
-              <h3 className="font-medium text-lg mb-2">Future Vision</h3>
-              <Textarea 
-                id="parishInput4" 
-                className="w-full p-2 border rounded-md" 
-                rows={3} 
-                placeholder="Describe your vision for the parish's future..."
-                value={textInputs.input4}
-                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input4', e.target.value)}
-              />
-            </div>
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 border rounded-lg shadow-sm bg-white">
+            <h3 className="font-medium text-lg mb-2">Parish History</h3>
+            <Textarea 
+              id="parishInput1" 
+              className="w-full p-2 border rounded-md" 
+              rows={3} 
+              placeholder="Share information about your parish's history and founding..."
+              value={textInputs.input1}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input1', e.target.value)}
+            />
           </div>
-          
-          <div className="h-[500px] bg-white rounded-xl shadow-sm border overflow-hidden">
-            {loadingPrompt ? (
-              <div className="flex items-center justify-center h-full">Loading...</div>
-            ) : (
-              <ControlledConversationInterface
-                messages={messages}
-                isLoading={loadingConversation || loadingPrompt}
-                onSendMessage={handleSendMessage}
-                placeholderText={selectedCompanion ? `Message ${selectedCompanion.name}...` : 'Select a companion to begin...'}
-              />
-            )}
+          <div className="p-4 border rounded-lg shadow-sm bg-white">
+            <h3 className="font-medium text-lg mb-2">Community Demographics</h3>
+            <Textarea 
+              id="parishInput2" 
+              className="w-full p-2 border rounded-md" 
+              rows={3} 
+              placeholder="Describe the demographics of your parish community..."
+              value={textInputs.input2}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input2', e.target.value)}
+            />
           </div>
-        </>
+          <div className="p-4 border rounded-lg shadow-sm bg-white">
+            <h3 className="font-medium text-lg mb-2">Current Ministries</h3>
+            <Textarea 
+              id="parishInput3" 
+              className="w-full p-2 border rounded-md" 
+              rows={3} 
+              placeholder="List your parish's current ministries and programs..."
+              value={textInputs.input3}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input3', e.target.value)}
+            />
+          </div>
+          <div className="p-4 border rounded-lg shadow-sm bg-white">
+            <h3 className="font-medium text-lg mb-2">Future Vision</h3>
+            <Textarea 
+              id="parishInput4" 
+              className="w-full p-2 border rounded-md" 
+              rows={3} 
+              placeholder="Describe your vision for the parish's future..."
+              value={textInputs.input4}
+              onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => handleInputChange('input4', e.target.value)}
+            />
+          </div>
+        </div>
       );
     }
 
@@ -921,69 +1043,72 @@ export default function ConversationParishSurvey(): JSX.Element {
       const section = surveyStructure["conversational section"][sectionIndex];
       
       return (
-        <div className="space-y-6">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>{section.title}</CardTitle>
-              <CardDescription>{section.conversation_prompt}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {section.text_fields.map((field, idx) => (
-                  <div key={idx} className="mb-4">
-                    <Label htmlFor={`field-${idx}`}>{field.header}</Label>
-                    <Textarea 
-                      id={`field-${idx}`} 
-                      placeholder={field.sample_text}
-                      className="min-h-[100px]"
-                      value={textFieldResponses.find(
-                        r => r.sectionTitle === section.title && r.fieldHeader === field.header
-                      )?.response || ''}
-                      onChange={(e) => handleTextFieldChange(section.title, field.header, e.target.value)}
-                    />
-                  </div>
-                ))}
-                <div className="flex justify-between mt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={handlePrevSection}
-                    disabled={currentSection === 0}
-                  >
-                    <ChevronLeft className="mr-2 h-4 w-4" /> Previous
-                  </Button>
-                  {currentSection >= (textFieldSectionCount + (surveyStructure["conversational section"]?.length || 0) - 1) ? (
-                    <Button 
-                      onClick={submitSurvey}
-                      className="bg-green-600 hover:bg-green-700"
-                      disabled={isSubmitting}
-                    >
-                      {isSubmitting ? 'Submitting...' : 'Submit Survey'} {isSubmitting ? <span className="ml-2 h-4 w-4 animate-spin">⏳</span> : <CheckCircle className="ml-2 h-4 w-4" />}
-                    </Button>
-                  ) : (
-                    <Button onClick={handleNextSection}>
-                      Next <ChevronRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  )}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>{section.title}</CardTitle>
+            <CardDescription>{section.conversation_prompt}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {section.text_fields.map((field, idx) => (
+                <div key={idx} className="mb-4">
+                  <Label htmlFor={`field-${idx}`}>{field.header}</Label>
+                  <Textarea 
+                    id={`field-${idx}`} 
+                    placeholder={field.sample_text}
+                    className="min-h-[100px]"
+                    value={textFieldResponses.find(
+                      r => r.sectionTitle === section.title && r.fieldHeader === field.header
+                    )?.response || ''}
+                    onChange={(e) => handleTextFieldChange(section.title, field.header, e.target.value)}
+                  />
                 </div>
+              ))}
+              <div className="flex justify-between mt-4">
+                <Button 
+                  variant="outline" 
+                  onClick={handlePrevSection}
+                  disabled={currentSection === 0}
+                >
+                  <ChevronLeft className="mr-2 h-4 w-4" /> Previous
+                </Button>
+                {currentSection >= (textFieldSectionCount + (surveyStructure["conversational section"]?.length || 0) - 1) ? (
+                  <Button 
+                    onClick={submitSurvey}
+                    className="bg-green-600 hover:bg-green-700"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Submitting...' : 'Submit Survey'} {isSubmitting ? <span className="ml-2 h-4 w-4 animate-spin">⏳</span> : <CheckCircle className="ml-2 h-4 w-4" />}
+                  </Button>
+                ) : (
+                  <Button onClick={handleNextSection}>
+                    Next <ChevronRight className="ml-2 h-4 w-4" />
+                  </Button>
+                )}
               </div>
-            </CardContent>
-          </Card>
-          
-          <div className="h-[300px] bg-white rounded-xl shadow-sm border overflow-hidden">
-            {loadingPrompt ? (
-              <div className="flex items-center justify-center h-full">Loading...</div>
-            ) : (
-              <ControlledConversationInterface
-                messages={messages}
-                isLoading={loadingConversation || loadingPrompt}
-                onSendMessage={handleSendMessage}
-                placeholderText={selectedCompanion ? `Message ${selectedCompanion.name}...` : 'Select a companion to begin...'}
-              />
-            )}
-          </div>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       );
     }
+  };
+  
+  // Render the conversation container
+  const renderConversationContainer = () => {
+    return (
+      <div className="h-[300px] bg-white rounded-xl shadow-sm border overflow-hidden mt-6">
+        {loadingPrompt ? (
+          <div className="flex items-center justify-center h-full">Loading...</div>
+        ) : (
+          <ControlledConversationInterface
+            messages={messages}
+            isLoading={loadingConversation || loadingPrompt}
+            onSendMessage={handleSendMessage}
+            placeholderText={selectedCompanion ? `Message ${selectedCompanion.name}...` : 'Select a companion to begin...'}
+          />
+        )}
+      </div>
+    );
   };
 
   return (
@@ -993,73 +1118,82 @@ export default function ConversationParishSurvey(): JSX.Element {
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
 
+        {/* Display companion information if selected */}
         {selectedCompanion && (
-          <Card className="my-8">
+          <Card className="my-4">
             <CardContent className="flex items-center gap-4">
               <Avatar>
-                <AvatarFallback>
-                  {selectedCompanion.name.charAt(0) || '?'}
-                </AvatarFallback>
-                {!imageErrors[selectedCompanion.id] ? (
-                  <AvatarImage
-                    src={selectedCompanion.avatar_url || ''}
-                    alt={selectedCompanion.name}
-                    onError={() => handleImageError(selectedCompanion.id)}
-                  />
-                ) : (
-                  <AvatarFallback>{selectedCompanion.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{selectedCompanion.name.charAt(0)}</AvatarFallback>
+                {selectedCompanion.avatar_url && (
+                  <AvatarImage src={selectedCompanion.avatar_url} />
                 )}
               </Avatar>
               <div>
-                <p className="text-sm text-gray-500">Partner:</p>
-                <p className="text-xl font-semibold">{selectedCompanion.name}</p>
-                {selectedCompanion.description && <p className="text-sm">{selectedCompanion.description}</p>}
-                {selectedCompanion.knowledge_domains && (
-                  <p className="text-sm mt-1">
-                    <span className="font-medium">Point of view:</span> {selectedCompanion.knowledge_domains}
-                  </p>
-                )}
+                <h3 className="text-lg font-medium">{selectedCompanion.name}</h3>
+                <p className="text-sm text-gray-500">{selectedCompanion.description}</p>
               </div>
             </CardContent>
           </Card>
         )}
 
+        {/* Show companion selection dialog */}
         <Dialog open={isCompanionModalOpen} onOpenChange={setIsCompanionModalOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Choose a Parish Companion</DialogTitle>
+          <DialogContent className="max-w-[350px] max-h-[70vh] overflow-y-auto p-4">
+            <DialogHeader className="pb-2">
+              <DialogTitle className="text-lg">Select a Companion</DialogTitle>
             </DialogHeader>
-            <div className="py-4 space-y-4">
-              {loadingCompanions && <p>Loading companions...</p>}
-              {companionsError && <p className="text-red-500">Error: {companionsError}</p>}
-              {companions.map(c => (
-                <Card key={c.id} className="cursor-pointer hover:border-primary" onClick={() => handleCompanionSelect(c)}>
-                  <CardContent className="flex items-center gap-4 py-4">
-                    <Avatar>
-                      {!imageErrors[c.id] ? (
-                        <AvatarImage src={c.avatar_url} alt={c.name} onError={() => handleImageError(c.id)} />
-                      ) : (
-                        <AvatarFallback>{c.name.slice(0, 2).toUpperCase()}</AvatarFallback>
-                      )}
-                    </Avatar>
-                    <div>
-                      <p className="font-medium">{c.name}</p>
-                      {c.description && <p className="text-sm text-gray-500">{c.description}</p>}
-                      {c.knowledge_domains && (
-                        <p className="text-sm text-gray-600 mt-1">
-                          <span className="font-medium">Point of View:</span> {c.knowledge_domains}
-                        </p>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
+            <div className="flex flex-col space-y-2 py-2">
+              {companions.map((companion) => (
+                <Button
+                  key={companion.id}
+                  variant="outline"
+                  className="justify-start h-auto py-2 px-3"
+                  onClick={() => handleCompanionSelect(companion)}
+                >
+                  <Avatar className="h-6 w-6 mr-2">
+                    <AvatarFallback>{companion.name.charAt(0)}</AvatarFallback>
+                    {companion.avatar_url && (
+                      <AvatarImage src={companion.avatar_url} />
+                    )}
+                  </Avatar>
+                  <span className="text-sm truncate">{companion.name}</span>
+                </Button>
               ))}
             </div>
           </DialogContent>
         </Dialog>
+        
+        {/* Survey Section */}
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold mb-4">Parish Survey</h2>
+          {surveyStructure ? (
+            <div className="bg-white p-4 rounded-lg shadow-sm border">
+              {currentSection !== null && renderSurveySection()}
+            </div>
+          ) : (
+            <div className="bg-white p-4 rounded-lg shadow-sm border text-center">
+              <p>Loading survey...</p>
+              {loadingError && (
+                <p className="text-red-500 mt-2">{loadingError}</p>
+              )}
+            </div>
+          )}
+        </div>
 
-        {/* Render the current section */}
-        {renderCurrentSection()}
+        {/* Conversation Container - Always display this */}
+        <div className="mt-6">
+          <h2 className="text-2xl font-bold mb-4">Conversation</h2>
+          {renderConversationContainer()}
+        </div>
+
+        {/* Select companion button if none selected */}
+        {!selectedCompanion && (
+          <div className="mt-4 text-center">
+            <Button onClick={() => setIsCompanionModalOpen(true)}>
+              Select a Parish Companion
+            </Button>
+          </div>
+        )}
       </div>
     </MainLayout>
   );

@@ -16,7 +16,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({}) => {
   // Pages that need the avatar modal
   const needsAvatarModal = [
     '/narrative-build',
-    '/conversation',
+    
     // Add other paths that need the avatar modal here
   ].some(path => location.pathname.startsWith(path));
 
@@ -24,7 +24,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({}) => {
   const shouldShowModal = isNarrativeModalOpen && needsAvatarModal;
 
   // Pages where footer is fixed to bottom
-  const isSpecialPage = ['/conversation', '/church-assessment'].includes(location.pathname);
+  const isSpecialPage = ['/church-assessment'].includes(location.pathname);
 
   return (
     <div className="flex flex-col min-h-screen bg-soft-light">

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/integrations/lib/auth/AuthProvider";
 import { AuthModal } from "@/components/AuthModal";
@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Send, ArrowRight } from "lucide-react";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, Send, ArrowRight, ArrowLeft } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useViabilityMessages } from "@/hooks/useViabilityMessages";
+import { useOpenAI } from "@/hooks/useOpenAI";
+import { supabase } from "@/integrations/lib/supabase";
 
 // Helper function to format message content with proper line breaks and paragraphs
 const formatMessageContent = (content: string) => {
@@ -51,6 +54,12 @@ const formatMessageContent = (content: string) => {
   });
 };
 
+// Interface for viability score response
+interface ViabilityScore {
+  score: number;
+  interpretation: string;
+}
+
 const Analysis = () => {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
@@ -58,21 +67,233 @@ const Analysis = () => {
 
   const [newMessage, setNewMessage] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // State for text inputs
-  const [textInputs, setTextInputs] = useState({
+  // Define the type for text inputs
+  interface TextInputs {
+    input1: string;
+    input2: string;
+    input3: string;
+    input4: string;
+  }
+  
+  // Default empty values
+  const defaultInputs: TextInputs = {
     input1: '',
     input2: '',
     input3: '',
     input4: ''
+  };
+  
+  // State for text inputs
+  const [textInputs, setTextInputs] = useState<TextInputs>(() => {
+    // Try to get saved fields from localStorage
+    const savedFields = localStorage.getItem('viability_fields');
+    if (savedFields) {
+      try {
+        const parsed = JSON.parse(savedFields) as TextInputs;
+        // Validate the structure of parsed data
+        if (typeof parsed === 'object' && parsed !== null && 
+            'input1' in parsed && 'input2' in parsed && 
+            'input3' in parsed && 'input4' in parsed) {
+          return parsed;
+        }
+      } catch (e) {
+        console.error('Error parsing saved viability fields:', e);
+      }
+    }
+    // Return default values if parsing fails or structure is invalid
+    return defaultInputs;
   });
+  
+  // State for viability score - initialize from localStorage if available
+  const [viabilityScore, setViabilityScore] = useState<ViabilityScore | null>(() => {
+    const savedScore = localStorage.getItem('viability_score');
+    if (savedScore) {
+      try {
+        return JSON.parse(savedScore) as ViabilityScore;
+      } catch (e) {
+        console.error('Error parsing saved viability score:', e);
+        return null;
+      }
+    }
+    return null;
+  });
+  const [isCalculatingScore, setIsCalculatingScore] = useState(false);
+  const { generateResponse } = useOpenAI();
 
-  // Handle text input changes
+  // Debounce timer reference
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Handle text input changes with debouncing
   const handleInputChange = (field: keyof typeof textInputs, value: string) => {
-    setTextInputs(prev => ({
-      ...prev,
+    const updatedInputs = {
+      ...textInputs,
       [field]: value
-    }));
+    };
+    
+    setTextInputs(updatedInputs);
+    
+    // Save to localStorage
+    localStorage.setItem('viability_fields', JSON.stringify(updatedInputs));
+    
+    // Clear any existing timer
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    
+    // Set a new timer to calculate score after delay
+    debounceTimerRef.current = setTimeout(() => {
+      calculateViabilityScore(updatedInputs);
+      console.log('Calculating viability score after debounce');
+    }, 1000); // 1 second debounce delay
+  };
+  
+  // Get viability_score prompt from database
+  const getViabilityScorePrompt = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('prompt')
+        .eq('prompt_type', 'viability_score')
+        .single();
+        
+      if (error) {
+        console.error('Error fetching viability_score prompt:', error);
+        return null;
+      }
+      
+      return data?.prompt || null;
+    } catch (error) {
+      console.error('Error in getViabilityScorePrompt:', error);
+      return null;
+    }
+  };
+  
+  // Calculate viability score based on inputs
+  const calculateViabilityScore = async (inputs: typeof textInputs) => {
+    // Skip if no inputs provided
+    const hasInputs = Object.values(inputs).some(input => input.trim() !== '');
+    if (!hasInputs) {
+      setViabilityScore(null);
+      return;
+    }
+    
+    setIsCalculatingScore(true);
+    
+    try {
+      // Get the prompt template
+      const promptTemplate = await getViabilityScorePrompt();
+      if (!promptTemplate) {
+        throw new Error('Failed to get viability score prompt');
+      }
+      
+      // Combine all text inputs with field titles as questions
+      const textFieldContent = Object.entries(inputs)
+        .filter(([_, value]) => value.trim() !== '')
+        .map(([key, value]) => {
+          const fieldQuestions = {
+            input1: 'What are your current challenges?',
+            input2: 'How ready is your leadership team?',
+            input3: 'What is your community context?',
+            input4: 'What are your previous experiences?'
+          }[key];
+          const fieldName = {
+            input1: 'Current Challenges',
+            input2: 'Leadership Readiness',
+            input3: 'Community Context',
+            input4: 'Previous Experiences'
+          }[key];
+          return `${fieldQuestions}\n${fieldName}: ${value}`;
+        })
+        .join('\n\n');
+      
+      // Replace placeholder in prompt
+      const populatedPrompt = promptTemplate.replace('$[text_field_content]', textFieldContent);
+      
+      // Call OpenAI - use the populated prompt directly as a user message, not as system content
+      // Explicitly set systemPrompt to empty string to prevent default system prompt
+      const response = await generateResponse({
+        messages: [
+          { role: 'user', content: populatedPrompt }
+        ],
+        maxTokens: 500,
+        temperature: 0.3,
+        systemPrompt: '' // Explicitly set to empty string to override default
+      });
+      
+      if (!response.text) {
+        throw new Error(response.error || 'Failed to generate score');
+      }
+      
+      // Parse the JSON response
+      try {
+        // Extract JSON object from the response
+        const jsonMatch = response.text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No JSON found in response');
+        }
+        
+        const jsonStr = jsonMatch[0];
+        const result = JSON.parse(jsonStr);
+        console.log('Parsed JSON result:', result);
+        
+        // Handle different response formats
+        if (result.viability && Array.isArray(result.viability) && result.viability.length > 0) {
+          // New format with viability array
+          const viabilityItem = result.viability[0];
+          const scoreData = {
+            score: viabilityItem.score || 0,
+            interpretation: viabilityItem.interpretation || 'No interpretation available.'
+          };
+          setViabilityScore(scoreData);
+          // Save to localStorage
+          localStorage.setItem('viability_score', JSON.stringify(scoreData));
+          console.log('Using viability array format:', viabilityItem);
+        } else if (result.score !== undefined) {
+          // Original format with direct score and interpretation
+          const scoreData = {
+            score: result.score || 0,
+            interpretation: result.interpretation || 'No interpretation available.'
+          };
+          setViabilityScore(scoreData);
+          // Save to localStorage
+          localStorage.setItem('viability_score', JSON.stringify(scoreData));
+          console.log('Using direct score/interpretation format');
+        } else {
+          throw new Error('Unexpected JSON structure in response');
+        }
+      } catch (parseError) {
+        console.error('Error parsing viability score response:', parseError);
+        console.log('Response text:', response.text);
+        
+        // Fallback: try to extract score and interpretation directly
+        const scoreMatch = response.text.match(/score:\s*(\d+)/i);
+        const interpretationMatch = response.text.match(/interpretation:\s*([^\n]+)/i);
+        
+        if (scoreMatch && interpretationMatch) {
+          const scoreData = {
+            score: parseInt(scoreMatch[1], 10),
+            interpretation: interpretationMatch[1].trim()
+          };
+          setViabilityScore(scoreData);
+          // Save to localStorage
+          localStorage.setItem('viability_score', JSON.stringify(scoreData));
+          console.log('Using regex fallback parsing');
+        } else {
+          throw new Error('Failed to parse viability score response');
+        }
+      }
+    } catch (error) {
+      console.error('Error calculating viability score:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to calculate viability score. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsCalculatingScore(false);
+    }
   };
 
   const {
@@ -96,24 +317,39 @@ const Analysis = () => {
     }
   }, [textInputs, generateInitialMessage, messages]);
 
+  // Function to scroll to the bottom of the conversation
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
+
+  // Track if this is the first render with messages
+  const isFirstRender = useRef(true);
+  
+  // Scroll to bottom only when messages change and not on initial load
   useEffect(() => {
-    // Ensure scroll to bottom when messages change
-    const currentRef = scrollAreaRef.current;
-    if (currentRef) {
-      const scrollToBottom = () => {
-        if (currentRef) {
-          currentRef.scrollTop = currentRef.scrollHeight;
-        }
-      };
-      
-      // Execute scroll immediately and after a short delay to ensure content is rendered
-      scrollToBottom();
+    // Skip scrolling on first render with messages
+    if (isFirstRender.current && messages.length > 0) {
+      isFirstRender.current = false;
+      return;
+    }
+    
+    // Only scroll to bottom if there are messages and it's not the initial render
+    if (messages.length > 0 && !isFirstRender.current) {
       const timer = setTimeout(scrollToBottom, 100);
-      
-      // Cleanup timer on unmount
       return () => clearTimeout(timer);
     }
-  }, [messages]);
+  }, [messages, scrollToBottom]);
+  
+  // Also scroll to bottom when loading state changes, but not on initial load
+  useEffect(() => {
+    if (!isLoading && !isFirstRender.current) {
+      // When loading completes (new message received), scroll to bottom
+      const timer = setTimeout(scrollToBottom, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading, scrollToBottom]);
 
   // Text inputs are automatically applied when changed via the useEffect dependency
 
@@ -138,8 +374,27 @@ const Analysis = () => {
     }
   };
 
+  // Ensure the page starts at the top when loaded
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-50">
+      {/* Back button above the header */}
+      <div className="bg-white px-4 sm:px-6 pt-4">
+        <div className="max-w-7xl mx-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/')}
+            className="flex items-center gap-1 text-journey-pink hover:bg-journey-lightPink/20 z-20"
+          >
+            <ArrowLeft className="h-4 w-4" /> Back
+          </Button>
+        </div>
+      </div>
+      
       <header className="bg-white shadow-sm py-4 px-4 sm:px-6 border-b sticky top-0 z-10">
         <div className="max-w-7xl mx-auto flex items-center space-x-4">
           <h1 className="text-xl sm:text-2xl font-semibold text-gray-900 truncate">Viability Assessment</h1>
@@ -152,11 +407,48 @@ const Analysis = () => {
           <p className="text-muted-foreground">
             Faith communities and organizations often wrestle with the question of when to begin a discernment process—especially in seasons of transition, 
             declining membership, or shifting community dynamics. We've aggregated deep wisdom and real-world insight to help you 
-            consider whether this is the right time for your faith community to take its next step.
+            consider whether this is the right time for your faith community to take its next step.Please provide additional information through our interactive chat function. As you provide details, a score will be calculated out of a possible 100 points. A higher score indicates your community's readiness for formal discernment.
           </p>
         </div>
         
         {/* TEXT INPUT BOXES */}
+        {/* Viability Score Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Viability Score</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-4 gap-4">
+              <div className="p-4 border rounded-lg bg-muted/50">
+                <h3 className="font-medium text-lg mb-2">Score</h3>
+                <div className="flex items-center justify-center h-16">
+                  {isCalculatingScore ? (
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  ) : viabilityScore ? (
+                    <span className="text-3xl font-bold text-primary">{viabilityScore.score}</span>
+                  ) : (
+                    <span></span>
+                  )}
+                </div>
+              </div>
+              <div className="col-span-3 p-4 border rounded-lg bg-muted/50">
+                <h3 className="font-medium text-lg mb-2">Interpretation</h3>
+                <div className="h-auto max-h-36 overflow-y-auto">
+                  {isCalculatingScore ? (
+                    <div className="flex items-center justify-center h-full">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  ) : viabilityScore?.interpretation ? (
+                    <p className="text-sm">{viabilityScore.interpretation}</p>
+                  ) : (
+                    <p></p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        
         <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="p-4 border rounded-lg shadow-sm bg-white">
             <h3 className="font-medium text-lg mb-2">Current Challenges</h3>
@@ -229,6 +521,8 @@ const Analysis = () => {
                   </div>
                 </div>
               )}
+              {/* Invisible element to scroll to */}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
@@ -254,12 +548,12 @@ const Analysis = () => {
                 </Button>
               </div>
               <Button 
-                onClick={() => isAuthenticated ? navigate('/conversation') : setAuthModalOpen(true)} 
+                onClick={() => isAuthenticated ? navigate('/clergy-home') : setAuthModalOpen(true)} 
                 variant="secondary" 
-                className="whitespace-nowrap"
+                className="whitespace-nowrap text-white"
               >
-                <span className="hidden sm:inline">Ready to start planning?</span>
-                <ArrowRight className="ml-1 h-4 w-4" />
+                <span className="hidden sm:inline text-white">Ready to start planning?</span>
+                <ArrowRight className="ml-1 h-4 w-4 text-white" />
               </Button>
             </div>
           </div>
@@ -271,7 +565,7 @@ const Analysis = () => {
         isOpen={authModalOpen} 
         onClose={() => setAuthModalOpen(false)} 
         onLoginSuccess={() => {
-          navigate('/conversation');
+          navigate('/clergy-home');
         }}
       />
     </div>

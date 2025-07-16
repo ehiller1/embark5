@@ -280,16 +280,15 @@ export function useScenarioGenerator() {
       // Log full prompt to console for debugging (commented out to avoid excessive logging)
       // console.log('[ScenarioGenerator] Full prompt being sent to AI:', fullPrompt);
 
-      // Use promptData.prompt as it contains the actual prompt content.
-      // There isn't a separate system_prompt on the Prompt object from promptUtils.ts
-      const systemInstruction = 'You are an expert assistant that generates detailed and plausible scenarios based on provided context. Return the scenarios in a JSON array format, where each scenario object has a "title" and a "description".';
+      // As per requirements, we'll no longer use a separate system instruction
+      // The prompt from the database already includes all necessary instructions
 
       // 3. Call OpenAI API
       console.log('[useScenarioGenerator] Calling OpenAI to generate scenarios...');
       const aiResponse = await generateResponse({
         messages: [
-          { role: 'system', content: systemInstruction }, // System instruction for the AI
-          { role: 'user', content: fullPrompt },         // The main prompt with all details
+          // Using only the populated prompt from the database as per requirements
+          { role: 'user', content: fullPrompt }
         ],
         maxTokens: 2000, // Increased maxTokens for potentially longer scenario lists
         temperature: 0.6, // Slightly lower temperature for more focused and less random scenarios

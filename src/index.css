@@ -217,6 +217,10 @@
     @apply px-4 py-2 rounded-md bg-gradient-journey text-white hover:shadow-journey transition-all;
   }
   
+  .btn-next-step {
+    @apply ml-auto text-white font-bold text-lg px-8 py-6 rounded-md bg-[#C46659] hover:bg-[#C46659]/90 flex items-center gap-2 whitespace-nowrap;
+  }
+  
   .tooltip {
     @apply absolute z-50 px-2 py-1 text-xs rounded bg-foreground text-background opacity-0 group-hover:opacity-100 transition-opacity;
   }

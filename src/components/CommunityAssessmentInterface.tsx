@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { useCommunityMessages } from '@/hooks/useCommunityMessages';
+import { useCommunityMessages, Message } from '@/hooks/useCommunityMessages';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { useSectionAvatars } from '@/hooks/useSectionAvatars';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,10 +12,20 @@ import { Button } from '@/components/ui/button';
 
 interface CommunityAssessmentInterfaceProps {
   disableNext?: boolean;
+  onUserMessageSent?: () => void;
+  showReminderMessage?: boolean;
+  onReminderMessageShown?: () => void;
+  reminderMessage?: string;
 }
 
-export function CommunityAssessmentInterface({ disableNext = false }: CommunityAssessmentInterfaceProps) {
-  const { messages, isLoading, generateInitialMessage, handleSendMessage } = useCommunityMessages();
+export function CommunityAssessmentInterface({ 
+  disableNext = false,
+  onUserMessageSent,
+  showReminderMessage = false,
+  onReminderMessageShown,
+  reminderMessage = "You have provided a lot of information. Do you want to continue or I can integrate everything you said and you can just click the Next Step button and we can move on"
+}: CommunityAssessmentInterfaceProps) {
+  const { messages, setMessages, isLoading, generateInitialMessage, handleSendMessage, isFirstUserMessageSent } = useCommunityMessages();
   const { selectedCompanion } = useSelectedCompanion();
   const { getAvatarForPage } = useSectionAvatars();
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -38,7 +48,7 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Initialize
+  // Initialize - we keep this for compatibility but it's now a no-op
   useEffect(() => {
     if (messages.length === 0) {
       generateInitialMessage();
@@ -66,7 +76,30 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
     if (!input.trim() || isLoading) return;
     await handleSendMessage(input);
     setInput('');
+    
+    // Notify parent component about user message
+    if (onUserMessageSent) {
+      onUserMessageSent();
+    }
   };
+
+  // Effect to handle the reminder message display
+  useEffect(() => {
+    if (showReminderMessage && onReminderMessageShown) {
+      // Add the reminder message as a system message
+      const reminderMsg: Message = {
+        id: Date.now(),
+        sender: "assistant",
+        content: reminderMessage,
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev: Message[]) => [...prev, reminderMsg]);
+      
+      // Notify parent that reminder was shown
+      onReminderMessageShown();
+    }
+  }, [showReminderMessage, reminderMessage, onReminderMessageShown, setMessages]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -79,7 +112,7 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
           type="always"
         >
           <div className="flex flex-col min-h-full pt-4">
-            {messages.length === 0 && isLoading ? (
+            {isLoading && messages.length === 0 ? (
               <div className="flex items-center justify-center h-full">
                 <LoadingSpinner text="Initializing conversation..." />
               </div>
@@ -185,16 +218,6 @@ export function CommunityAssessmentInterface({ disableNext = false }: CommunityA
               aria-label="Send"
             >
               <ArrowRight className="h-5 w-5" />
-            </Button>
-          </div>
-          
-          <div className="flex justify-end mt-2">
-            <Button 
-              disabled={disableNext}
-              onClick={() => window.location.href = '/research-summary'}
-              className="text-lg px-8 py-6 bg-primary hover:bg-primary/90 text-white font-bold"
-            >
-              Next Steps <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>

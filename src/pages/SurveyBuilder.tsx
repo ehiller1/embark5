@@ -369,7 +369,6 @@ Based on the conversation, create appropriate survey questions.`
       <div className="max-w-4xl mx-auto">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Community Survey Builder</h1>
-          <p className="text-gray-600">Create a survey to gather information from your community</p>
         </div>
         
         <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
@@ -423,7 +422,7 @@ Based on the conversation, create appropriate survey questions.`
             ) : (
               <>
                 <FileText className="mr-2 h-4 w-4" />
-                Save Survey
+                Next Step: Save Survey
               </>
             )}
           </Button>

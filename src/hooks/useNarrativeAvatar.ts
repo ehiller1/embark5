@@ -204,7 +204,7 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
     
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 5000); // Reduced to 5-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 15000); // Increased to 15-second timeout
     
     try {
       // First, check if table exists before attempting operations
@@ -245,16 +245,28 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
       clearTimeout(timeoutId);
 
       if (error) {
-        // Silently ignore abort errors as they are expected on unmount or timeout
-        if (error.name !== 'AbortError') {
+        // Handle abort errors with more useful information
+        if (error.name === 'AbortError') {
+          console.warn('Church avatars fetch timed out - using cached data if available');
+          // If we have cached data, continue using it instead of showing an error
+          if (churchAvatars.length > 0) {
+            console.log('Using cached church avatars data');
+            setIsInitialized(true);
+            return;
+          }
+        } else {
           console.error('Error fetching church avatars:', error);
         }
-        // We already set avatars from cache, so just mark as initialized
         setIsInitialized(true);
         return;
       }
       
-      const mappedData = data?.map((item: ChurchAvatarItem) => ({
+      if (!data) {
+        setIsInitialized(true);
+        return;
+      }
+      
+      const mappedData = data.map((item: ChurchAvatarItem) => ({
         id: item.id,
         name: item.avatar_name || '',
         role: 'church',
@@ -311,7 +323,7 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
     
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 5000); // Reduced to 5-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 15000); // Increased to 15-second timeout
     
     try {
       // First, check if table exists before attempting operations
@@ -352,16 +364,28 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
       clearTimeout(timeoutId);
 
       if (error) {
-        // Silently ignore abort errors as they are expected on unmount or timeout
-        if (error.name !== 'AbortError') {
+        // Handle abort errors with more useful information
+        if (error.name === 'AbortError') {
+          console.warn('Community avatars fetch timed out - using cached data if available');
+          // If we have cached data, continue using it instead of showing an error
+          if (communityAvatars.length > 0) {
+            console.log('Using cached community avatars data');
+            setIsInitialized(true);
+            return;
+          }
+        } else {
           console.error('Error fetching community avatars:', error);
         }
-        // We already set avatars from cache, so just mark as initialized
         setIsInitialized(true);
         return;
       }
       
-      const mappedData = data?.map((item: CommunityAvatarItem) => ({
+      if (!data) {
+        setIsInitialized(true);
+        return;
+      }
+      
+      const mappedData = data.map((item: CommunityAvatarItem) => ({
         id: item.id,
         name: item.avatar_name || '',
         role: 'community',
@@ -425,7 +449,7 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
     
     // Create abort controller for proper timeout handling
     const abortController = new AbortController();
-    const timeoutId = setTimeout(() => abortController.abort(), 5000); // Reduced to 5-second timeout
+    const timeoutId = setTimeout(() => abortController.abort(), 15000); // Increased to 15-second timeout
     
     try {
       // First, check if table exists before attempting operations
@@ -460,30 +484,41 @@ function useNarrativeAvatarInternal(): NarrativeAvatarContextType {
         .select('UUID, companion, avatar_url, traits, speech_pattern, knowledge_domains, companion_type') 
         .limit(20) // Reduced limit for faster response
         .abortSignal(abortController.signal);
-      
+        
       // Clear the timeout as we got a response
       clearTimeout(timeoutId);
-
+      
       if (error) {
-        // Silently ignore abort errors as they are expected on unmount or timeout
-        if (error.name !== 'AbortError') {
+        // Handle abort errors with more useful information
+        if (error.name === 'AbortError') {
+          console.warn('Companions fetch timed out - using cached data if available');
+          // If we have cached data, continue using it instead of showing an error
+          if (companions.length > 0) {
+            console.log('Using cached companions data');
+            setIsInitialized(true);
+            return;
+          }
+        } else {
           console.error('Error fetching companions:', error);
         }
-        // We already set companions from cache, so just mark as initialized
         setIsInitialized(true);
         return;
       }
-
-      const mappedData = data?.map((item: CompanionItem) => ({
-        id: item.UUID || '', // Ensure ID is not null
-        name: item.companion || '', // Use companion field for name
-        role: 'companion' as const,
+      
+      if (!data) {
+        setIsInitialized(true);
+        return;
+      }
+      
+      const mappedData = data.map((item: CompanionItem) => ({
+        UUID: item.UUID || '',
+        companion: item.companion || '',
         avatar_url: item.avatar_url || '',
         traits: item.traits || '',
         speech_pattern: item.speech_pattern || '',
         knowledge_domains: item.knowledge_domains || '',
         companion_type: item.companion_type || ''
-      })) || [];
+      }));
       
       // Cache the data for future use
       if (mappedData.length > 0) {
