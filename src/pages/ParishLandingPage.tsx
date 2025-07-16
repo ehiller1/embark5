@@ -7,7 +7,7 @@ import { useUserProfile } from "@/integrations/lib/auth/UserProfileProvider";
 import { ArrowRight, ImageOff } from "lucide-react";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import heroImage from '../assets/hero-image.png';
-import { MainLayout } from "../components/MainLayout";
+// MainLayout is provided by App.tsx router structure
 
 export function ParishLandingPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -70,7 +70,6 @@ export function ParishLandingPage() {
   };
   
   return (
-    <MainLayout>
       <div className="relative flex items-start justify-center min-h-screen px-4 py-16 bg-soft-light">
         <div className="max-w-6xl w-full grid md:grid-cols-2 gap-12 items-center">
           <div className="space-y-6">
@@ -134,7 +133,6 @@ export function ParishLandingPage() {
           onLoginSuccess={handleLoginSuccess}
         />
       </div>
-    </MainLayout>
   );
 }
 
