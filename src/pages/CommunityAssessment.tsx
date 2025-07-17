@@ -54,18 +54,20 @@ export default function CommunityAssessment() {
               key={sessionKey}
               disableNext  // this prop removes the “Next” button inside the form
               onUserMessageSent={() => {
-                const newCount = userMessageCount + 1;
-                setUserMessageCount(newCount);
-                
-                // Show reminder message every 10 messages
-                if (newCount > 0 && newCount % 10 === 0) {
-                  setShowReminderMessage(true);
-                  // Reset counter after showing reminder
-                  setUserMessageCount(0);
-                }
-              }}
+                 setUserMessageCount(prevCount => {
+                   const updated = prevCount + 1;
+                   if (updated % 10 === 0) {
+                     setShowReminderMessage(true);
+                   }
+                   return updated;
+                 });
+               }}
               showReminderMessage={showReminderMessage}
-              onReminderMessageShown={() => setShowReminderMessage(false)}
+              onReminderMessageShown={() => {
+                 // hide the reminder and reset the counter for the next cycle
+                 setShowReminderMessage(false);
+                 setUserMessageCount(0);
+               }}
               reminderMessage="You have provided a lot of information. Do you want to continue or I can integrate everything you said and you can just click the Next Step button and we can move on"
             />
           </div>
