@@ -72,7 +72,7 @@ export function useViabilityMessages() {
 
     let initialContent = `Now share other thoughts your have about your community and your neighborhood. `;
 
-    initialContent += `\n\nHow This Works\n\n1. vWe'll review key aspects of your community's current situation.\n2. I'll help you understand potential opportunities and challenges.\n3. We'll identify concrete actions to move forward.\n\nYou can ask specific questions about your community's readiness, or we can work through the assessment together. What would you like to explore first?`;
+    initialContent += `\n\nHow This Works\n\n1. We'll review key aspects of your community's current situation.\n2. I'll help you understand potential opportunities and challenges.\n3. We'll identify concrete actions to move forward.\n\nYou can ask specific questions about your community's readiness, or we can work through the assessment together. What would you like to explore first?`;
     
     const hardcodedContent = initialContent;
     
@@ -92,7 +92,11 @@ export function useViabilityMessages() {
   };
 
   // Handle sending messages
-  const sendMessage = async (content: string, textInputs?: { input1: string; input2: string; input3: string; input4: string }) => {
+  const sendMessage = async (
+    content: string,
+    textInputs?: { input1: string; input2: string; input3: string; input4: string },
+    viabilityScore?: number
+  ) => {
     if (!content.trim() || isLoading || messageProcessingRef.current) return;
     
     messageProcessingRef.current = true;
@@ -115,6 +119,7 @@ export function useViabilityMessages() {
         leadership_readiness: textInputs?.input2 || 'Not specified',
         community_context: textInputs?.input3 || 'Not specified',
         previous_experiences: textInputs?.input4 || 'Not specified',
+        viability_score: viabilityScore !== undefined ? String(viabilityScore) : '0',
         user_message: content
       });
 

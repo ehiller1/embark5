@@ -1,4 +1,5 @@
-// No React imports needed as they're automatically imported with JSX
+import React, { useState } from 'react';
+// No other React imports needed as JSX runtime handles createElement
 import { useNavigate } from 'react-router-dom';
 import { AppLogo } from './navigation/AppLogo';
 import { MobileNavigation } from './navigation/MobileNavigation';
@@ -6,6 +7,7 @@ import { UserMenu } from './navigation/UserMenu';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { ChatSupportIcon } from './ChatSupportIcon';
+import { AuthModal } from '@/components/AuthModal';
 import { Clock } from 'lucide-react'; // Add this at the top with other icon imports
 import {
   DropdownMenu,
@@ -19,10 +21,11 @@ import {
 import { Home, BookOpen, MessageCircle, Map, Clipboard, FileText, ChevronDown, Users, ShoppingCart, Share2 } from 'lucide-react';
 
 export function Header() {
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const navigate = useNavigate();
   // Get user role from useUserProfile and logout from useAuth
   const { profile } = useUserProfile();
-  const { signOut } = useAuth();
+  const { signOut, isAuthenticated } = useAuth();
   const userRole = profile?.role ?? null;
   
   const handleLogout = async () => {
@@ -182,11 +185,29 @@ export function Header() {
         
         {/* Right side content - desktop auth info */}
         <div className="flex items-center relative">
-          <UserMenu onLogout={handleLogout} />
+          {isAuthenticated ? (
+            <UserMenu onLogout={handleLogout} />
+          ) : (
+            <button
+              onClick={() => setShowAuthModal(true)}
+              className="px-4 py-2 bg-journey-pink text-white rounded-md hover:bg-journey-pink/90 transition-colors hidden md:block"
+            >
+              Log In
+            </button>
+          )}
           <div className="ml-4 absolute top-[calc(100%+12px)] right-0">
             <ChatSupportIcon />
           </div>
         </div>
+
+        {/* AuthModal for header login button */}
+        {showAuthModal && (
+          <AuthModal
+            isOpen={showAuthModal}
+            onClose={() => setShowAuthModal(false)}
+            onLoginSuccess={() => setShowAuthModal(false)}
+          />
+        )}
       </div>
     </header>
   );

@@ -122,10 +122,13 @@ const Analysis = () => {
   const [isCalculatingScore, setIsCalculatingScore] = useState(false);
   const { generateResponse } = useOpenAI();
 
-  // Debounce timer reference
+  // Track which stage score has been calculated: 'none' | 'stage1' | 'stage2'
+  const [scoreStage, setScoreStage] = useState<'none' | 'stage1' | 'stage2'>('none');
+
+  // Debounce timer reference for delayed calculation
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Handle text input changes with debouncing
+  // Handle text input changes – no direct score calculation here, we'll use useEffect to react
   const handleInputChange = (field: keyof typeof textInputs, value: string) => {
     const updatedInputs = {
       ...textInputs,
@@ -142,11 +145,7 @@ const Analysis = () => {
       clearTimeout(debounceTimerRef.current);
     }
     
-    // Set a new timer to calculate score after delay
-    debounceTimerRef.current = setTimeout(() => {
-      calculateViabilityScore(updatedInputs);
-      console.log('Calculating viability score after debounce');
-    }, 1000); // 1 second debounce delay
+    // No immediate calculation here – handled by watcher useEffect
   };
   
   // Get viability_score prompt from database
@@ -170,7 +169,22 @@ const Analysis = () => {
     }
   };
   
-  // Calculate viability score based on inputs
+  // ---------------------------------------------
+   // CALCULATION HELPERS
+   // ---------------------------------------------
+
+   // Determine if stage1 conditions met: first two inputs filled
+   const isStage1Ready = (inputs: typeof textInputs) =>
+     inputs.input1.trim() !== '' && inputs.input2.trim() !== '';
+
+   // Determine if stage2 conditions met: all four inputs filled and at least one user message sent
+   const isStage2Ready = (inputs: typeof textInputs, msgs: typeof messages) => {
+     const allInputs = Object.values(inputs).every(val => val.trim() !== '');
+     const hasFirstUserMsg = msgs.some(m => m.sender === 'user');
+     return allInputs && hasFirstUserMsg;
+   };
+
+   // Calculate viability score based on inputs
   const calculateViabilityScore = async (inputs: typeof textInputs) => {
     // Skip if no inputs provided
     const hasInputs = Object.values(inputs).some(input => input.trim() !== '');
@@ -324,7 +338,28 @@ const Analysis = () => {
     }
   }, []);
 
-  // Track if this is the first render with messages
+  // ---------------------------------------------
+   // WATCHERS TO TRIGGER SCORE CALCULATION
+   // ---------------------------------------------
+
+   // Watch for changes in inputs or messages to trigger calculation per stage logic
+   useEffect(() => {
+     const triggerCalculation = (stage: 'stage1' | 'stage2') => {
+       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+       debounceTimerRef.current = setTimeout(() => {
+         calculateViabilityScore(textInputs);
+         setScoreStage(stage);
+       }, 800); // slight debounce
+     };
+
+     if (scoreStage === 'none' && isStage1Ready(textInputs)) {
+       triggerCalculation('stage1');
+     } else if (scoreStage === 'stage1' && isStage2Ready(textInputs, messages)) {
+       triggerCalculation('stage2');
+     }
+   }, [textInputs, messages, scoreStage]);
+
+   // Track if this is the first render with messages
   const isFirstRender = useRef(true);
   
   // Scroll to bottom only when messages change and not on initial load
@@ -357,12 +392,16 @@ const Analysis = () => {
     if (!newMessage.trim()) return;
 
     try {
-      await sendMessage(newMessage.trim(), {
-        input1: textInputs.input1,
-        input2: textInputs.input2,
-        input3: textInputs.input3,
-        input4: textInputs.input4
-      });
+      await sendMessage(
+        newMessage.trim(),
+        {
+          input1: textInputs.input1,
+          input2: textInputs.input2,
+          input3: textInputs.input3,
+          input4: textInputs.input4
+        },
+        viabilityScore?.score
+      );
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -407,8 +446,8 @@ const Analysis = () => {
           <p className="text-muted-foreground">
             Faith communities and organizations often wrestle with the question of when to begin a discernment process—especially in seasons of transition, 
             declining membership, or shifting community dynamics. We've aggregated deep wisdom and real-world insight to help you 
-            consider whether this is the right time for your faith community to take its next step.Please provide additional information through our interactive chat function. As you provide details, a score will be calculated out of a possible 100 points. A higher score indicates your community's readiness for formal discernment.
-          </p>
+            consider whether this is the right time for your faith community to take its next step.</p>
+          <p>Please provide additional information through our interactive chat function. As you provide details, a score will be calculated out of a possible 100 points. A higher score indicates your community's readiness for formal discernment.</p>
         </div>
         
         {/* TEXT INPUT BOXES */}
