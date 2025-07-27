@@ -144,7 +144,6 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
           )}
         </div>
         <AlertDialogFooter className="pt-4">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button onClick={handleSaveSelection} disabled={pendingSelectedCompanionId === null}>
             Save Selection
           </Button>
