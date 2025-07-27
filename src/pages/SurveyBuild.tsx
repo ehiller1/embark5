@@ -134,9 +134,6 @@ const SurveyDistributionModal = ({
           )}
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
           <Button onClick={handleContinue} disabled={isUploading}>
             {isUploading ? (
               <>
