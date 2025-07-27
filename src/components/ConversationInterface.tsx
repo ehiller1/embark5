@@ -23,6 +23,9 @@ interface ConversationInterfaceProps {
   companionName?: string;
   className?: string;
   selectedCompanion?: Companion | null;
+  showReminderMessage?: boolean;
+  onReminderMessageShown?: () => void;
+  reminderMessage?: string;
 }
 
 export const ConversationInterface = ({
@@ -32,7 +35,10 @@ export const ConversationInterface = ({
   onError,
   companionName = 'Companion',
   className = '',
-  selectedCompanion
+  selectedCompanion,
+  showReminderMessage = false,
+  onReminderMessageShown,
+  reminderMessage = "You have provided a lot of information. Would you like to continue or are you ready to move to the next step?"
 }: ConversationInterfaceProps) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -68,6 +74,25 @@ export const ConversationInterface = ({
     }, 100);
     return () => clearTimeout(timer);
   }, [messages, scrollToBottom]);
+
+  // Handle reminder message display
+  useEffect(() => {
+    if (showReminderMessage && onReminderMessageShown) {
+      // Add the reminder message as a system message
+      const reminderMsg: Message = {
+        id: `reminder-${Date.now()}`,
+        text: reminderMessage,
+        isUser: false,
+      };
+      
+      const updatedMessages = [...messages, reminderMsg];
+      setMessages(updatedMessages);
+      onMessageUpdate?.(updatedMessages);
+      
+      // Notify parent that reminder was shown
+      onReminderMessageShown();
+    }
+  }, [showReminderMessage, reminderMessage, onReminderMessageShown, messages, onMessageUpdate]);
 
   const formatMessagesForAPI = useCallback((messages: Message[]) => {
     return messages.map(msg => ({

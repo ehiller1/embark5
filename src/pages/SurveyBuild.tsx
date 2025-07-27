@@ -167,6 +167,10 @@ const SurveyBuild = () => {
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null);
   const [showDistributionModal, setShowDistributionModal] = useState(false);
   const [systemPrompt, setSystemPrompt] = useState<string>("");
+  
+  // Message counting for reminder system
+  const [userMessageCount, setUserMessageCount] = useState<number>(0);
+  const [showReminderMessage, setShowReminderMessage] = useState<boolean>(false);
 
   // Log showDistributionModal state for debugging
   useEffect(() => {
@@ -272,8 +276,25 @@ const SurveyBuild = () => {
     checkUserRole();
   }, [isAuthenticated, navigate, user]);
 
-  // Conversation handling
-  const handleConversationUpdate = (messages: Message[]) => setSurveyConversation(messages);
+  // Conversation handling with message counting
+  const handleConversationUpdate = (messages: Message[]) => {
+    setSurveyConversation(messages);
+    
+    // Count user messages for reminder system
+    const userMessages = messages.filter(msg => msg.isUser);
+    const currentUserCount = userMessages.length;
+    
+    // Check if we have a new user message (count increased)
+    if (currentUserCount > userMessageCount) {
+      setUserMessageCount(prevCount => {
+        const updated = currentUserCount;
+        if (updated % 10 === 0 && updated > 0) {
+          setShowReminderMessage(true);
+        }
+        return updated;
+      });
+    }
+  };
 
   const handleError = (error: Error) => {
     console.error('Error in conversation:', error);
@@ -683,20 +704,16 @@ Based on the conversation, create appropriate survey questions.`
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
         </div>
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Survey Builder</h1>
-        </div>
         <div className="mb-8 text-left">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Community Survey Builder</h1>
           <p className="text-gray-600">Create a survey to gather information from your community</p>
           <p className="mt-4 text-lg text-gray-600">
-            Enter into conversation about the ideas and topics that you think are important and you will be guided through the survey building process using up-to-date research on survey construction.  When you are finished click the generate survey button and a survey will be constructed that you can edit.  Members of the community can then complete the survey and results will be summarized for you.
+            Enter into conversation about the ideas and topics that you think are important and you will be guided through the survey building process using up-to-date research on survey construction.  Members of the community can then complete the survey and results will be summarized for you.
           </p>
         </div>
         <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200">
           <div className="p-4 border-b border-gray-200">
-            <h2 className="text-lg font-medium text-gray-900">Survey Builder</h2>
-            <p className="text-sm text-gray-500">Type in your goals and questions for your neighborhood survey. Your Companion will help you craft effective questions to gather the information you need.  Start typing your questions in the text box below to begin building your survey.</p>
+            <p className="text-sm text-gray-500">Type in your goals and questions for your neighborhood survey. Your Companion will help you craft effective questions to gather the information you need.  Start typing your questions in the text box below to begin building your survey.  When you are finished, click the “generate survey” button, and a survey</p>
           </div>
           <div>
             <ConversationInterface
@@ -713,6 +730,12 @@ Based on the conversation, create appropriate survey questions.`
                 avatar_url: selectedCompanion.avatar_url,
                 companion_type: selectedCompanion.companion_type
               } : null}
+              showReminderMessage={showReminderMessage}
+              onReminderMessageShown={() => {
+                setShowReminderMessage(false);
+                setUserMessageCount(0); // Reset counter after reminder shown
+              }}
+              reminderMessage="You've provided a lot of information about your survey needs. Would you like to continue the conversation or are you ready to generate your survey?"
             />
           </div>
         </div>
