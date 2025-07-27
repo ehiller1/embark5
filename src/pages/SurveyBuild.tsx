@@ -9,13 +9,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
-import { ArrowLeft, Loader2, ArrowRight, UploadCloud, X } from "lucide-react";
+import { ArrowLeft, Loader2, ArrowRight, UploadCloud, X, QrCode } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { SurveyEditor } from "@/components/SurveyEditor";
 import jsPDF from "jspdf";
 import { useOpenAI } from "@/hooks/useOpenAI";
+import QRCode from 'qrcode';
 
 type FieldType = 'text' | 'textarea' | 'radio' | 'checkbox' | 'select';
 
@@ -52,6 +53,8 @@ const SurveyDistributionModal = ({
   const [sendToMembers, setSendToMembers] = useState<boolean | null>(null);
   const [emailListFile, setEmailListFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState<string | null>(null);
+  const [showQrCode, setShowQrCode] = useState(false);
 
   const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
@@ -79,6 +82,51 @@ const SurveyDistributionModal = ({
       return;
     }
     onContinue(sendToMembers, emailListFile);
+  };
+
+  const generateQrCode = async () => {
+    if (!surveyTemplate?.id) {
+      toast({
+        title: "Error",
+        description: "Survey ID not found. Please save the survey first.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Construct the survey URL (adjust this based on your actual survey URL structure)
+      const surveyUrl = `${window.location.origin}/survey/${surveyTemplate.id}`;
+      
+      // Generate QR code
+      const qrDataUrl = await QRCode.toDataURL(surveyUrl, {
+        width: 256,
+        margin: 2,
+        color: {
+          dark: '#000000',
+          light: '#FFFFFF'
+        }
+      });
+      
+      setQrCodeDataUrl(qrDataUrl);
+      setShowQrCode(true);
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate QR code. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const downloadQrCode = () => {
+    if (!qrCodeDataUrl) return;
+    
+    const link = document.createElement('a');
+    link.download = `survey-qr-code-${surveyTemplate?.id || 'unknown'}.png`;
+    link.href = qrCodeDataUrl;
+    link.click();
   };
 
   if (!isOpen) return null;
@@ -133,17 +181,37 @@ const SurveyDistributionModal = ({
             </div>
           )}
         </div>
-        <DialogFooter>
-          <Button onClick={handleContinue} disabled={isUploading}>
-            {isUploading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : (
-              "Continue"
-            )}
-          </Button>
+        <DialogFooter className="flex-col space-y-3">
+          {showQrCode && qrCodeDataUrl && (
+            <div className="flex flex-col items-center space-y-3 p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-medium text-sm">Survey QR Code</h4>
+              <img src={qrCodeDataUrl} alt="Survey QR Code" className="w-32 h-32" />
+              <p className="text-xs text-gray-600 text-center">
+                Scan this code to access the survey
+              </p>
+              <Button size="sm" variant="outline" onClick={downloadQrCode}>
+                Download QR Code
+              </Button>
+            </div>
+          )}
+          
+          <div className="flex justify-between w-full">
+            <Button variant="outline" onClick={generateQrCode} disabled={isUploading}>
+              <QrCode className="mr-2 h-4 w-4" />
+              Generate QR Code
+            </Button>
+            
+            <Button onClick={handleContinue} disabled={isUploading}>
+              {isUploading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Continue"
+              )}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
