@@ -36,10 +36,8 @@ export const CompanionSelectionModal: React.FC<CompanionSelectionModalProps> = (
     fetchCompanions: fetchStandardizedCompanions
   } = useSelectedCompanion();
   
-  // Initialize with the currently selected companion's UUID if available
-  const [pendingSelectedCompanionId, setPendingSelectedCompanionId] = useState<number | null>(
-    currentSelectedCompanion?.UUID || null
-  );
+  // Initialize with no selection - user must explicitly choose
+  const [pendingSelectedCompanionId, setPendingSelectedCompanionId] = useState<number | null>(null);
 
   React.useEffect(() => {
     if (open) {
