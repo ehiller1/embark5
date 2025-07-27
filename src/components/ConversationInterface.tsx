@@ -39,6 +39,15 @@ export const ConversationInterface = ({
   const [isLoading, setIsLoading] = useState(false);
   const { generateResponse } = useOpenAI();
   const abortControllerRef = useRef<AbortController | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when messages change
+  const scrollToBottom = useCallback(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, []);
 
   // Set initial message when component mounts
   useEffect(() => {
@@ -51,6 +60,14 @@ export const ConversationInterface = ({
       setMessages([initialBotMessage]);
     }
   }, [initialMessage]);
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      scrollToBottom();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [messages, scrollToBottom]);
 
   const formatMessagesForAPI = useCallback((messages: Message[]) => {
     return messages.map(msg => ({
@@ -177,8 +194,7 @@ export const ConversationInterface = ({
     }
   }, []);
 
-  // Auto-scroll to bottom when messages change
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  // Additional scroll effect using scrollAreaRef (if needed)
   useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTo({
@@ -240,6 +256,7 @@ export const ConversationInterface = ({
                 </div>
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
         </div>
       </ScrollArea>
