@@ -1,11 +1,8 @@
 import { useRef, useCallback, useEffect, useState } from 'react';
 import ForceGraph2D, { ForceGraphMethods, NodeObject } from 'react-force-graph-2d';
 import { Button } from '@/components/ui/button';
-import { Plus, Link } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { ImplementationCard, CardCategory, CardConnection } from '@/types/ImplementationTypes';
-import { ConnectionCreationPanel } from './ConnectionCreationPanel';
-import { CategoryCreationPanel } from './CategoryCreationPanel';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ImplementationCard, CardConnection } from '@/types/ImplementationTypes';
 import { useImplementationCards } from '@/hooks/useImplementationCards';
 
 // Define types for graph nodes and links
@@ -13,7 +10,7 @@ interface GraphNode {
   id: string;
   name: string;
   type: 'individual' | 'group';
-  categories: string[]; // from card.category_ids
+  // No more categories
   description: string;
   position?: { x: number; y: number }; // from card.position
   highlighted: boolean;
@@ -43,7 +40,6 @@ interface GraphLink {
 interface CardNetworkVisualizationProps {
   cards: ImplementationCard[];
   connections: CardConnection[];
-  categories: CardCategory[];
   selectedCardIds: string[];
   openChatModal: (nodeIds: string[]) => void;
 }
@@ -51,18 +47,13 @@ interface CardNetworkVisualizationProps {
 export function CardNetworkVisualization({
   cards,
   connections,
-  categories,
   selectedCardIds,
   openChatModal
 }: CardNetworkVisualizationProps) {
   const graphRef = useRef<ForceGraphMethods | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { updateCardPosition } = useImplementationCards();
-  const [isCreatingConnection, setIsCreatingConnection] = useState(false);
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
-  // Using this to pass to the connection modal when opened from a node
-  const [connectionModalSourceCardId, setConnectionModalSourceCardId] = useState<string | null>(null);
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[], links: GraphLink[] }>({ nodes: [], links: [] });
   
   // Track container dimensions
@@ -93,46 +84,39 @@ export function CardNetworkVisualization({
   }, []);
 
   useEffect(() => {
-    // Map cards to graph nodes
+    // Create nodes from cards
     const nodes: GraphNode[] = cards.map(card => ({
       id: card.id,
-      name: card.name || 'Unnamed Card',
-      type: card.type || 'individual',
-      categories: card.category_ids || [],
+      name: card.name,
+      type: card.type as 'individual' | 'group',
       description: card.description || '',
-      position: card.position,
+      position: card.position || { x: 0, y: 0 },
       highlighted: selectedCardIds.includes(card.id),
       card_data: card
     }));
-    
-    // Map connections to graph links - ensure we have valid source and target IDs
-    const links: GraphLink[] = connections
-      .filter(conn => {
-        // Ensure both source and target cards exist
-        const sourceExists = cards.some(card => card.id === conn.source_card_id);
-        const targetExists = cards.some(card => card.id === conn.target_card_id);
-        return sourceExists && targetExists;
-      })
-      .map(conn => ({
-        source: conn.source_card_id,
-        target: conn.target_card_id,
-        relationship_type: conn.relationship_type || 'connected',
-        strength: conn.strength || 1,
-        bidirectional: conn.bidirectional || false,
-        id: conn.id
-      }));
-    
-    console.log(`Rendering ${nodes.length} nodes and ${links.length} connections`);
-    setGraphData({ nodes, links });
 
-    // If cards are available, fit the graph view
-    if (cards.length > 0 && graphRef.current) {
-      setTimeout(() => {
-        if (graphRef.current) {
-          graphRef.current.zoomToFit(400, 30);
-        }
-      }, 500);
-    }
+    // Create links from connections
+    const links: GraphLink[] = [];
+    connections.forEach(conn => {
+      // Ensure both source and target nodes exist
+      const sourceNode = nodes.find(n => n.id === conn.source_card_id);
+      const targetNode = nodes.find(n => n.id === conn.target_card_id);
+      
+      if (sourceNode && targetNode) {
+        links.push({
+          id: conn.id,
+          source: conn.source_card_id,
+          target: conn.target_card_id,
+          relationship_type: conn.relationship_type || 'related',
+          strength: 0.3, // Default strength
+          bidirectional: conn.bidirectional || false,
+          sourceNode,
+          targetNode
+        });
+      }
+    });
+
+    setGraphData({ nodes, links });
   }, [cards, connections, selectedCardIds]);
 
   useEffect(() => {
@@ -142,12 +126,7 @@ export function CardNetworkVisualization({
         highlighted: selectedCardIds.includes(node.id)
       }));
 
-      const updatedLinks = prev.links.map(link => ({
-        ...link,
-        highlighted: selectedCardIds.includes(link.source as string) && selectedCardIds.includes(link.target as string)
-      }));
-
-      return { nodes: updatedNodes, links: updatedLinks };
+      return { nodes: updatedNodes, links: prev.links };
     });
   }, [selectedCardIds]);
 
@@ -155,8 +134,11 @@ export function CardNetworkVisualization({
   const [showNodeDetailModal, setShowNodeDetailModal] = useState(false);
 
   const handleNodeClick = (node: GraphNode) => {
+    // Open chat modal with the clicked node
+    openChatModal([node.id]);
+    
+    // Also update the selected node for the detail view
     setSelectedNode(node);
-    setShowNodeDetailModal(true);
   };
   
   const handleStartChat = () => {
@@ -164,11 +146,6 @@ export function CardNetworkVisualization({
       openChatModal([selectedNode.id]);
       setShowNodeDetailModal(false);
     }
-  };
-
-  const handleConnectionCreated = () => {
-    setIsCreatingConnection(false);
-    setConnectionModalSourceCardId(null);
   };
 
   const handleNodeDragEnd = (node: GraphNode) => {
@@ -180,24 +157,13 @@ export function CardNetworkVisualization({
     }
   };
 
-  // Function to determine node color based on type and selection
-  const getNodeColor = (node: GraphNode) => {
-    if (node.highlighted) {
-      return '#ff6b6b'; // Red for selected nodes
-    }
-
-    // If the node has categories, use the first category's color
-    if (node.categories && node.categories.length > 0) {
-      const categoryId = node.categories[0];
-      const category = categories.find(c => c.id === categoryId);
-      if (category && category.color) {
-        return category.color;
-      }
-    }
-
-    // Default colors based on type
-    return node.type === 'individual' ? '#4dabf7' : '#9775fa';
-  };
+  // Function to determine node color based on selection
+  const getNodeColor = useCallback((node: GraphNode) => {
+    if (node.highlighted) return '#3b82f6'; // blue-500 for selected nodes
+    
+    // Default colors based on node type
+    return node.type === 'individual' ? '#10b981' : '#8b5cf6'; // green-500 for individuals, purple-500 for groups
+  }, []);
 
   // Handle node right click (unused for now but needed for the prop)
   const handleNodeRightClick = useCallback((node: GraphNode) => {
@@ -237,30 +203,14 @@ export function CardNetworkVisualization({
                   <p className="text-sm">{selectedNode.description || 'No description available'}</p>
                 </div>
                 
+                {/* Categories section temporarily disabled
                 <div>
                   <h3 className="text-sm font-medium mb-1">Categories</h3>
                   <div className="flex flex-wrap gap-2">
-                    {selectedNode.categories.length > 0 ? (
-                      selectedNode.categories.map(categoryId => {
-                        const category = categories.find(c => c.id === categoryId);
-                        return (
-                          <span 
-                            key={categoryId}
-                            className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                            style={{ 
-                              backgroundColor: category?.color ? `${category.color}30` : '#e2e8f0',
-                              color: category?.color ? category.color : '#64748b'
-                            }}
-                          >
-                            {category?.name || 'Unknown Category'}
-                          </span>
-                        );
-                      })
-                    ) : (
-                      <span className="text-sm text-muted-foreground">No categories assigned</span>
-                    )}
+                    <span className="text-xs text-gray-500">Categories feature coming soon</span>
                   </div>
                 </div>
+                */}
                 
                 <div>
                   <h3 className="text-sm font-medium mb-1">Connections</h3>
@@ -308,17 +258,6 @@ export function CardNetworkVisualization({
           
           <div className="flex justify-end space-x-2 mt-4">
             <Button variant="outline" onClick={() => setShowNodeDetailModal(false)}>Close</Button>
-            <Button 
-              onClick={() => {
-                setConnectionModalSourceCardId(selectedNode?.id || null);
-                setShowNodeDetailModal(false);
-                setIsCreatingConnection(true);
-              }}
-              variant="outline"
-              className="flex items-center gap-1"
-            >
-              <Link className="h-4 w-4" /> Add Connection
-            </Button>
             <Button onClick={handleStartChat} className="flex items-center gap-1">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
                 <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
@@ -329,52 +268,7 @@ export function CardNetworkVisualization({
         </DialogContent>
       </Dialog>
       
-      <div className="flex justify-between items-center p-4 bg-slate-50 border-b">
-        <div className="space-x-2 flex items-center">
-          <h3 className="text-sm font-medium text-slate-700">Network Visualization</h3>
-          <span className="text-xs text-slate-500">{graphData.nodes.length} people/groups · {graphData.links.length} connections</span>
-        </div>
-        <div className="space-x-2 flex">
-          <Dialog open={isCreatingCategory} onOpenChange={setIsCreatingCategory}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="flex items-center gap-1">
-                <Plus className="h-4 w-4" /> New Category
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create a Category</DialogTitle>
-                <DialogDescription>
-                  Create a new category to organize people and groups by color coding them.
-                </DialogDescription>
-              </DialogHeader>
-              <CategoryCreationPanel onSuccess={() => setIsCreatingCategory(false)} />
-            </DialogContent>
-          </Dialog>
-          
-          <Dialog open={isCreatingConnection} onOpenChange={setIsCreatingConnection}>
-            <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="flex items-center gap-1">
-                <Link className="h-4 w-4" /> New Connection
-              </Button>
-            </DialogTrigger>
-
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Create a Connection</DialogTitle>
-                <DialogDescription>
-                  Connect people or groups together to show relationships between them.
-                </DialogDescription>
-              </DialogHeader>
-              <ConnectionCreationPanel 
-                cards={cards} 
-                onSuccess={handleConnectionCreated}
-                initialSourceCardId={connectionModalSourceCardId || undefined}
-              />
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+      <div className="h-2"></div>
       
       <div className="flex-1 w-full">
         {graphData.nodes.length > 0 ? (
@@ -391,10 +285,29 @@ export function CardNetworkVisualization({
             linkCurvature={(link: any) => (link as GraphLink).bidirectional ? 0.25 : 0}
             onNodeClick={(node: NodeObject) => handleNodeClick(node as GraphNode)}
             onNodeRightClick={(node: NodeObject) => handleNodeRightClick(node as GraphNode)}
-            onNodeDragEnd={(node: NodeObject) => handleNodeDragEnd(node as GraphNode)}
+            onNodeDragEnd={(node: NodeObject) => {
+              // Constrain node position within boundaries
+              const constrainedNode = node as GraphNode;
+              const margin = 20;
+              const maxX = dimensions.width - margin;
+              const maxY = dimensions.height - 40 - margin;
+              
+              if (constrainedNode.x !== undefined) {
+                constrainedNode.x = Math.max(margin, Math.min(maxX, constrainedNode.x));
+              }
+              if (constrainedNode.y !== undefined) {
+                constrainedNode.y = Math.max(margin, Math.min(maxY, constrainedNode.y));
+              }
+              
+              handleNodeDragEnd(constrainedNode);
+            }}
             cooldownTicks={100}
             d3AlphaDecay={0.05}
             d3VelocityDecay={0.4}
+            enableZoomInteraction={true}
+            minZoom={0.5}
+            maxZoom={3}
+            enablePanInteraction={true}
             nodeCanvasObject={(node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
               const n = node as GraphNode;
               const label = n.name;
@@ -419,6 +332,9 @@ export function CardNetworkVisualization({
               if (n === selectedNode) {
                 const tooltipPadding = 6;
                 const tooltipHeight = fontSize * 3 + tooltipPadding * 2;
+                // Calculate text width using measureText
+                ctx.font = `${fontSize}px Sans-Serif`;
+                const textWidth = ctx.measureText(label).width;
                 const tooltipWidth = Math.max(textWidth + tooltipPadding * 2, 100);
                 
                 // Draw tooltip background
@@ -454,18 +370,7 @@ export function CardNetworkVisualization({
                   (node.y || 0) - nodeSize - tooltipHeight + fontSize * 2 + tooltipPadding
                 );
                 
-                // Show categories if any
-                if (n.categories.length > 0) {
-                  const category = categories.find(c => c.id === n.categories[0]);
-                  if (category) {
-                    ctx.fillStyle = category.color;
-                    ctx.fillText(
-                      category.name,
-                      (node.x || 0),
-                      (node.y || 0) - nodeSize - tooltipHeight + fontSize * 3 + tooltipPadding
-                    );
-                  }
-                }
+                // Categories functionality removed
               }
               
               // Always render node labels if zoomed in enough

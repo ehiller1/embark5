@@ -44,7 +44,7 @@ const ParishHomePage: React.FC = () => {
     <div className="container mx-auto py-8 px-4 sm:px-6 lg:px-8">
       <header className="mb-10 pb-6 border-b border-gray-200">
         <h1 className="text-4xl font-bold tracking-tight text-gray-900 sm:text-5xl gradient-text">
-          {isLoading ? 'Welcome!' : `Welcome to ${churchName} Discernment Process!`}
+          {isLoading ? 'Welcome!' : `Welcome${profile?.preferred_name || profile?.first_name ? `, ${profile.preferred_name || profile.first_name}` : ''} to ${churchName} Discernment Process!`}
         </h1>
         <p className="mt-4 text-lg text-gray-600 max-w-3xl">
           Join the discernment.  Share your voice.  Support our community's growth.

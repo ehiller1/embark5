@@ -162,6 +162,14 @@ export function Header() {
                   </DropdownMenuSub>
                   <DropdownMenuItem disabled className="flex items-center opacity-50">
                     <Clock className="h-4 w-4 mr-2 text-journey-pink" />
+                    <span>Strategic Plan Generation (Coming Soon)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="flex items-center opacity-50">
+                    <Clock className="h-4 w-4 mr-2 text-journey-pink" />
+                    <span>Budget Building (Coming Soon)</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="flex items-center opacity-50">
+                    <Clock className="h-4 w-4 mr-2 text-journey-pink" />
                     <span>Redefining Membership (Coming Soon)</span>
                   </DropdownMenuItem>
                   <DropdownMenuItem disabled className="flex items-center opacity-50">

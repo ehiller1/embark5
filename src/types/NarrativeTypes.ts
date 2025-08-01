@@ -28,6 +28,8 @@ export interface NarrativeMessage {
   selected?: boolean;
   /** When the message was created */
   timestamp?: Date;
+  /** Optional message type for categorization (e.g., 'refinement_guidance') */
+  type?: string;
 }
 
 /**

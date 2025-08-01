@@ -229,8 +229,27 @@ export function NeighborhoodSurveyPreview({
     }
   };
 
-  const handleNextSteps = () => {
-    navigate('/community-assessment');
+  const handleNextSteps = async () => {
+    if (onSave) {
+      setIsSaving(true);
+      try {
+        const result = await onSave(survey);
+        if (result.success) {
+          navigate('/church-assessment');
+        }
+      } catch (error) {
+        console.error('Error saving survey:', error);
+        toast({
+          title: "Error",
+          description: "Failed to save survey. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      navigate('/church-assessment');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -263,12 +282,32 @@ export function NeighborhoodSurveyPreview({
     };
   }, [survey.title]);
 
+  // Handle back to builder, preserving the current survey state
+  const handleBackToBuilder = () => {
+    // Pass the current survey state back to the parent component
+    if (onSave) {
+      onSave(survey);
+    }
+    onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-lg shadow-xl max-w-5xl w-full max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="p-6 border-b">
           <div className="flex justify-between items-start">
+            <div className="flex items-center gap-4 mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBackToBuilder}
+                className="flex items-center gap-1"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Back to Survey Builder</span>
+              </Button>
+            </div>
             <div className="flex-1">
               {editMode ? (
                 <div className="space-y-2">
@@ -580,7 +619,7 @@ export function NeighborhoodSurveyPreview({
                 </>
               ) : (
                 <>
-                  <span>Next Step</span>
+                  <span>Next Step: Assess Community Leadership</span>
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </>
               )}

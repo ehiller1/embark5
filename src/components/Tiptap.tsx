@@ -50,17 +50,27 @@ export default function Tiptap({ content, onChange, className }: TiptapProps) {
       OrderedList,
       ListItem,
     ],
-    content: '',
+    content: content || '',
     onUpdate: ({ editor }) => {
       onChange(editor.getHTML());
     },
   });
 
   useEffect(() => {
-    // this is just an example. do whatever you want to do here
-    // to retrieve your editors content from somewhere
-    editor?.commands.setContent(content)
-  }, [content])
+    // Only update content if it's different from the current content
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content || '');
+    }
+  }, [content, editor]);
+
+  // Clean up editor on unmount
+  useEffect(() => {
+    return () => {
+      if (editor) {
+        editor.destroy();
+      }
+    };
+  }, [editor]);
 
   if (!editor) {
     return null;

@@ -84,10 +84,8 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
     });
     
     // Give toast a chance to show before navigation
-    // Use React Router navigation instead of window.location to prevent page reload
-    setTimeout(() => {
-      navigate('/narrative-build');
-    }, 500);
+    // Use React Router navigation to the Narrative-Build screen
+    navigate('/narrative-build');
   };
 
   // Function to handle church avatar change
@@ -113,10 +111,10 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
   return (
     <>
       <AlertDialog open={open} onOpenChange={onOpenChange}>
-        <AlertDialogContent className="sm:max-w-lg">
+        <AlertDialogContent className="sm:max-w-2xl">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-2xl font-serif">
-              Choosing an aspiration
+              Choosing an Aspiration
             </AlertDialogTitle>
             <AlertDialogDescription className="pt-3">
               Now that you have provided background on your community and neighborhood let's create a mission or statement of vocation that will define your ongoing discernment journey. As you continue to lead your organization, select an aspirational identity that most closely represents your hope for the future.
@@ -167,7 +165,7 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
           
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleContinue}>Continue</AlertDialogAction>
+            <AlertDialogAction onClick={handleContinue}>Next Steps: Build a Mission Statement</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -215,7 +213,7 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
                 Back to Selection
               </Button>
               <AlertDialogAction onClick={handleCloseChurchDetailsModal}>
-                Continue to Building a Vocational or Mission Statement
+                Continue Building a Mission Statement
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

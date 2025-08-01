@@ -89,7 +89,7 @@ const CommunityResearch: React.FC = () => {
           className="flex items-center gap-1 text-muted-foreground hover:text-foreground mb-4"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back
+          Want to skip research and return to home page?
         </Button>
       </div>
       <header className="bg-white shadow-sm py-4 px-6 border-b flex-shrink-0">

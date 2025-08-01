@@ -576,8 +576,13 @@ const NarrativeBuildContent: React.FC = () => {
         avatarUrl: currentUser?.user_metadata?.avatar_url
       });
 
-      // Add the hard-coded "Lorem Ipsum" message
-      const loremIpsumMessage = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. This is a hard-coded message that appears when the 'Refine Statements' button is clicked. It demonstrates how the selected secondary vocational statements should appear as cards in the conversation container.";
+      // Create a dynamic response based on the selected statements
+      const statementCount = selectedStatements.length;
+      const statementList = selectedStatements
+        .map((stmt, idx) => `${idx + 1}. "${stmt.content || stmt.mission_statement || 'Untitled Statement'}"`)
+        .join('\n');
+      
+      const dynamicResponse = `Thank you for sharing your selected vocational statement${statementCount > 1 ? 's' : ''}. I've reviewed your selection${statementCount > 1 ? 's' : ''} and am here to help you refine ${statementCount > 1 ? 'them' : 'it'} further.\n\n${statementCount > 1 ? 'These are the statements you\'ve selected for refinement:' : 'This is the statement you\'ve selected for refinement:'}\n${statementList}\n\nLet's work together to:\n1. Clarify the core message of ${statementCount > 1 ? 'each statement' : 'your statement'}\n2. Strengthen the theological foundation\n3. Ensure practical application\n4. Refine the language to be clear and impactful\n\nWould you like to start with any specific aspect of ${statementCount > 1 ? 'these statements' : 'this statement'}?`;
 
       // Check if 'church' is in localStorage 'available_avatars' key
       const availableAvatars = localStorage.getItem('available_avatars');
@@ -588,24 +593,27 @@ const NarrativeBuildContent: React.FC = () => {
         // If 'church' is available, only send church_avatar message
         addMessage({
           role: 'church',
-          content: loremIpsumMessage,
+          content: dynamicResponse,
           name: selectedChurchAvatar.name,
-          avatarUrl: selectedChurchAvatar.avatar_url || selectedChurchAvatar.image_url
+          avatarUrl: selectedChurchAvatar.avatar_url || selectedChurchAvatar.image_url,
+          type: 'refinement_guidance'
         });
       } else if (selectedCompanion) {
         // Otherwise, only send selected_companion message
         addMessage({
           role: 'companion',
-          content: loremIpsumMessage,
+          content: dynamicResponse,
           name: selectedCompanion.name,
-          avatarUrl: selectedCompanion.avatar_url
+          avatarUrl: selectedCompanion.avatar_url,
+          type: 'refinement_guidance'
         });
       } else {
         // Fallback to system message if no avatars are available
         addMessage({
           role: 'system',
-          content: loremIpsumMessage,
-          name: 'System Message'
+          content: dynamicResponse,
+          name: 'System Message',
+          type: 'refinement_guidance'
         });
       }
 
@@ -1397,7 +1405,7 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
         <Card className="mt-6">
           <CardHeader className="flex flex-col items-start">
             <CardTitle>Customize your mission statement</CardTitle>
-            <p>Engage in conversation with your Aspirational partner customizing this mission statement so it reflects your vision of the future</p>
+            <p>Engage in conversation with your Aspirational partner customizing this mission statement so it reflects your vision of the future.</p>
 
             {/* Button removed as its functionality is now in the Next Steps button */}
           </CardHeader>

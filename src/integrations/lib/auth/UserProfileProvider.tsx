@@ -17,6 +17,7 @@ export interface UserProfile {
   church_id?: string;
   created_at?: string;
   updated_at?: string;
+  accounting_access?: boolean;
   [key: string]: any;
 }
 

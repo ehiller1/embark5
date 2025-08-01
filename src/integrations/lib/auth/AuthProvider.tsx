@@ -153,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = useCallback(async (email: string, pass: string, userData: SignUpUserData) => {
     console.log('[AuthProvider] Signup attempt with email:', email, 'role:', userData.role);
     try {
+      // First, create the auth user
       const { data, error } = await supabase.auth.signUp({
         email,
         password: pass,
@@ -176,6 +177,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error('[AuthProvider] Signup error:', error.message);
         return { session: null, user: null, error };
+      }
+      
+      // If user was created successfully, update the profiles table
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            email: email,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+            preferred_name: userData.preferredName || null, // Save preferred_name to profiles table
+            church_name: userData.churchName,
+            address: userData.address,
+            city: userData.city,
+            state: userData.state,
+            phone: userData.phone,
+            role: userData.role,
+            church_id: userData.church_id ?? null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          });
+          
+        if (profileError) {
+          console.error('[AuthProvider] Error updating profiles table:', profileError.message);
+          // Don't fail the signup if profile update fails, just log it
+        }
       }
       
       console.log('[AuthProvider] Signup successful, user:', data.user?.id, 'email confirmation needed:', !data.session);

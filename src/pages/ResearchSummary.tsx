@@ -403,7 +403,7 @@ export default function ResearchSummary(): JSX.Element {
           </Button>
 
           <h1 className="text-3xl font-bold mb-4">Research Summary</h1>
-
+          <p>Pulling from our knowledgebase, your perspectives, survey results and internet research, a summary report is being generated to provide a clear research-based perspective to justify the discernment plan.</p>
           {isLoadingSummary || promptsLoading ? (
             <LoadingSpinner size="md" text="Generating summary..." />
           ) : summaryError ? (
@@ -458,7 +458,7 @@ export default function ResearchSummary(): JSX.Element {
                 size="lg" 
                 className="btn-next-step"
               >
-                Next Steps: Identify Transformational Ministries <ArrowRight className="ml-2 h-4 w-4" />
+                Next Steps: Defining a Mission Statement<ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>

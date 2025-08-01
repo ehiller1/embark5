@@ -1181,6 +1181,17 @@ const SurveySummaryPage = () => {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* Next Steps Button */}
+      <div className="mt-8 flex justify-center">
+        <Button 
+          size="lg" 
+          onClick={() => navigate('/community-research')}
+          className="bg-journey-pink hover:bg-journey-pink/90 text-white"
+        >
+          Next Steps: Know Your Neighborhood
+        </Button>
+      </div>
     </div>
   );
 };

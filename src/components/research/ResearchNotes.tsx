@@ -30,9 +30,6 @@ export function ResearchNotes({
   return (
     <div className="h-full flex flex-col w-full">
       <Card className="h-full flex flex-col w-full">
-        <CardHeader>
-          <CardTitle className="text-base font-medium">Research Notes</CardTitle>
-        </CardHeader>
         <CardContent className="flex flex-col space-y-4 min-h-0">
           <Textarea
             value={currentNote}

@@ -17,7 +17,7 @@ export function ResponseSummaryContainer({ cards, onViewDetails }: ResponseSumma
   return (
     <Card className="bg-white">
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium">Review the results of the Community surveys</CardTitle>
+        <CardTitle className="text-sm font-medium">Respondent's Perspectives</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col sm:flex-row justify-between items-center">

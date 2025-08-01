@@ -848,6 +848,7 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
         <div className="sticky top-0 z-10 bg-background p-6 border-b">
           <DialogHeader>
             <DialogTitle className="text-xl font-bold">Comparative Analysis</DialogTitle>
+          <p>Using artificial intelligence, the research summary is being compared to other faith communities like yours pulling from public reports and statistics, internet research, and other users of EmbarkNow.  The comparative analysis is meant to give you a rough idea about how you compare in your discernment process.</p>
           </DialogHeader>
         </div>
 
@@ -874,7 +875,11 @@ export function ComparativeAnalysisModal({ open, onClose, summaryContent }: Comp
                   </FormItem>
                 )} />
                 <div className="border rounded-md min-h-[300px]">
-                  <Tiptap content={state.editorContent} onChange={(content: string) => setState(prev => ({ ...prev, editorContent: content }))} />
+                  <Tiptap 
+                    key={state.editorContent} // Force re-render when content changes
+                    content={state.editorContent} 
+                    onChange={(content: string) => setState(prev => ({ ...prev, editorContent: content }))} 
+                  />
                 </div>
                 <Button type="submit" disabled={state.saving} className="w-full">
                   {state.saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}

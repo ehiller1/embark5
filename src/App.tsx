@@ -7,6 +7,7 @@ import { AuthProvider } from "@/integrations/lib/auth/AuthProvider";
 import { UserProfileProvider } from "@/integrations/lib/auth/UserProfileProvider";
 import { NarrativeAvatarProvider } from "@/hooks/useNarrativeAvatar";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ProtectedAccountingRoute } from "./components/ProtectedAccountingRoute";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useEffect } from "react";
 import { AuthCompanionFlow } from "./components/AuthCompanionFlow";
@@ -137,7 +138,13 @@ const App = () => {
                       <Route path="/community-research" element={<ProtectedRoute allowedRoles={['Clergy']}><CommunityResearch /></ProtectedRoute>} />
                       <Route path="/church-assessment" element={<ProtectedRoute allowedRoles={['Clergy']}><ChurchAssessment /></ProtectedRoute>} />
                       <Route path="/church-research" element={<ProtectedRoute allowedRoles={['Clergy']}><ChurchResearch /></ProtectedRoute>} />
-                      <Route path="/accounting" element={<ProtectedRoute allowedRoles={['Clergy']}><Accounting /></ProtectedRoute>} />
+                      <Route path="/accounting" element={
+  <ProtectedRoute allowedRoles={['Clergy']}>
+    <ProtectedAccountingRoute>
+      <Accounting />
+    </ProtectedAccountingRoute>
+  </ProtectedRoute>
+} />
                       <Route path="/research-summary" element={<ProtectedRoute allowedRoles={['Clergy']}><ResearchSummary /></ProtectedRoute>} />
                       <Route path="/community-profile" element={<ProtectedRoute allowedRoles={['Clergy']}><CommunityProfilePage /></ProtectedRoute>} />
                       <Route path="/scenario" element={<ProtectedRoute allowedRoles={['Clergy']}><Scenario /></ProtectedRoute>} />

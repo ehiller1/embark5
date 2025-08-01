@@ -231,17 +231,10 @@ export function ChurchAssessmentInterface({
           <div className="flex justify-between mt-2">
             <Button 
               variant="outline" 
-              onClick={() => window.location.href = '/clergy-home'}
-              className="px-6 bg-gray-100 hover:bg-gray-200"
-            >
-              Home
-            </Button>
-            <Button 
-              variant="outline" 
               onClick={() => window.location.href = '/scenario'}
               className="btn-next-step"
             >
-              Next Step <ArrowRight className="ml-2 h-4 w-4" />
+              Next Step:  Summarize the Findings <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </div>

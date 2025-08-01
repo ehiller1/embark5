@@ -1,5 +1,6 @@
 
 import React, { useCallback, useRef, useState, useMemo, useEffect } from 'react';
+import type { TouchEvent } from 'react';
 import ForceGraph2D, {
   type ForceGraphMethods,
   type NodeObject,
@@ -11,10 +12,15 @@ import { Card } from '@/components/ui/card';
 interface GraphNode extends NetworkNode {
   x?: number;
   y?: number;
+  fx?: number;
+  fy?: number;
   group: string;
   id: string;
   name: string;
   similarity: number;
+  connections_strength?: number;
+  size?: number;
+  email?: string;
   attributes?: Record<string, any>;
   relationship_type?: string;
   last_interaction?: string;
@@ -138,6 +144,41 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 }) => {
   const fgRef = useRef<ForceGraphMethods | null>(null);
   const [highlightedNodeId, setHighlightedNodeId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+
+  // Handle zoom constraints
+  const handleZoom = useCallback(() => {
+    if (!fgRef.current) return;
+    
+    // Get current zoom level
+    const currentZoom = fgRef.current.zoom();
+    
+    // Define min/max zoom levels
+    const minZoom = 0.5;
+    const maxZoom = 2;
+    
+    // Constrain zoom level
+    if (currentZoom < minZoom) {
+      fgRef.current.zoom(minZoom, 1000);
+    } else if (currentZoom > maxZoom) {
+      fgRef.current.zoom(maxZoom, 1000);
+    }
+  }, []);
+
+  // Update dimensions on resize
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        setDimensions({ width, height });
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
 
   const { nodes, links } = useMemo(() => {
     if (!networkData) {
@@ -153,17 +194,29 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
         // Add user node
         const userId = 'user';
-        ensureNode(nodes, userId, 'user', { name: 'You' });
+        ensureNode(nodes, userId, 'user', { 
+          name: 'You',
+          x: 0, // Center the user node
+          y: 0, // Center the user node
+          fx: 0, // Fix the user node in the center
+          fy: 0, // Fix the user node in the center
+          connections_strength: 1, // Maximum strength for center node
+          size: 15 // Fixed size for the center node
+        });
 
         // Process connections
         data.connections.forEach((conn: any) => {
             const nodeId = `${groupName}-${conn.id}`;
-            const node = ensureNode(nodes, nodeId, groupName, conn);
+            const node = ensureNode(nodes, nodeId, groupName, {
+              ...conn,
+              connections_strength: Math.max(0.3, Math.min(0.8, conn.similarity || 0.6)), // More conservative range 0.3-0.8 to keep nodes closer
+              size: 8 // Fixed size for all other nodes
+            });
             
             tempLinks.push({
                 source: userId,
                 target: node,
-                strength: conn.similarity || 0.5,
+                strength: Math.max(0.3, Math.min(0.8, conn.similarity || 0.6)), // Use same conservative range for link strength
                 relationship_type: conn.relationship_type || 'connected',
                 bidirectional: false
             });
@@ -244,8 +297,8 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   }, []);
 
   const getNodeSize = useCallback((node: GraphNode): number => {
-    if (node.id === 'user') return 12;
-    return 5 + (node.similarity || 0.5) * 10;
+    // Use fixed size from node data or default to 8
+    return node.size || 8;
   }, []);
 
   const handleNodeClick = useCallback((node: NodeObject | null) => {
@@ -278,7 +331,13 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
     const size = getNodeSize(node) * (highlightedNodeId === node.id ? 1.4 : 1);
     const color = getNodeColor(node);
-    const { x, y, group, name } = node;
+    const { x, y, group, name, email } = node;
+
+    // Draw node with shadow for better visibility
+    ctx.shadowColor = 'rgba(0,0,0,0.2)';
+    ctx.shadowBlur = 5;
+    ctx.shadowOffsetX = 2;
+    ctx.shadowOffsetY = 2;
 
     ctx.fillStyle = color;
 
@@ -294,13 +353,17 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       ctx.lineTo(x + size, y + size / 2);
       ctx.closePath();
     } else if (group === 'plan') {
-      ctx.moveTo(x, y - size); // Top point
-      ctx.lineTo(x + size, y); // Right point
-      ctx.lineTo(x, y + size); // Bottom point
-      ctx.lineTo(x - size, y); // Left point
+      ctx.moveTo(x, y - size);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x, y + size);
+      ctx.lineTo(x - size, y);
       ctx.closePath();
     }
     ctx.fill();
+
+    // Reset shadow
+    ctx.shadowColor = 'transparent';
+    ctx.shadowBlur = 0;
 
     // Draw icons
     const iconSize = size * 0.8;
@@ -312,27 +375,79 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       case 'plan': iconText = '🎯'; break;
       default: iconText = '•';
     }
+    
+    // Draw icon background for better contrast
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.beginPath();
+    ctx.arc(x, y, iconSize * 0.6, 0, 2 * Math.PI);
+    ctx.fill();
+    
+    // Draw icon
     ctx.font = `${iconSize}px Arial`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff'; // White icon color for better contrast
+    ctx.fillStyle = color;
     ctx.fillText(iconText, x, y);
 
-    // Draw label
-    if (globalScale > 1.5 || highlightedNodeId === node.id) {
+    // Always show label for center node, others only on hover/zoom
+    const shouldShowLabel = group === 'user' || globalScale > 1.2 || highlightedNodeId === node.id;
+    
+    if (shouldShowLabel) {
       const label = name;
-      const fontSize = Math.max(1, 10 / globalScale);
-      ctx.font = `${fontSize}px Sans-Serif`;
+      const fontSize = Math.max(10, 12 / globalScale); // Ensure minimum font size
+      ctx.font = `bold ${fontSize}px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
       ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillStyle = 'black';
-      // Adjust label position based on shape if necessary, for now, below the node
-      let labelYOffset = size + 8;
-      if (group === 'community') labelYOffset = size * 0.5 + 10; // Adjust for triangle base
-      if (group === 'plan') labelYOffset = size + 5; // Adjust for diamond bottom point
-      ctx.fillText(label, x, y + labelYOffset);
+      ctx.textBaseline = 'top';
+      
+      // Draw text background for better readability
+      const textWidth = ctx.measureText(label).width;
+      const textX = x - textWidth / 2 - 4;
+      const textY = y + size + 4;
+      const padding = 4;
+      
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(
+        textX - padding,
+        textY - padding,
+        textWidth + padding * 2,
+        fontSize + padding * 1.5,
+        4
+      );
+      ctx.fill();
+      ctx.stroke();
+      
+      // Draw text
+      ctx.fillStyle = '#333';
+      ctx.fillText(label, x, textY);
+      
+      // Draw email icon if available and node is hovered
+      if (email && highlightedNodeId === node.id) {
+        const emailY = textY + fontSize + padding * 2;
+        
+        // Email icon background
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+        ctx.beginPath();
+        ctx.roundRect(
+          x - (textWidth/2) - padding,
+          emailY - padding,
+          textWidth + padding * 2,
+          fontSize + padding * 1.5,
+          4
+        );
+        ctx.fill();
+        ctx.stroke();
+        
+        // Email icon and text
+        ctx.font = `500 ${fontSize}px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillText('✉️ ' + email, x, emailY);
+      }
     }
-  }, [getNodeSize, getNodeColor, highlightedNodeId]);
+  }, [getNodeSize, getNodeColor, highlightedNodeId, nodes, links]);
   
   const nodePointerAreaPaint = useCallback((node: NodeObject, color: string, ctx: CanvasRenderingContext2D) => {
     if (!isGraphNode(node) || !isPositionedNode(node)) return;
@@ -351,21 +466,139 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     );
   }
 
+  // Ensure dimensions are valid and add padding
+  const padding = 40;
+  const graphWidth = Math.max(100, (dimensions.width || 800) - padding * 2);
+  const graphHeight = Math.max(100, (dimensions.height || 600) - padding * 2);
+
+  // Constrain node positions to stay within the container
+  const constrainNodePosition = useCallback((node: GraphNode) => {
+    if (!isPositionedNode(node)) return;
+    
+    const nodeSize = getNodeSize(node);
+    const maxX = graphWidth / 2 - nodeSize;
+    const maxY = graphHeight / 2 - nodeSize;
+    
+    // Keep nodes within bounds
+    node.x = Math.max(-maxX, Math.min(maxX, node.x || 0));
+    node.y = Math.max(-maxY, Math.min(maxY, node.y || 0));
+    
+    // Apply the position if it was changed
+    if (node.fx !== undefined && node.fy !== undefined) {
+      node.fx = node.x;
+      node.fy = node.y;
+    }
+  }, [graphWidth, graphHeight, getNodeSize]);
+  
+  // Apply constraints to all nodes
+  useEffect(() => {
+    nodes.forEach(node => {
+      if (node.id !== 'user') {
+        constrainNodePosition(node);
+      }
+    });
+  }, [nodes, constrainNodePosition]);
+
   return (
-    <Card className="w-full h-[600px] p-0 overflow-hidden">
-      <ForceGraph2D
-        ref={fgRef}
-        graphData={{ nodes, links }}
-        onNodeClick={handleNodeClick}
+    <div className="w-full h-[600px] relative touch-none overflow-hidden" ref={containerRef}>
+      <div className="absolute inset-4 rounded-lg border border-border/50 bg-background/50 overflow-hidden">
+        <ForceGraph2D
+          ref={fgRef}
+          graphData={{ nodes, links }}
+          onNodeClick={handleNodeClick}
         onBackgroundClick={handleBackgroundClick}
         onNodeHover={(node: NodeObject | null) => setHighlightedNodeId(node ? (node.id as string) : null)}
-        nodeCanvasObject={nodeCanvasObject}
+        nodeCanvasObject={useCallback((node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
+          // First draw the node using the existing nodeCanvasObject
+          nodeCanvasObject(node, ctx, globalScale);
+          
+          // Then apply constraints to the node's position
+          if (isGraphNode(node) && node.id !== 'user') {
+            constrainNodePosition(node);
+          }
+        }, [nodeCanvasObject, constrainNodePosition])}
         nodePointerAreaPaint={nodePointerAreaPaint}
         linkColor={() => 'rgba(0,0,0,0.2)'}
         linkWidth={1}
         cooldownTicks={100}
-        onEngineStop={() => fgRef.current?.zoomToFit(400, 40)}
+        onEngineStop={() => {
+          // Keep the center node fixed in the center
+          const centerNode = nodes.find(n => n.id === 'user');
+          if (centerNode) {
+            centerNode.fx = 0;
+            centerNode.fy = 0;
+          }
+          
+          // Position other nodes based on connection strength with reduced distance mapping
+          const otherNodes = nodes.filter(n => n.id !== 'user');
+          const maxRadius = Math.min(graphWidth, graphHeight) * 0.3; // Use 30% of container size
+          const minRadius = 60; // Minimum distance from center
+          
+          otherNodes.forEach((node, index) => {
+            if (node.id !== 'user') {
+              // Reduce connection strength impact on distance
+              const strength = node.connections_strength || 0.5;
+              // Map strength to distance with much smaller range
+              const distance = minRadius + (1 - strength) * (maxRadius - minRadius);
+              
+              // Distribute nodes evenly around the circle
+              const angle = (index / otherNodes.length) * Math.PI * 2;
+              
+              node.fx = Math.cos(angle) * distance;
+              node.fy = Math.sin(angle) * distance;
+              
+              // Ensure nodes stay within bounds
+              constrainNodePosition(node);
+            }
+          });
+          
+          // Zoom to fit all nodes, not just the center
+          setTimeout(() => {
+            fgRef.current?.zoomToFit(400, 50);
+          }, 100);
+        }}
+        // Prevent nodes from going outside the visible area
+        nodeDrag={useCallback((node: GraphNode) => {
+          // Allow dragging but constrain position
+          node.fx = node.x;
+          node.fy = node.y;
+          constrainNodePosition(node);
+          return true;
+        }, [constrainNodePosition])}
+        d3VelocityDecay={0.1}
+        d3AlphaDecay={0.01}
+        d3AlphaMin={0.1}
+        // Add some padding to prevent nodes from touching the edges
+        width={graphWidth}
+        height={graphHeight}
+        // Limit zoom and pan
+        minZoom={0.5}
+        maxZoom={2}
+        // Center the graph
+        centerAt={[0, 0]}
+        // Keep nodes from going too far from center
+        onNodeDrag={constrainNodePosition}
+        // Prevent nodes from being too large
+        nodeVal={(node: GraphNode) => {
+          const baseSize = 8;
+          const maxSize = 20;
+          const importance = 'connections_strength' in node ? (node.connections_strength as number) : 0.5;
+          return Math.min(maxSize, baseSize + importance * 10);
+        }}
+        zoom={1}
+        onZoom={handleZoom}
+        onWheel={() => false}
+        onTouchStart={(e: TouchEvent) => {
+          e.preventDefault();
+          return false;
+        }}
+        onTouchMove={(e: TouchEvent) => {
+          e.preventDefault();
+          return false;
+        }}
+        cooldownTime={5000}
       />
-    </Card>
+      </div>
+    </div>
   );
 };

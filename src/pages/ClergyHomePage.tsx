@@ -99,7 +99,7 @@ const PHASES = [
   },
   {
     title: 'Articulating Your Vocation and Ministry Opportunities',
-    desc: "Synthesize your research, define your community's mission, and create a plan for beginning a discernment proce.",
+    desc: "Synthesize your research, define your community's mission, and create a plan for your discernment process.",
     steps: [
       {
         key: 'researchSummary',
@@ -259,7 +259,7 @@ const CARD_META: Record<string, any> = {
     link: '/narrative-build',
   },
   scenarioBuilding: {
-    desc: "Explore Ministry Opportunities.",
+    desc: "Access and explore a knowledgebase of ministry opportunities, or imaginative ways of building entrepreneurial programs.",
     action: 'Explore Ministries',
     view: 'View Scenarios',
     link: '/scenario',
@@ -518,11 +518,8 @@ const ClergyHomePage: React.FC = () => {
             <div className="flex items-center justify-between mb-12">
               <div>
                 <h1 className="text-5xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-[#47799F] to-[#6A9BC2]">
-                  Welcome, {churchName}
+                  Welcome, {profile?.preferred_name || profile?.first_name || churchName}
                 </h1>
-                <p className="text-lg text-gray-600 mt-2">
-                  Let's continue your journey of discernment and planning.
-                </p>
               </div>
               <CircularProgress
                 size={96}
@@ -545,7 +542,7 @@ const ClergyHomePage: React.FC = () => {
                   Structuring the Discernment Journey for Building Innovative Ministries
                   </h3>
                   <p className="text-gray-700 mb-4">
-                    Welcome to the journey of discernment, where vision meets action. This step-by-step guide is designed to support clergy and faith leaders in thoughtfully transforming underutilized community assets and property into vibrant, mission-driven ministries. Through community connection, deep reflection, and structured planning, you'll uncover new possibilities rooted in your congregation's gifts and your neighborhood's needs.
+                  Welcome to the journey of discernment, where vision meets action. This step-by-step guide is designed to support organization leaders in thoughtfully transforming underutilized community assets into vibrant, mission-driven ministries. Through community connection, deep reflection, and strategic planning, you will uncover rooted in your community’s gifts and your neighborhood’s need.
                   </p>
                   <p className="text-gray-700 font-medium italic mb-8">
                     Let this journey inspire you to listen, imagine, and act—together.
@@ -564,7 +561,7 @@ const ClergyHomePage: React.FC = () => {
                   </ul>
                   
                   <p className="text-lg font-medium text-ministry">
-                    ✨ Every step brings you closer to a ministry that is faithful, sustainable, and deeply rooted in community.
+                    Every step brings you closer to a ministry that is faithful, sustainable, and deeply rooted in community.
                   </p>
                 </div>
                 <div className="lg:w-2/5 flex justify-center">

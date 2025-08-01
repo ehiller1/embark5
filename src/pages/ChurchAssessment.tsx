@@ -29,6 +29,8 @@ export default function ChurchAssessment() {
   };
 
   useEffect(() => {
+    // Scroll to top when component mounts
+    window.scrollTo(0, 0);
     setSessionKey(session?.access_token?.substring(0, 8) || 'no-session');
   }, [session]);
 
@@ -58,10 +60,10 @@ export default function ChurchAssessment() {
           {/* 3) DESCRIPTION BAR */}
           <div className="mb-8 p-4 bg-gradient-journey-light rounded-2xl">
             <p className="text-xl text-muted-foreground">
-            As a community leader provide additional insights about the current state of your organization and its discernment.
+            As a community leader, provide additional insights about the current state of your organization and its discernment.  Utilize your Conversation Companion to provide additional insights about your community.
             </p>
             <p className="mt-4 text-lg text-gray-600">
-           Enter into conversation with your Conversation Companion and provide answer questions about your community.  Your insights will be used to further define suggested mission statements, transformational scenerios for new ministries and building a discernment plan.
+            Your insights will be used to further explore potential mission statements, transformation opportunities for new ministries and facility use planning.
             </p>
 
           </div>
@@ -120,12 +122,22 @@ export default function ChurchAssessment() {
               key={sessionKey}
               disableNext
               textInputs={{
-                input1: (document.getElementById('churchInput1') as HTMLInputElement)?.value || '',
-                input2: (document.getElementById('churchInput2') as HTMLInputElement)?.value || '',
-                input3: (document.getElementById('churchInput3') as HTMLInputElement)?.value || '',
-                input4: (document.getElementById('churchInput4') as HTMLInputElement)?.value || ''
+                input1: textInputs.input1,
+                input2: textInputs.input2,
+                input3: textInputs.input3,
+                input4: textInputs.input4
               }}
             />
+          </div>
+          
+          {/* 6) NEXT STEPS BUTTON */}
+          <div className="mt-8 flex justify-end">
+            <Button
+              onClick={() => navigate('/discernment-plan')}
+              className="bg-journey-pink hover:bg-journey-pink/90 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+            >
+              Next Step: Discernment Plan
+            </Button>
           </div>
         </main>
       </div>

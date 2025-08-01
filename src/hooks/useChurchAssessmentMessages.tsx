@@ -117,7 +117,7 @@ export function useChurchAssessmentMessages(
       const welcomeMessage: Message = {
         id: Date.now(),
         sender: "assistant",
-        content: "Hello! I'm here to help you assess your faith community. Please share your thoughts about your community's strengths, challenges, and opportunities. What additional topics are on your mind?",
+        content: "I'm here to help you further assess your faith community. What additional areas do you feel are important to consider that might affect the discernment process?",
         timestamp: new Date(),
         companionAvatar,
         sectionAvatar

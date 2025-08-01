@@ -473,7 +473,19 @@ const renderJsonSection = (value: any): React.ReactNode => {
             </div>
           </div>
           <div className="mt-6">
-            <Button onClick={() => navigate("/ClergyHomePage")}>
+            <Button onClick={() => {
+              // Navigate to the first missing prerequisite
+              if (!fetchedResearchSummary) {
+                navigate("/research-summary");
+              } else if (!fetchedVocationalStatement) {
+                navigate("/narrative-build");
+              } else if (!fetchedScenarios?.length) {
+                navigate("/scenario");
+              } else {
+                // Fallback if all prerequisites are somehow met but the button is still shown
+                navigate("/research-summary");
+              }
+            }}>
               Complete Prerequisites
             </Button>
           </div>

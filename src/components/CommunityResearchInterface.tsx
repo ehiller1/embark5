@@ -213,6 +213,16 @@ export function CommunityResearchInterface({
 }: CommunityResearchInterfaceProps) {
   const research = useCommunityResearchState(activeCategory, searchPrompt);
 
+  // Show category selection message only when no category is selected
+  if (!activeCategory) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 bg-yellow-50 border border-yellow-200 rounded-lg text-center h-full">
+        <h3 className="text-lg font-medium text-yellow-800 mb-2">Select a Research Category</h3>
+        <p className="text-yellow-700">Please pick a category from the sidebar to begin your research.</p>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-6 h-full">
       {panel === "search" && (

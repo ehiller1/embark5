@@ -16,6 +16,12 @@ interface CommunityAssessmentInterfaceProps {
   showReminderMessage?: boolean;
   onReminderMessageShown?: () => void;
   reminderMessage?: string;
+  textInputs?: {
+    input1: string;
+    input2: string;
+    input3: string;
+    input4: string;
+  };
 }
 
 export function CommunityAssessmentInterface({ 
@@ -23,7 +29,13 @@ export function CommunityAssessmentInterface({
   onUserMessageSent,
   showReminderMessage = false,
   onReminderMessageShown,
-  reminderMessage = "You have provided a lot of information. Do you want to continue or I can integrate everything you said and you can just click the Next Step button and we can move on"
+  reminderMessage = "You have provided a lot of information. Do you want to continue or I can integrate everything you said and you can just click the Next Step button and we can move on",
+  textInputs = {
+    input1: '',
+    input2: '',
+    input3: '',
+    input4: ''
+  }
 }: CommunityAssessmentInterfaceProps) {
   const { messages, setMessages, isLoading, generateInitialMessage, handleSendMessage, isFirstUserMessageSent } = useCommunityMessages();
   const { selectedCompanion } = useSelectedCompanion();
@@ -66,21 +78,46 @@ export function CommunityAssessmentInterface({
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey && input.trim() && !isLoading) {
       e.preventDefault();
-      handleSendMessage(input);
-      setInput('');
+      handleSend(input);
     }
   };
 
-  // Click-to-send
-  const handleSendButtonClick = async () => {
-    if (!input.trim() || isLoading) return;
-    await handleSendMessage(input);
+  // Handle sending messages
+  const handleSend = async (content: string) => {
+    if (!content.trim() || isLoading) return;
+    
+    // Check if any text inputs have content
+    const hasTextInputs = Object.values(textInputs).some(input => input.trim() !== '');
+    let finalContent = content;
+    
+    if (hasTextInputs) {
+      // Create a summary of all text inputs
+      const inputSummary = [
+        'The user has provided the following information about their community:',
+        `Demographics: ${textInputs.input1 || 'Not provided'}`,
+        `Needs: ${textInputs.input2 || 'Not provided'}`,
+        `Assets: ${textInputs.input3 || 'Not provided'}`,
+        `Opportunities: ${textInputs.input4 || 'Not provided'}`,
+        `\nUser's message: ${content}`,
+        '\nPlease summarize and respond to these comments.'
+      ].join('\n');
+      
+      finalContent = inputSummary;
+    }
+    
+    await handleSendMessage(finalContent);
     setInput('');
     
     // Notify parent component about user message
     if (onUserMessageSent) {
       onUserMessageSent();
     }
+  };
+
+  // Click-to-send
+  const handleSendButtonClick = async () => {
+    if (!input.trim() || isLoading) return;
+    await handleSend(input);
   };
 
   // Effect to handle the reminder message display
@@ -123,21 +160,21 @@ export function CommunityAssessmentInterface({
                   <div className="max-w-[90%] rounded-lg p-4 bg-white border border-journey-lightPink/20">
                     <div className="flex items-center gap-2 mb-2">
                       {selectedCompanion && (
-  <Avatar className="h-6 w-6">
-    <AvatarImage
-      src={selectedCompanion.avatar_url || '/default-avatar.png'}
-      alt={selectedCompanion.companion}
-    />
-    <AvatarFallback>
-      {selectedCompanion.companion?.[0] || 'C'}
-    </AvatarFallback>
-  </Avatar>
-)}
+                        <Avatar className="h-6 w-6">
+                          <AvatarImage
+                            src={selectedCompanion.avatar_url || '/default-avatar.png'}
+                            alt={selectedCompanion.companion}
+                          />
+                          <AvatarFallback>
+                            {selectedCompanion.companion?.[0] || 'C'}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
                       {selectedCompanion && (
-  <span className="text-xs font-medium">
-    {selectedCompanion.companion}
-  </span>
-) }
+                        <span className="text-xs font-medium">
+                          {selectedCompanion.companion}
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm md:text-base whitespace-pre-wrap break-words leading-relaxed">
                       Please share information about your local community to help us understand its demographics, needs, and opportunities. Your responses will guide our assessment and help us provide tailored recommendations for community engagement.
@@ -201,27 +238,29 @@ export function CommunityAssessmentInterface({
       </div>
 
       {/* Input */}
-      <div className="pt-4 border-t">
-        <div className="flex flex-col gap-3">
-          <div className="flex items-end gap-3">
-            <Textarea
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type here what you want to say"
-              className="flex-1 resize-none min-h-[60px] max-h-[120px]"
-            />
-            <Button
-              onClick={handleSendButtonClick}
-              disabled={!input.trim() || isLoading}
-              className="h-[60px]"
-              aria-label="Send"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          handleSend(input);
+        }}
+        className="flex gap-2 mt-4"
+      >
+        <Textarea
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Type your message here..."
+          className="flex-1 min-h-[60px] max-h-[200px] resize-y"
+          disabled={isLoading}
+        />
+        <Button 
+          type="submit" 
+          disabled={!input.trim() || isLoading}
+          className="self-end h-[60px]"
+        >
+          {isLoading ? <LoadingSpinner /> : <ArrowRight className="h-4 w-4" />}
+        </Button>
+      </form>
     </div>
   );
 }

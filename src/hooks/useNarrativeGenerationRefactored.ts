@@ -20,6 +20,8 @@ export interface NarrativeMessage {
   avatarUrl?: string;
   selected?: boolean;
   timestamp?: Date;
+  /** Optional message type for categorization (e.g., 'refinement_guidance') */
+  type?: string;
 }
 
 export function useNarrativeGenerationRefactored(
@@ -72,7 +74,7 @@ export function useNarrativeGenerationRefactored(
 
   // 2. Helper to append a message
   const addMessage = useCallback(
-    (messageData: Omit<NarrativeMessage, 'id'>) => {
+    (messageData: Omit<NarrativeMessage, 'id' | 'type'> & { type?: string }) => {
       const newMessage = createNarrativeMessage(messageData);
       console.log(`[useNarrativeGeneration] Adding message from ${messageData.role}:`, messageData.content);
       setMessages((prev) => [...prev, newMessage]);
@@ -336,7 +338,7 @@ export function useNarrativeGenerationRefactored(
         addMessage({ role: 'user', content: userMessage, name: 'You' });
         setUserInput('');
 
-        // parse mentions...
+        // Parse mentions and prepare conversation history
         const mentions = Array.from(userMessage.matchAll(/@(\w+)/g)).map(m => m[1].toLowerCase());
         const convo = messages
           .slice(-10)
@@ -344,32 +346,43 @@ export function useNarrativeGenerationRefactored(
           .join('\n');
 
         const tasks: Promise<any>[] = [];
-        if (
-          mentions.length === 0 ||
-          mentions.includes('church') ||
-          mentions.includes(churchAvatars[0]?.name?.toLowerCase() || '')
-        ) {
-          // Pass the avatar without non-null assertion
-          tasks.push(generateAvatarResponse('church', churchAvatars[0], userMessage, convo, ctl.signal));
-        }
-        if (
-          mentions.length === 0 ||
-          mentions.includes('community') ||
-          mentions.includes(communityAvatars[0]?.name?.toLowerCase() || '')
-        ) {
-          // Pass the avatar without non-null assertion
+        
+        // Get the selected church avatar (first in the array if available)
+        const selectedChurchAvatar = churchAvatars[0] || null;
+        
+        // If there's an explicit mention, respect it
+        const hasExplicitMention = mentions.length > 0;
+        const hasChurchMention = hasExplicitMention && 
+          (mentions.includes('church') || 
+           (selectedChurchAvatar?.name && mentions.includes(selectedChurchAvatar.name.toLowerCase())));
+           
+        const hasCompanionMention = hasExplicitMention && 
+          (mentions.includes('companion') || 
+           (companion?.companion && mentions.includes(companion.companion.toLowerCase())));
+        
+        // If there are no mentions or if church is mentioned, use church avatar if available
+        if ((!hasExplicitMention || hasChurchMention) && selectedChurchAvatar) {
           tasks.push(
-            generateAvatarResponse('community', communityAvatars[0], userMessage, convo, ctl.signal)
+            generateAvatarResponse('church', selectedChurchAvatar, userMessage, convo, ctl.signal)
           );
-        }
-        if (
-          mentions.length === 0 ||
-          mentions.includes('companion') ||
-          mentions.includes(companion?.companion?.toLowerCase() || '')
-        ) {
+        } 
+        // If there's no church avatar or companion is explicitly mentioned, use companion
+        else if ((!hasExplicitMention || hasCompanionMention) && companion) {
           tasks.push(
             generateCompanionResponse(companion, userMessage, convo, ctl.signal)
           );
+        }
+        // If there are explicit mentions but no matching avatar is available, use the first available
+        else if (hasExplicitMention) {
+          if (selectedChurchAvatar) {
+            tasks.push(
+              generateAvatarResponse('church', selectedChurchAvatar, userMessage, convo, ctl.signal)
+            );
+          } else if (companion) {
+            tasks.push(
+              generateCompanionResponse(companion, userMessage, convo, ctl.signal)
+            );
+          }
         }
 
         await Promise.all(tasks);

@@ -1,11 +1,12 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { CardNetworkVisualization } from '@/components/implementation/CardNetworkVisualization';
 import { CardCreationPanel } from '@/components/implementation/CardCreationPanel';
+
 import { ConversationPanel } from '@/components/implementation/ConversationPanel';
 import { useImplementationCards } from '@/hooks/useImplementationCards';
-import { ArchetypesPanel } from '@/components/implementation/ArchetypesPanel';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Plus, ArrowLeft, Link } from 'lucide-react';
@@ -19,6 +20,7 @@ import {
 } from '@/components/ui/sheet';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { v4 as uuidv4 } from 'uuid';
 import { ImplementationCard } from '@/types/ImplementationTypes';
 import {
@@ -126,8 +128,15 @@ const renderDiscernmentPlan = (content: string): React.ReactNode => {
 export default function Implementation() {
   const [activeCardIds, setActiveCardIds] = useState<string[]>([]);
   const [isCreatingCard, setIsCreatingCard] = useState(false);
-  const [activeConversationTab, setActiveConversationTab] = useState<string | null>(null);
-  const [conversationTabs, setConversationTabs] = useState<ConversationTab[]>([]);
+  const [activeConversationTab, setActiveConversationTab] = useState<string | null>(() => {
+    // Load active tab from localStorage on initial render
+    return localStorage.getItem('activeConversationTab');
+  });
+  const [conversationTabs, setConversationTabs] = useState<ConversationTab[]>(() => {
+    // Load conversations from localStorage on initial render
+    const savedTabs = localStorage.getItem('conversationTabs');
+    return savedTabs ? JSON.parse(savedTabs) : [];
+  });
   const [focusedCardId] = useState<string | null>(null);
 
   // Discernment Plan state
@@ -136,6 +145,7 @@ export default function Implementation() {
   const [isSavingPlan, setIsSavingPlan] = useState<boolean>(false);
 
   const { toast } = useToast();
+  const { user } = useAuth();
 
   // UnifiedChatModal state
   const [showChatModal, setShowChatModal] = useState(false);
@@ -164,10 +174,17 @@ export default function Implementation() {
 
   const fetchDiscernmentPlanFromDB = async () => {
     try {
+      // Get the current user's church_id
+      if (!user?.user_metadata?.church_id) {
+        console.error('No church_id found for the current user');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('resource_library')
         .select('content')
         .eq('resource_type', 'discernment_plan')
+        .eq('church_id', user.user_metadata.church_id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -248,7 +265,7 @@ export default function Implementation() {
     }
   };
 
-  const handleChatModalSubmit = (
+  const handleChatModalSubmit = useCallback((
     selectedNodeIds: string[],
     chatMode: 'new' | 'existing',
     conversationId?: string
@@ -305,7 +322,7 @@ export default function Implementation() {
       setConnectionModalSourceCardId(selectedNodeIds[0]);
       setShowConnectionModal(true);
     }
-  };
+  }, []);
 
   const { cards, categories, connections, isLoading, fetchCards } = useImplementationCards();
 
@@ -326,6 +343,14 @@ export default function Implementation() {
   const handleConnectionCreated = () => { setIsCreatingConnection(false); toast({ title: "Success", description: "Connection created successfully"}); fetchCards(); };
   const handleConnectionModalClose = () => { setShowConnectionModal(false); setConnectionModalSourceCardId(null); };
 
+  // Save conversation tabs to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('conversationTabs', JSON.stringify(conversationTabs));
+    if (activeConversationTab) {
+      localStorage.setItem('activeConversationTab', activeConversationTab);
+    }
+  }, [conversationTabs, activeConversationTab]);
+
   return (
     <>
       <div className="container mx-auto py-6">
@@ -335,9 +360,9 @@ export default function Implementation() {
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Practice selling the discernment journey</h1>
-              <p className="text-muted-foreground mt-1">Select typical community stakeholders or create your own.</p>
-              <div className="mt-4 text-sm text-gray-600">Select  a person or group from your community or from typical stakeholders and then engage in conversation with them below.</div>
+              <h1 className="text-3xl font-bold">Practice engaging your faith community about your vision and the discernment planning process.</h1>
+              <p>Using platform technology we will simulate the perspective of the selected person or group.  You will receive simulated responses giving you an opportunity to consider your response.</p>
+              <div className="mt-4 text-sm text-gray-600">Create  a person or group from your community, or select from our suggested stakeholders, and then engage in conversation with them below.</div>
             </div>
           </div>
         </div>
@@ -350,7 +375,7 @@ export default function Implementation() {
               <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold mr-3">1</div>
               <div className="flex-1">
                 <h3 className="text-lg font-medium mb-1">Create People & Groups</h3>
-                <p className="text-slate-500 text-sm mb-4">Add the key individuals and groups from your community</p>
+                <p className="text-slate-500 text-sm mb-4">Add the key individuals and groups from your from community</p>
                 
                 <Sheet open={isCreatingCard} onOpenChange={setIsCreatingCard}>
                   <SheetTrigger asChild>
@@ -360,8 +385,8 @@ export default function Implementation() {
                   </SheetTrigger>
                   <SheetContent className="w-full sm:max-w-md">
                     <SheetHeader>
-                      <SheetTitle>Add New Person or Group</SheetTitle>
-                      <SheetDescription>Create a new card representing an individual or group within your congregation.</SheetDescription>
+                      <SheetTitle>Add New Person</SheetTitle>
+                      <SheetDescription>Create a new person that  representing an individual or group within your faith community.</SheetDescription>
                     </SheetHeader>
                     <CardCreationPanel 
                       onSuccess={(newCard) => { 
@@ -385,8 +410,8 @@ export default function Implementation() {
             <div className="flex items-start mb-2">
               <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold mr-3">2</div>
               <div className="flex-1">
-                <h3 className="text-lg font-medium mb-1">Organize with Categories</h3>
-                <p className="text-slate-500 text-sm mb-4">Create categories to group similar people together</p>
+                <h3 className="text-lg font-medium mb-1">Categorize people or groups</h3>
+                <p className="text-slate-500 text-sm mb-4">You can optionally create labels or categories to keep track of the constituencies in your faith community</p>
                 
                 <Dialog open={isCreatingCategory} onOpenChange={setIsCreatingCategory}>
                   <DialogTrigger asChild>
@@ -419,8 +444,8 @@ export default function Implementation() {
             <div className="flex items-start mb-2">
               <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold mr-3">3</div>
               <div className="flex-1">
-                <h3 className="text-lg font-medium mb-1">Build Connections</h3>
-                <p className="text-slate-500 text-sm mb-4">Define relationships between people and groups</p>
+                <h3 className="text-lg font-medium mb-1">Create Connections</h3>
+                <p className="text-slate-500 text-sm mb-4">People or Groups in a Faith Community naturally share points of view.  You can connect people together to reflect that shared perspective and enage with them as a group</p>
                 
                 <Dialog open={isCreatingConnection} onOpenChange={setIsCreatingConnection}>
                   <DialogTrigger asChild>
@@ -433,11 +458,7 @@ export default function Implementation() {
                       <DialogTitle>Create New Connection</DialogTitle>
                       <DialogDescription>Connect two people or groups and define their relationship.</DialogDescription>
                     </DialogHeader>
-                    <ConnectionCreationPanel 
-                      cards={cards} 
-                      onSuccess={handleConnectionCreated} 
-                      initialSourceCardId={connectionModalSourceCardId || undefined} 
-                    />
+                    <ConnectionCreationPanel cards={cards} onSuccess={handleConnectionCreated} initialSourceCardId={connectionModalSourceCardId || undefined} />
                   </DialogContent>
                 </Dialog>
               </div>
@@ -447,9 +468,18 @@ export default function Implementation() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
           {/* Network Visualization */}
-          <div>{isLoading ? <div className="flex items-center justify-center h-[400px] border rounded-md"><LoadingSpinner size="lg" text="Loading network data..."/></div> : <div className="border rounded-md h-[400px]"><CardNetworkVisualization cards={cards} connections={connections} categories={categories} selectedCardIds={activeCardIds} openChatModal={(nodeIds) => { setModalSelectedNodeIds(nodeIds); setShowChatModal(true); }} /></div>}</div>
-          {/* Typical Stakeholders Card */}
-          <div><Card className="bg-white border border-slate-200 shadow-sm h-[400px] flex flex-col"><CardHeader className="pb-1 pt-2 px-4"><div className="flex justify-between items-center"><CardTitle className="text-lg font-semibold">Typical Stakeholders</CardTitle></div><CardDescription className="text-sm">Select stakeholders to include in your implementation plan</CardDescription></CardHeader><CardContent className="p-3 flex-grow overflow-hidden"><div className="h-full overflow-y-auto"><ArchetypesPanel onCardSelect={(selected) => { setNewlyCreatedCardsForModal(selected); setActiveCardIds(prev => Array.from(new Set([...prev, ...selected.map(c => c.id)]))); }} openChatModal={(nodeIds) => { setModalSelectedNodeIds(nodeIds); setShowChatModal(true); }} /></div></CardContent></Card></div>
+          <div className="border rounded-md h-[400px]">
+            <CardNetworkVisualization 
+              cards={cards} 
+              connections={connections} 
+              selectedCardIds={activeCardIds}
+              openChatModal={(nodeIds) => {
+                setModalSelectedNodeIds(nodeIds);
+                setShowChatModal(true);
+              }} 
+            />
+          </div>
+
         </div>
 
         <div className="flex flex-col space-y-6">
@@ -494,8 +524,8 @@ export default function Implementation() {
             <div className="lg:col-span-1">
               <Card className="bg-white border border-slate-200 shadow-sm h-full">
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-semibold">Response Summary</CardTitle>
-                  <CardDescription>Summarized insights from your Community</CardDescription>
+                  <CardTitle className="text-lg font-semibold">Survey Responses</CardTitle>
+                  <CardDescription>This summary helps you recall the initial thoughts members of your faith community had.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponseSummaryContainer cards={cards} onViewDetails={() => setShowResponseSummaryModal(true)} />

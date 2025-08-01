@@ -67,9 +67,6 @@ export function ResearchSearch({
   return (
     <div className="h-full flex flex-col w-full">
       <Card className="w-full h-full">
-        <CardHeader>
-          <CardTitle className="text-base font-medium">Search Results</CardTitle>
-        </CardHeader>
         <CardContent className="space-y-4 flex flex-col min-h-0">
           <div className="flex gap-2">
             <Input

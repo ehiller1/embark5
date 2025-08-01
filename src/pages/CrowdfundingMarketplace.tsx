@@ -81,7 +81,10 @@ const CrowdfundingMarketplace = () => {
   };
 
   const navigateToDetail = (id: string) => {
-    navigate(`/ministry/${id}`);
+    // For now, show an alert since we don't have a dedicated ministry detail page
+    // In a real implementation, this would navigate to a detailed view
+    alert(`Viewing details for ministry ID: ${id}`);
+    console.log(`Would navigate to /ministry/${id}`);
   };
 
   return (
@@ -163,15 +166,44 @@ const CrowdfundingMarketplace = () => {
                         <Button size="sm" variant="outline" onClick={() => navigateToDetail(ministry.id)}>
                           More
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => setShowSecFiling(ministry.id)}>
-                          SEC Filings
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => setShowSecFiling(showSecFiling === ministry.id ? null : ministry.id)}
+                        >
+                          {showSecFiling === ministry.id ? 'Hide' : 'View'} SEC Filings
                         </Button>
                       </div>
                       {showSecFiling === ministry.id && (
                         <div className="mt-2">
-                          {/* In a real app, filings would be fetched per ministry. For now, pass an empty array or mock. */}
-                          <SECFilingDisplay filings={[]} ministryTitle={ministry.title} />
-                          <Button size="sm" className="mt-2" variant="outline" onClick={() => setShowSecFiling(null)}>Hide Filings</Button>
+                          <SECFilingDisplay 
+                            filings={[
+                              {
+                                id: 'mock-1',
+                                filing_type: 'form_c',
+                                filing_date: new Date().toISOString(),
+                                filing_status: 'accepted',
+                                submission_id: 'SUB-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
+                                filing_data: {
+                                  target_amount: ministry.target_amount,
+                                  minimum_investment: ministry.minimum_investment,
+                                  use_of_funds: {
+                                    operations: 0.4,
+                                    marketing: 0.3,
+                                    development: 0.2,
+                                    legal: 0.1
+                                  },
+                                  risk_factors: [
+                                    'Early stage investment with potential for loss of principal',
+                                    'Market conditions may affect ministry success',
+                                    'Regulatory changes could impact operations'
+                                  ]
+                                },
+                                compliance_notes: 'Filing meets all SEC Regulation CF requirements.'
+                              }
+                            ]} 
+                            ministryTitle={ministry.title} 
+                          />
                         </div>
                       )}
                     </div>
