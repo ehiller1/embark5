@@ -281,9 +281,8 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   }, [networkData, selectedGroup]);
 
   useEffect(() => {
-    if (fgRef.current && nodes.length > 0) {
-      setTimeout(() => fgRef.current?.zoomToFit(400, 40), 500);
-    }
+    // Auto-zoom removed to prevent initial zoom animation
+    // The visualization will maintain its natural scale when nodes are loaded
   }, [nodes]);
 
   const getNodeColor = useCallback((node: GraphNode): string => {
@@ -365,88 +364,105 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     ctx.shadowColor = 'transparent';
     ctx.shadowBlur = 0;
 
-    // Draw icons
-    const iconSize = size * 0.8;
+    // Draw larger, more detailed icons based on category
+    const iconSize = size * 1.2; // Increased icon size
     let iconText = '';
+    let iconBgColor = 'rgba(255, 255, 255, 0.95)';
+    
     switch (group) {
-      case 'user': iconText = '👤'; break;
-      case 'church': iconText = '⛪'; break;
-      case 'community': iconText = '👥'; break;
-      case 'plan': iconText = '🎯'; break;
-      default: iconText = '•';
+      case 'user': 
+        iconText = '🏠'; // Home icon for user
+        iconBgColor = 'rgba(59, 130, 246, 0.1)'; // Blue tint
+        break;
+      case 'church': 
+        iconText = '⛪'; // Church building
+        iconBgColor = 'rgba(139, 69, 19, 0.1)'; // Brown tint
+        break;
+      case 'community': 
+        iconText = '🌍'; // Globe for community
+        iconBgColor = 'rgba(34, 197, 94, 0.1)'; // Green tint
+        break;
+      case 'plan': 
+        iconText = '📋'; // Clipboard for plans
+        iconBgColor = 'rgba(168, 85, 247, 0.1)'; // Purple tint
+        break;
+      default: 
+        iconText = '📍'; // Pin for unknown
+        iconBgColor = 'rgba(156, 163, 175, 0.1)'; // Gray tint
     }
     
-    // Draw icon background for better contrast
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    // Draw enhanced icon background with category-specific tinting
+    ctx.fillStyle = iconBgColor;
     ctx.beginPath();
-    ctx.arc(x, y, iconSize * 0.6, 0, 2 * Math.PI);
+    ctx.arc(x, y, iconSize * 0.8, 0, 2 * Math.PI);
     ctx.fill();
     
-    // Draw icon
-    ctx.font = `${iconSize}px Arial`;
+    // Add subtle border
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    // Draw larger icon
+    ctx.font = `${iconSize * 1.2}px Arial`; // Even larger icon text
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillStyle = color;
     ctx.fillText(iconText, x, y);
 
-    // Always show label for center node, others only on hover/zoom
-    const shouldShowLabel = group === 'user' || globalScale > 1.2 || highlightedNodeId === node.id;
+    // Always show labels for all nodes with enhanced styling
+    const label = name;
+    const fontSize = 14; // Fixed larger font size for better readability
     
-    if (shouldShowLabel) {
-      const label = name;
-      const fontSize = Math.max(10, 12 / globalScale); // Ensure minimum font size
-      ctx.font = `bold ${fontSize}px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      
-      // Draw text background for better readability
-      const textWidth = ctx.measureText(label).width;
-      const textX = x - textWidth / 2 - 4;
-      const textY = y + size + 4;
-      const padding = 4;
-      
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-      ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.roundRect(
-        textX - padding,
-        textY - padding,
-        textWidth + padding * 2,
-        fontSize + padding * 1.5,
-        4
-      );
-      ctx.fill();
-      ctx.stroke();
-      
-      // Draw text
-      ctx.fillStyle = '#333';
-      ctx.fillText(label, x, textY);
-      
-      // Draw email icon if available and node is hovered
-      if (email && highlightedNodeId === node.id) {
-        const emailY = textY + fontSize + padding * 2;
-        
-        // Email icon background
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
-        ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
-        ctx.beginPath();
-        ctx.roundRect(
-          x - (textWidth/2) - padding,
-          emailY - padding,
-          textWidth + padding * 2,
-          fontSize + padding * 1.5,
-          4
-        );
-        ctx.fill();
-        ctx.stroke();
-        
-        // Email icon and text
-        ctx.font = `500 ${fontSize}px 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif`;
-        ctx.fillStyle = '#3b82f6';
-        ctx.fillText('✉️ ' + email, x, emailY);
-      }
+    ctx.save(); // Save context state
+    ctx.font = `bold ${fontSize}px Arial`; // Bold font for better visibility
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    // Calculate text dimensions and position
+    const textWidth = ctx.measureText(label).width;
+    const bgPadding = 6;
+    const labelHeight = fontSize + bgPadding;
+    
+    // Position label below the node with more spacing
+    let labelX = x;
+    let labelY = y + size + fontSize + 8;
+    
+    // Constrain label within canvas bounds (simplified bounds checking)
+    const halfTextWidth = textWidth / 2 + bgPadding;
+    const canvasWidth = 800; // Approximate canvas width
+    const canvasHeight = 600; // Approximate canvas height
+    
+    if (labelX - halfTextWidth < -canvasWidth/2) {
+      labelX = -canvasWidth/2 + halfTextWidth;
+    } else if (labelX + halfTextWidth > canvasWidth/2) {
+      labelX = canvasWidth/2 - halfTextWidth;
     }
+    
+    if (labelY + labelHeight > canvasHeight/2) {
+      labelY = y - size - 8; // Place above node if below would overflow
+    }
+    
+    // Draw enhanced label background with stronger opacity
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+    ctx.lineWidth = 1;
+    
+    const rectX = labelX - halfTextWidth;
+    const rectY = labelY - fontSize / 2 - bgPadding / 2;
+    const rectWidth = textWidth + bgPadding * 2;
+    const rectHeight = labelHeight;
+    
+    // Draw background rectangle with rounded corners
+    ctx.beginPath();
+    ctx.roundRect(rectX, rectY, rectWidth, rectHeight, 4);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Draw label text with high contrast
+    ctx.fillStyle = '#000000';
+    ctx.fillText(label, labelX, labelY);
+    
+    ctx.restore(); // Restore context state
   }, [getNodeSize, getNodeColor, highlightedNodeId, nodes, links]);
   
   const nodePointerAreaPaint = useCallback((node: NodeObject, color: string, ctx: CanvasRenderingContext2D) => {
@@ -501,7 +517,24 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
   return (
     <div className="w-full h-[600px] relative touch-none overflow-hidden" ref={containerRef}>
-      <div className="absolute inset-4 rounded-lg border border-border/50 bg-background/50 overflow-hidden">
+      {/* Gradient Background Layer */}
+      <div 
+        className="absolute inset-0 rounded-lg"
+        style={{
+          background: `linear-gradient(135deg, 
+            #0f766e 0%, 
+            #14b8a6 15%, 
+            #5eead4 35%, 
+            #fbbf24 50%, 
+            #f59e0b 65%, 
+            #14b8a6 85%, 
+            #0f766e 100%
+          )`,
+          opacity: 0.15
+        }}
+      />
+      
+      <div className="absolute inset-4 rounded-lg border border-border/50 bg-transparent overflow-hidden" style={{ position: 'relative', zIndex: 2 }}>
         <ForceGraph2D
           ref={fgRef}
           graphData={{ nodes, links }}
@@ -518,8 +551,8 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           }
         }, [nodeCanvasObject, constrainNodePosition])}
         nodePointerAreaPaint={nodePointerAreaPaint}
-        linkColor={() => 'rgba(0,0,0,0.2)'}
-        linkWidth={1}
+        linkColor={() => '#3b82f6'} // Blue color for all links
+        linkWidth={2} // Make links more visible
         cooldownTicks={100}
         onEngineStop={() => {
           // Keep the center node fixed in the center
@@ -552,10 +585,8 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             }
           });
           
-          // Zoom to fit all nodes, not just the center
-          setTimeout(() => {
-            fgRef.current?.zoomToFit(400, 50);
-          }, 100);
+          // Auto-zoom removed to prevent zoom-out/contract animation on page load
+          // The visualization will maintain its natural scale
         }}
         // Prevent nodes from going outside the visible area
         nodeDrag={useCallback((node: GraphNode) => {
