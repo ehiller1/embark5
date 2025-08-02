@@ -4,6 +4,136 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ImplementationCard, CardConnection } from '@/types/ImplementationTypes';
 import { useImplementationCards } from '@/hooks/useImplementationCards';
+// Church floor plan as data URL for canvas compatibility
+const churchFloorPlanDataUrl = `data:image/svg+xml;base64,${btoa(`
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#9CAF88"/>
+  
+  <!-- Main Church Building -->
+  <g>
+    <!-- Church Main Structure -->
+    <path d="M 200 150 L 200 100 Q 200 80 220 80 L 380 80 Q 400 80 400 100 L 400 150 Q 420 150 440 150 L 440 200 L 560 200 L 560 150 Q 580 150 600 150 L 600 100 Q 600 80 620 80 L 780 80 Q 800 80 800 100 L 800 150 L 800 800 L 280 800 L 280 850 L 200 850 L 200 900 L 320 900 L 320 950 L 200 950 L 200 800 Z" fill="#D4B896" stroke="#8B7355" stroke-width="4"/>
+    
+    <!-- Church Entrance -->
+    <rect x="280" y="850" width="40" height="50" fill="#B85450" stroke="#8B4513" stroke-width="2"/>
+    
+    <!-- Cross on top -->
+    <rect x="380" y="120" width="40" height="8" fill="#D2691E"/>
+    <rect x="396" y="100" width="8" height="40" fill="#D2691E"/>
+    
+    <!-- Bell Tower Circle -->
+    <circle cx="220" cy="200" r="20" fill="#8B7355" stroke="#654321" stroke-width="2"/>
+    
+    <!-- Pews (left side) -->
+    <g>
+      <rect x="220" y="250" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="280" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="310" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="340" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="370" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="400" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="430" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="460" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="490" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="520" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="550" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="580" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+    </g>
+    
+    <!-- Pews (right side) -->
+    <g>
+      <rect x="480" y="250" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="280" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="310" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="340" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="370" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="400" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="430" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="460" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="490" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="520" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="550" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="580" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+    </g>
+  </g>
+  
+  <!-- Adjacent Building -->
+  <g>
+    <!-- Building Structure -->
+    <rect x="620" y="300" width="340" height="400" fill="#D4B896" stroke="#8B7355" stroke-width="4"/>
+    
+    <!-- Building Roof -->
+    <rect x="620" y="280" width="340" height="20" fill="#CD853F" stroke="#8B4513" stroke-width="2"/>
+    
+    <!-- Seating Areas in Adjacent Building -->
+    <g>
+      <!-- Top row -->
+      <rect x="640" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="680" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="720" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="760" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="800" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Second row -->
+      <rect x="640" y="380" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="680" y="380" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Third row (right side) -->
+      <rect x="760" y="380" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="800" y="380" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Fourth row -->
+      <rect x="640" y="440" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="680" y="440" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Fifth row (right side) -->
+      <rect x="760" y="440" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Bottom row -->
+      <rect x="640" y="500" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="680" y="500" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Bottom right -->
+      <rect x="760" y="500" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+    </g>
+    
+    <!-- Kitchen/Utility Area -->
+    <rect x="840" y="620" width="100" height="60" fill="#F5DEB3" stroke="#8B7355" stroke-width="2"/>
+    
+    <!-- Kitchen Elements -->
+    <rect x="860" y="640" width="15" height="10" fill="#4682B4" stroke="#2F4F4F" stroke-width="1"/>
+    <rect x="900" y="635" width="25" height="20" fill="#696969" stroke="#2F2F2F" stroke-width="1"/>
+    
+    <!-- Connection between buildings -->
+    <rect x="580" y="450" width="40" height="20" fill="#D4B896" stroke="#8B7355" stroke-width="2"/>
+  </g>
+  
+  <!-- Walkway -->
+  <rect x="300" y="900" width="20" height="100" fill="#DEB887" stroke="#8B7355" stroke-width="2"/>
+</svg>
+`)}`;
+
+// Person avatar as data URL for canvas compatibility
+const personAvatarDataUrl = `data:image/svg+xml;base64,${btoa(`
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#f0f0f0"/>
+  
+  <!-- Head -->
+  <ellipse cx="256" cy="200" rx="80" ry="90" fill="#DEB887" stroke="#8B7355" stroke-width="8"/>
+  
+  <!-- Hair -->
+  <path d="M 176 150 Q 176 120 200 110 Q 230 100 256 100 Q 282 100 312 110 Q 336 120 336 150 Q 336 180 320 190 Q 300 200 280 195 Q 260 190 240 195 Q 220 200 200 190 Q 176 180 176 150 Z" fill="#CD853F" stroke="#8B7355" stroke-width="6"/>
+  
+  <!-- Body/Shoulders -->
+  <ellipse cx="256" cy="380" rx="120" ry="80" fill="#CD853F" stroke="#8B7355" stroke-width="8"/>
+  
+  <!-- Neck -->
+  <rect x="236" y="280" width="40" height="40" fill="#DEB887" stroke="#8B7355" stroke-width="6"/>
+</svg>
+`)}`;
+
 
 // Define types for graph nodes and links
 interface GraphNode {
@@ -55,7 +185,35 @@ export function CardNetworkVisualization({
   const { updateCardPosition } = useImplementationCards();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [graphData, setGraphData] = useState<{ nodes: GraphNode[], links: GraphLink[] }>({ nodes: [], links: [] });
+  const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
+  const [personAvatarImage, setPersonAvatarImage] = useState<HTMLImageElement | null>(null);
   
+  // Load background image
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      console.log('Background image loaded successfully:', img.width, 'x', img.height);
+      setBackgroundImage(img);
+    };
+    img.onerror = (e) => {
+      console.error('Failed to load background image:', e);
+    };
+    img.src = churchFloorPlanDataUrl;
+  }, []);
+
+  // Load person avatar image
+  useEffect(() => {
+    const img = new Image();
+    img.onload = () => {
+      console.log('Person avatar loaded successfully:', img.width, 'x', img.height);
+      setPersonAvatarImage(img);
+    };
+    img.onerror = (e) => {
+      console.error('Failed to load person avatar:', e);
+    };
+    img.src = personAvatarDataUrl;
+  }, []);
+
   // Track container dimensions
   useEffect(() => {
     if (containerRef.current) {
@@ -84,6 +242,9 @@ export function CardNetworkVisualization({
   }, []);
 
   useEffect(() => {
+    console.log('CardNetworkVisualization received cards:', cards.length, cards);
+    console.log('CardNetworkVisualization received connections:', connections.length, connections);
+    
     // Create nodes from cards
     const nodes: GraphNode[] = cards.map(card => ({
       id: card.id,
@@ -171,11 +332,10 @@ export function CardNetworkVisualization({
     console.log('Right-clicked node:', node.id);
   }, []);
   
-  // Handle engine stop (auto-zoom to fit)
+  // Handle engine stop (removed auto-zoom to prevent initial animation)
   const handleEngineStop = useCallback(() => {
-    if (graphRef.current) {
-      graphRef.current.zoomToFit(400, 30);
-    }
+    // Auto-zoom removed to prevent zoom-out/contract animation on page load
+    // The visualization will maintain its natural scale
   }, []);
   
   return (
@@ -270,16 +430,153 @@ export function CardNetworkVisualization({
       
       <div className="h-2"></div>
       
-      <div className="flex-1 w-full">
+      <div className="flex-1 w-full relative">
+        {/* Background Image Layer */}
+        {backgroundImage && dimensions.width && dimensions.height && (
+          <div 
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              backgroundImage: `url(${backgroundImage.src})`,
+              backgroundSize: 'cover', // Changed to cover to fill entire container
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center',
+              opacity: 0.15, // Reduced opacity since it's now larger
+              zIndex: 1,
+              width: '100%',
+              height: '100%'
+            }}
+          />
+        )}
+        
         {graphData.nodes.length > 0 ? (
           <ForceGraph2D
             ref={graphRef}
             graphData={graphData}
             width={dimensions.width}
-            height={dimensions.height - 40} // Account for toolbar height
+            height={dimensions.height}
+            backgroundColor="transparent"
+            nodeAutoColorBy="type"
+            style={{ position: 'relative', zIndex: 2 }}
             nodeLabel={(node: NodeObject) => (node as GraphNode).name}
             nodeColor={(node: NodeObject) => getNodeColor(node as GraphNode)}
             nodeRelSize={5}
+            nodeCanvasObject={(node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
+              const graphNode = node as GraphNode;
+              const size = 12; // Base size for nodes
+              
+              if (graphNode.type === 'individual' && personAvatarImage) {
+                // Draw person avatar for individual nodes
+                const avatarSize = size * 2; // Make avatar slightly larger
+                ctx.save();
+                
+                // Draw the avatar image
+                ctx.drawImage(
+                  personAvatarImage,
+                  (graphNode.x || 0) - avatarSize / 2,
+                  (graphNode.y || 0) - avatarSize / 2,
+                  avatarSize,
+                  avatarSize
+                );
+                
+                // Add a subtle border if the node is highlighted
+                if (graphNode.highlighted) {
+                  ctx.strokeStyle = '#3b82f6';
+                  ctx.lineWidth = 3;
+                  ctx.beginPath();
+                  ctx.arc(graphNode.x || 0, graphNode.y || 0, avatarSize / 2 + 2, 0, 2 * Math.PI);
+                  ctx.stroke();
+                }
+                
+                ctx.restore();
+              } else {
+                // Draw default circle for group nodes or when avatar isn't loaded
+                const color = getNodeColor(graphNode);
+                
+                ctx.beginPath();
+                ctx.arc(graphNode.x || 0, graphNode.y || 0, size, 0, 2 * Math.PI);
+                ctx.fillStyle = color;
+                ctx.fill();
+                
+                // Add border for highlighted nodes
+                if (graphNode.highlighted) {
+                  ctx.strokeStyle = '#3b82f6';
+                  ctx.lineWidth = 3;
+                  ctx.stroke();
+                } else {
+                  ctx.strokeStyle = '#666';
+                  ctx.lineWidth = 1;
+                  ctx.stroke();
+                }
+                
+                // Add icon for group nodes
+                if (graphNode.type === 'group') {
+                  ctx.fillStyle = '#fff';
+                  ctx.font = `${size}px Arial`;
+                  ctx.textAlign = 'center';
+                  ctx.textBaseline = 'middle';
+                  ctx.fillText('👥', graphNode.x || 0, graphNode.y || 0);
+                }
+              }
+              
+              // Always show node labels with bounds checking
+              const label = graphNode.name;
+              if (!label) {
+                console.warn('Node missing name:', graphNode);
+                return;
+              }
+              
+              const fontSize = 14; // Increased font size for better visibility
+              const nodeX = graphNode.x || 0;
+              const nodeY = graphNode.y || 0;
+              
+              ctx.save(); // Save context state
+              ctx.font = `bold ${fontSize}px Arial`; // Bold font for better visibility
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              
+              // Calculate text dimensions
+              const textWidth = ctx.measureText(label).width;
+              const bgPadding = 6; // Increased padding
+              const labelHeight = fontSize + bgPadding;
+              
+              // Calculate label position with bounds checking
+              let labelX = nodeX;
+              let labelY = nodeY + size + fontSize + 6; // More spacing from node
+              
+              // Constrain label within canvas bounds
+              const halfTextWidth = textWidth / 2 + bgPadding;
+              if (labelX - halfTextWidth < 0) {
+                labelX = halfTextWidth;
+              } else if (labelX + halfTextWidth > dimensions.width) {
+                labelX = dimensions.width - halfTextWidth;
+              }
+              
+              if (labelY + labelHeight > dimensions.height) {
+                labelY = nodeY - size - 6; // Place above node if below would overflow
+              }
+              
+              // Draw label background with stronger opacity
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+              ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+              ctx.lineWidth = 1;
+              
+              const rectX = labelX - halfTextWidth;
+              const rectY = labelY - fontSize / 2 - bgPadding / 2;
+              const rectWidth = textWidth + bgPadding * 2;
+              const rectHeight = labelHeight;
+              
+              // Draw background rectangle with border
+              ctx.fillRect(rectX, rectY, rectWidth, rectHeight);
+              ctx.strokeRect(rectX, rectY, rectWidth, rectHeight);
+              
+              // Draw label text with shadow for better visibility
+              ctx.fillStyle = '#000000';
+              ctx.fillText(label, labelX, labelY);
+              
+              ctx.restore(); // Restore context state
+            }}
+            linkColor={() => '#3b82f6'} // Blue color for all links
+            linkWidth={2} // Make links more visible
             linkDirectionalArrowLength={3}
             linkDirectionalArrowRelPos={1}
             linkCurvature={(link: any) => (link as GraphLink).bidirectional ? 0.25 : 0}
@@ -304,98 +601,8 @@ export function CardNetworkVisualization({
             cooldownTicks={100}
             d3AlphaDecay={0.05}
             d3VelocityDecay={0.4}
-            enableZoomInteraction={true}
-            minZoom={0.5}
-            maxZoom={3}
+            enableZoomInteraction={false}
             enablePanInteraction={true}
-            nodeCanvasObject={(node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
-              const n = node as GraphNode;
-              const label = n.name;
-              const fontSize = 12 / globalScale;
-              const nodeSize = 5;
-              
-              // Draw node as square instead of circle
-              ctx.beginPath();
-              ctx.rect((node.x || 0) - nodeSize, (node.y || 0) - nodeSize, nodeSize * 2, nodeSize * 2);
-              ctx.fillStyle = getNodeColor(n);
-              ctx.fill();
-              
-              // Draw node border for highlighted nodes
-              if (n.highlighted) {
-                ctx.strokeStyle = '#ff0000';
-                ctx.lineWidth = 1.5 / globalScale;
-                ctx.stroke();
-              }
-              
-              // Draw node label if zoomed in enough
-              // Show tooltip with node info when hovering
-              if (n === selectedNode) {
-                const tooltipPadding = 6;
-                const tooltipHeight = fontSize * 3 + tooltipPadding * 2;
-                // Calculate text width using measureText
-                ctx.font = `${fontSize}px Sans-Serif`;
-                const textWidth = ctx.measureText(label).width;
-                const tooltipWidth = Math.max(textWidth + tooltipPadding * 2, 100);
-                
-                // Draw tooltip background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-                ctx.strokeStyle = '#e2e8f0';
-                ctx.lineWidth = 1 / globalScale;
-                ctx.beginPath();
-                ctx.roundRect(
-                  (node.x || 0) - tooltipWidth / 2,
-                  (node.y || 0) - nodeSize - tooltipHeight - 5,
-                  tooltipWidth,
-                  tooltipHeight,
-                  3 / globalScale
-                );
-                ctx.fill();
-                ctx.stroke();
-                
-                // Draw tooltip text
-                ctx.fillStyle = '#1e293b';
-                ctx.font = `${fontSize}px Sans-Serif`;
-                ctx.textAlign = 'center';
-                ctx.fillText(
-                  label,
-                  (node.x || 0),
-                  (node.y || 0) - nodeSize - tooltipHeight + fontSize + tooltipPadding
-                );
-                
-                ctx.font = `${fontSize * 0.8}px Sans-Serif`;
-                ctx.fillStyle = '#64748b';
-                ctx.fillText(
-                  n.type.charAt(0).toUpperCase() + n.type.slice(1),
-                  (node.x || 0),
-                  (node.y || 0) - nodeSize - tooltipHeight + fontSize * 2 + tooltipPadding
-                );
-                
-                // Categories functionality removed
-              }
-              
-              // Always render node labels if zoomed in enough
-              if (globalScale > 0.6) {
-                ctx.font = `${fontSize}px Sans-Serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
-                
-                // Add background to text for better visibility
-                const textWidth = ctx.measureText(label).width;
-                const bgPadding = 2;
-                
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                ctx.fillRect(
-                  (node.x || 0) - textWidth / 2 - bgPadding,
-                  (node.y || 0) + nodeSize + bgPadding,
-                  textWidth + bgPadding * 2,
-                  fontSize + bgPadding * 2
-                );
-                
-                ctx.fillStyle = '#000000';
-                ctx.fillText(label, node.x || 0, (node.y || 0) + nodeSize + fontSize);
-              }
-            }}
             linkCanvasObject={(link: any, ctx: CanvasRenderingContext2D, globalScale: number) => {
               const l = link as GraphLink;
               if (!l.source || !l.target) return;

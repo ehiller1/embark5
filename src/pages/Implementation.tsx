@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { CardNetworkVisualization } from '@/components/implementation/CardNetworkVisualization';
 import { CardCreationPanel } from '@/components/implementation/CardCreationPanel';
+import { StakeholdersSection } from '@/components/implementation/StakeholdersSection';
 
 import { ConversationPanel } from '@/components/implementation/ConversationPanel';
 import { useImplementationCards } from '@/hooks/useImplementationCards';
@@ -477,6 +478,28 @@ export default function Implementation() {
                 setModalSelectedNodeIds(nodeIds);
                 setShowChatModal(true);
               }} 
+            />
+          </div>
+
+          {/* Stakeholders Section */}
+          <div className="h-[400px]">
+            <StakeholdersSection
+              onCardSelect={(selectedCards) => {
+                // Add selected stakeholder cards to the active cards
+                setNewlyCreatedCardsForModal(selectedCards);
+              }}
+              openChatModal={(nodeIds) => {
+                setModalSelectedNodeIds(nodeIds);
+                setShowChatModal(true);
+              }}
+              onCreateNew={() => {
+                // Open the card creation sheet
+                setIsCreatingCard(true);
+              }}
+              onCreateConnection={() => {
+                // Open the connection creation dialog
+                setIsCreatingConnection(true);
+              }}
             />
           </div>
 

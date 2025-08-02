@@ -1,0 +1,106 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
+  <rect width="1024" height="1024" fill="#9CAF88"/>
+  
+  <!-- Main Church Building -->
+  <g>
+    <!-- Church Main Structure -->
+    <path d="M 200 150 L 200 100 Q 200 80 220 80 L 380 80 Q 400 80 400 100 L 400 150 Q 420 150 440 150 L 440 200 L 560 200 L 560 150 Q 580 150 600 150 L 600 100 Q 600 80 620 80 L 780 80 Q 800 80 800 100 L 800 150 L 800 800 L 280 800 L 280 850 L 200 850 L 200 900 L 320 900 L 320 950 L 200 950 L 200 800 Z" fill="#D4B896" stroke="#8B7355" stroke-width="4"/>
+    
+    <!-- Church Entrance -->
+    <rect x="280" y="850" width="40" height="50" fill="#B85450" stroke="#8B4513" stroke-width="2"/>
+    
+    <!-- Cross on top -->
+    <rect x="380" y="120" width="40" height="8" fill="#D2691E"/>
+    <rect x="396" y="100" width="8" height="40" fill="#D2691E"/>
+    
+    <!-- Bell Tower Circle -->
+    <circle cx="220" cy="200" r="20" fill="#8B7355" stroke="#654321" stroke-width="2"/>
+    
+    <!-- Pews (left side) -->
+    <g>
+      <rect x="220" y="250" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="280" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="310" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="340" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="370" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="400" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="430" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="460" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="490" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="520" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="550" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="220" y="580" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+    </g>
+    
+    <!-- Pews (right side) -->
+    <g>
+      <rect x="480" y="250" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="280" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="310" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="340" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="370" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="400" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="430" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="460" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="490" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="520" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="550" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="480" y="580" width="80" height="12" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+    </g>
+  </g>
+  
+  <!-- Adjacent Building -->
+  <g>
+    <!-- Building Structure -->
+    <rect x="620" y="300" width="340" height="400" fill="#D4B896" stroke="#8B7355" stroke-width="4"/>
+    
+    <!-- Building Roof -->
+    <rect x="620" y="280" width="340" height="20" fill="#CD853F" stroke="#8B4513" stroke-width="2"/>
+    
+    <!-- Seating Areas in Adjacent Building -->
+    <g>
+      <!-- Top row -->
+      <rect x="640" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="680" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="720" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="760" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="800" y="320" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Second row -->
+      <rect x="640" y="380" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="680" y="380" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Third row (right side) -->
+      <rect x="760" y="380" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="800" y="380" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Fourth row -->
+      <rect x="640" y="440" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="680" y="440" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Fifth row (right side) -->
+      <rect x="760" y="440" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Bottom row -->
+      <rect x="640" y="500" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      <rect x="680" y="500" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+      
+      <!-- Bottom right -->
+      <rect x="760" y="500" width="20" height="15" fill="#CD853F" stroke="#8B4513" stroke-width="1"/>
+    </g>
+    
+    <!-- Kitchen/Utility Area -->
+    <rect x="840" y="620" width="100" height="60" fill="#F5DEB3" stroke="#8B7355" stroke-width="2"/>
+    
+    <!-- Kitchen Elements -->
+    <rect x="860" y="640" width="15" height="10" fill="#4682B4" stroke="#2F4F4F" stroke-width="1"/>
+    <rect x="900" y="635" width="25" height="20" fill="#696969" stroke="#2F2F2F" stroke-width="1"/>
+    
+    <!-- Connection between buildings -->
+    <rect x="580" y="450" width="40" height="20" fill="#D4B896" stroke="#8B7355" stroke-width="2"/>
+  </g>
+  
+  <!-- Walkway -->
+  <rect x="300" y="900" width="20" height="100" fill="#DEB887" stroke="#8B7355" stroke-width="2"/>
+</svg>

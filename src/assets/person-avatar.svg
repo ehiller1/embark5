@@ -1,0 +1,16 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="256" cy="256" r="256" fill="#f0f0f0"/>
+  
+  <!-- Head -->
+  <ellipse cx="256" cy="200" rx="80" ry="90" fill="#DEB887" stroke="#8B7355" stroke-width="8"/>
+  
+  <!-- Hair -->
+  <path d="M 176 150 Q 176 120 200 110 Q 230 100 256 100 Q 282 100 312 110 Q 336 120 336 150 Q 336 180 320 190 Q 300 200 280 195 Q 260 190 240 195 Q 220 200 200 190 Q 176 180 176 150 Z" fill="#CD853F" stroke="#8B7355" stroke-width="6"/>
+  
+  <!-- Body/Shoulders -->
+  <ellipse cx="256" cy="380" rx="120" ry="80" fill="#CD853F" stroke="#8B7355" stroke-width="8"/>
+  
+  <!-- Neck -->
+  <rect x="236" y="280" width="40" height="40" fill="#DEB887" stroke="#8B7355" stroke-width="6"/>
+</svg>

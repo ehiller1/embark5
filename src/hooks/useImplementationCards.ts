@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { supabase } from "@/integrations/lib/supabase";
 import { useToast } from "./use-toast";
+import { useAuth } from "@/integrations/lib/auth/AuthProvider";
 import {
     ImplementationCard,
     CardCategory,
@@ -15,14 +16,23 @@ export function useImplementationCards() {
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { toast } = useToast();
+    const { user } = useAuth();
 
-    // Fetch all cards, categories and connections
+    // Fetch all cards (global), categories and connections (filtered by church_id)
     const fetchCards = useCallback(async () => {
         setIsLoading(true);
         setError(null);
 
         try {
-            // Fetch cards
+            // Get the current user's church_id for filtering connections and categories
+            const churchId = user?.user_metadata?.church_id;
+            if (!churchId) {
+                console.error('No church_id found for the current user');
+                setError('No church ID found for current user');
+                return;
+            }
+
+            // Fetch cards (global - not filtered by church_id)
             const { data: cardsData, error: cardsError } = await supabase
                 .from("implementation_cards")
                 .select("*")
@@ -30,20 +40,28 @@ export function useImplementationCards() {
 
             if (cardsError) throw new Error(cardsError.message);
 
-            // Fetch categories
+            // Fetch categories filtered by church_id
             const { data: categoriesData, error: categoriesError } =
                 await supabase
                     .from("card_categories")
                     .select("*")
+                    .eq("church_id", churchId)
                     .order("name", { ascending: true });
 
             if (categoriesError) throw new Error(categoriesError.message);
 
-            // Fetch connections
+            // Fetch connections filtered by church_id
             const { data: connectionsData, error: connectionsError } =
-                await supabase.from("card_connections").select("*");
+                await supabase
+                    .from("card_connections")
+                    .select("*")
+                    .eq("church_id", churchId);
 
             if (connectionsError) throw new Error(connectionsError.message);
+
+            console.log('useImplementationCards - Fetched cards:', cardsData?.length || 0, cardsData);
+            console.log('useImplementationCards - Fetched categories:', categoriesData?.length || 0, categoriesData);
+            console.log('useImplementationCards - Fetched connections:', connectionsData?.length || 0, connectionsData);
 
             setCards(cardsData || []);
             setCategories(categoriesData || []);
@@ -60,7 +78,7 @@ export function useImplementationCards() {
         } finally {
             setIsLoading(false);
         }
-    }, [toast]);
+    }, [toast, user]);
 
     // Create a new card
     const createCard = useCallback(
@@ -71,6 +89,7 @@ export function useImplementationCards() {
             >
         ) => {
             try {
+                console.log('Creating new card:', cardData);
                 const id = uuidv4();
                 const { error } = await supabase
                     .from("implementation_cards")
@@ -83,16 +102,25 @@ export function useImplementationCards() {
                         },
                     ]);
 
-                if (error) throw new Error(error.message);
+                if (error) {
+                    console.error('Error creating card:', error);
+                    throw new Error(error.message);
+                }
 
                 // Add the new card to the local state
                 const newCard = { 
                     id, 
-                    ...cardData, 
+                    ...cardData,
                     created_at: new Date().toISOString(), 
                     updated_at: new Date().toISOString() 
                 } as ImplementationCard;
-                setCards((prevCards) => [newCard, ...prevCards]);
+                
+                console.log('Adding new card to state:', newCard);
+                setCards((prevCards) => {
+                    const updatedCards = [newCard, ...prevCards];
+                    console.log('Updated cards state:', updatedCards.length, updatedCards);
+                    return updatedCards;
+                });
 
                 toast({
                     title: "Card created",
@@ -122,6 +150,12 @@ export function useImplementationCards() {
             categoryData: Omit<CardCategory, "id" | "created_at" | "updated_at">
         ) => {
             try {
+                // Get the current user's church_id
+                const churchId = user?.user_metadata?.church_id;
+                if (!churchId) {
+                    throw new Error('No church ID found for current user');
+                }
+
                 const id = uuidv4();
                 const { error } = await supabase
                     .from("card_categories")
@@ -129,6 +163,7 @@ export function useImplementationCards() {
                         {
                             id,
                             ...categoryData,
+                            church_id: churchId,
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString(),
                         },
@@ -176,6 +211,12 @@ export function useImplementationCards() {
                 return null;
             }
             try {
+                // Get the current user's church_id
+                const churchId = user?.user_metadata?.church_id;
+                if (!churchId) {
+                    throw new Error('No church ID found for current user');
+                }
+
                 const id = uuidv4();
                 const { error } = await supabase
                     .from("card_connections")
@@ -183,6 +224,7 @@ export function useImplementationCards() {
                         {
                             id,
                             ...connectionData,
+                            church_id: churchId,
                             created_at: new Date().toISOString(),
                             updated_at: new Date().toISOString(),
                         },
@@ -209,7 +251,7 @@ export function useImplementationCards() {
                 return null;
             }
         },
-        [toast]
+        [toast, user]
     );
 
     // Update a card's position in the visualization
