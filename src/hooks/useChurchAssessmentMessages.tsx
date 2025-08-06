@@ -100,7 +100,7 @@ export function useChurchAssessmentMessages(
     setAutoScroll(atBottom);
   };
 
-  // Generate initial system prompt - now just shows a welcome message without calling OpenAI
+  // Generate initial message with text inputs - similar to CommunityAssessment logic
   const generateInitialMessage = async () => {
     // Skip if already generated or in progress
     if (isInitialMessageGenerated || initialMessageInProgressRef.current || messages.length > 0) {
@@ -112,39 +112,125 @@ export function useChurchAssessmentMessages(
       // Set flag to indicate initial message is in progress
       initialMessageInProgressRef.current = true;
       
-      console.log('[useChurchAssessmentMessages] Showing initial welcome message');
+      console.log('[useChurchAssessmentMessages] Generating initial message with text inputs');
 
-      const welcomeMessage: Message = {
-        id: Date.now(),
-        sender: "assistant",
-        content: "I'm here to help you further assess your faith community. What additional areas do you feel are important to consider that might affect the discernment process?",
-        timestamp: new Date(),
-        companionAvatar,
-        sectionAvatar
-      };
+      // Check if we have text inputs to include
+      const hasTextInputs = textInputs && Object.values(textInputs).some(input => input.trim() !== '');
       
-      setMessages([welcomeMessage]);
+      if (hasTextInputs) {
+        // Create formatted user message with text inputs (similar to CommunityAssessment)
+        const formattedInputs = [
+          textInputs.input1 && `**Celebrations:** ${textInputs.input1}`,
+          textInputs.input2 && `**Opportunities:** ${textInputs.input2}`,
+          textInputs.input3 && `**Obstacles:** ${textInputs.input3}`,
+          textInputs.input4 && `**Engagement:** ${textInputs.input4}`
+        ].filter(Boolean).join('\n\n');
+
+        // Add user message with the formatted inputs
+        const userMessage: Message = {
+          id: Date.now(),
+          sender: "user",
+          content: formattedInputs,
+          timestamp: new Date()
+        };
+
+        setMessages([userMessage]);
+
+        // Generate AI response using the church_assessment prompt
+        const { success, data, error } = await getAndPopulatePrompt(
+          'church_assessment' as PromptType,
+          {
+            companion_avatar: selectedCompanion?.avatar_url ?? '',
+            church_name: churchName ?? '',
+            location: location ?? '',
+            companion_name: selectedCompanion?.companion ?? '',
+            companion_type: selectedCompanion?.companion_type ?? '',
+            companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : '',
+            companion_speech_pattern: selectedCompanion?.speech_pattern ?? '',
+            companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
+            church_avatar_name: displayAvatar?.name ?? '',
+            church_avatar_description: displayAvatar?.description ?? '',
+            church_celebrations: textInputs?.input1 ?? '',
+            church_opportunities: textInputs?.input2 ?? '',
+            church_obstacles: textInputs?.input3 ?? '',
+            church_engagement: textInputs?.input4 ?? ''
+          }
+        );
+
+        if (!success || !data) {
+          throw new Error(error as string || 'Failed to get church assessment prompt');
+        }
+
+        // Add loading message
+        const loadingMsg: Message = {
+          id: Date.now() + 1,
+          sender: "assistant",
+          content: "Thinking...",
+          timestamp: new Date(),
+          companionAvatar,
+          sectionAvatar
+        };
+
+        setMessages([userMessage, loadingMsg]);
+
+        // Generate AI response
+        const apiMessages = [
+          { role: 'system', content: data.prompt },
+          { role: 'user', content: formattedInputs }
+        ];
+        
+        const res = await generateResponse({
+          messages: apiMessages,
+          maxTokens: 500,
+          temperature: 0.7
+        });
+
+        if (!res.text) {
+          throw new Error(res.error || 'Failed to generate response');
+        }
+
+        // Update loading message with AI response
+        const aiMsg: Message = {
+          id: loadingMsg.id,
+          sender: "assistant",
+          content: validateMessage(res.text),
+          timestamp: new Date(),
+          companionAvatar,
+          sectionAvatar
+        };
+        
+        setMessages([userMessage, aiMsg]);
+      } else {
+        // Show welcome message if no text inputs
+        const welcomeMessage: Message = {
+          id: Date.now(),
+          sender: "assistant",
+          content: "Provide your answers above and then I will dig into asking for additional detail that will solicit additional information and your perspective on your church.",
+          timestamp: new Date(),
+          companionAvatar,
+          sectionAvatar
+        };
+
+        setMessages([welcomeMessage]);
+      }
+      
       setIsInitialMessageGenerated(true);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[useChurchAssessmentMessages] Error generating initial message:', msg);
+      console.log('[useChurchAssessmentMessages] Initial message generation completed');
+    } catch (error) {
+      console.error('[useChurchAssessmentMessages] Error generating initial message:', error);
       
-      const errorMsg: Message = {
+      // Fallback to welcome message on error
+      const errorMessage: Message = {
         id: Date.now(),
         sender: "assistant",
-        content: "I apologize, but I encountered an error while generating the initial assessment. Please try again.",
+        content: "I'm ready to help you assess your church. Please provide your answers above and I'll ask follow-up questions to gather more insights.",
         timestamp: new Date(),
         companionAvatar,
         sectionAvatar
       };
-      
-      setMessages([errorMsg]);
-      
-      toast({
-        title: "AI Response Error",
-        description: "Failed to generate the initial assessment. Please try again.",
-        variant: "destructive"
-      });
+
+      setMessages([errorMessage]);
+      setIsInitialMessageGenerated(true);
     } finally {
       initialMessageInProgressRef.current = false;
     }

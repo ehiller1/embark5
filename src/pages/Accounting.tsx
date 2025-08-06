@@ -149,12 +149,43 @@ const Accounting: React.FC = () => {
       description: "Your financial report is being prepared"
     });
     
-    // In a real implementation, this would use PyAccounting to generate reports
+    // Generate actual CSV report and download it
     setTimeout(() => {
-      toast({
-        title: "Report Ready",
-        description: "Your financial report has been generated"
-      });
+      try {
+        // Create CSV content
+        const csvHeader = 'Date,Description,Category,Type,Amount\n';
+        const csvRows = transactions.map(t => 
+          `${t.date},"${t.description}",${t.category},${t.type},${t.amount}`
+        ).join('\n');
+        
+        // Add summary at the end
+        const summary = `\n\nSUMMARY\nTotal Income,${totalIncome}\nTotal Expenses,${totalExpenses}\nNet Balance,${balance}`;
+        const csvContent = csvHeader + csvRows + summary;
+        
+        // Create and download the file
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `financial-report-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        toast({
+          title: "Report Downloaded",
+          description: "Your financial report has been downloaded to your computer"
+        });
+      } catch (error) {
+        console.error('Error generating report:', error);
+        toast({
+          title: "Download Failed",
+          description: "There was an error downloading the report. Please try again.",
+          variant: "destructive"
+        });
+      }
     }, 1500);
   };
 

@@ -37,6 +37,7 @@ export const REQUIRED_PROMPT_TYPES = [
   'assessment_report',
   'conversation',
   'discernment_plan',
+  'fundraise', // Added for fundraising campaign generation
   // 'scenario_response', // Specific to certain dialog interactions, not globally required
   'unified_scenario_response',
   'no_scenario_discernment',
@@ -82,27 +83,8 @@ export const createRequiredPrompts = async () => {
       
       switch (type) {
         case 'community_assessment':
-          promptTemplate = `You are $(companion_name), a $(companion_type) with expertise in community assessment.
-Your characteristics include: $(companion_traits).
-You communicate with these speech patterns: $(companion_speech_pattern).
-Your knowledge domains are: $(companion_knowledge_domains).
-
-You are conducting a community assessment for $(church_name) located in $(location).
-Your goal is to help understand the community's needs, strengths, and opportunities.
-
-As you engage in conversation:
-1. Be conversational and engaging
-2. Ask thoughtful questions about the community
-3. Listen carefully to responses
-4. Build on previous information shared
-5. Maintain a professional yet approachable tone
-
-Remember to:
-- Focus on understanding the community context
-- Explore both challenges and opportunities
-- Consider demographic, social, and economic factors
-- Be sensitive to community dynamics
-- Guide the conversation naturally while gathering insights`;
+          // No fallback prompt - must use database prompt only
+          throw new Error('community_assessment prompt must be retrieved from database');
           break;
         // ... other cases ...
       }
@@ -392,7 +374,11 @@ export const PROMPT_PARAMETERS: PromptParameterConfig = {
     companion_type: { required: true, description: 'companion_type' },
     companion_traits: { required: true, description: 'companion_traits' },
     companion_speech_pattern: { required: true, description: 'companion_speech_pattern' },
-    companion_knowledge_domains: { required: true, description: 'companion_knowledge_domains' }
+    companion_knowledge_domains: { required: true, description: 'companion_knowledge_domains' },
+    community_research: { required: true, description: 'community_research' },
+    location: { required: false, description: 'user_location' },
+    community_avatar_name: { required: false, description: 'community_avatar_name' },
+    community_avatar_description: { required: false, description: 'community_avatar_description' }
   },
   community_avatar_generation: {
     research_summary: { required: true, description: 'research_summary' },

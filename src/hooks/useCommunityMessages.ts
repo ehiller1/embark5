@@ -67,6 +67,38 @@ export function useCommunityMessages() {
     return;
   };
 
+  // Helper function to clean and format community research data
+  const cleanAndFormatCommunityResearch = (rawData: string) => {
+    try {
+      const parsed = JSON.parse(rawData);
+      const formattedData: string[] = [];
+      
+      Object.keys(parsed).forEach(category => {
+        formattedData.push(`${category}:`);
+        parsed[category].forEach((item: any) => {
+          // Clean the content - remove metadata and show only essential info
+          const title = item.metadata?.sourceTitle || item.title || 'Community Insight';
+          const content = item.content || item.block || '';
+          const annotation = item.annotation || '';
+          
+          // Format as simple insight without URLs or metadata
+          if (content.trim()) {
+            formattedData.push(`- ${title}: ${content.trim()}`);
+            if (annotation.trim()) {
+              formattedData.push(`  Note: ${annotation.trim()}`);
+            }
+          }
+        });
+        formattedData.push('');
+      });
+      
+      return formattedData.join('\n');
+    } catch (e) {
+      console.error('[useCommunityMessages] Error parsing research data:', e);
+      return 'No valid community research data available';
+    }
+  };
+
   // Handle sending messages
   const handleSendMessage = async (content: string) => {
     if (!content.trim() || isLoading || messageProcessingRef.current) return;
@@ -74,17 +106,48 @@ export function useCommunityMessages() {
     messageProcessingRef.current = true;
     
     try {
+      // Get and clean community research data from localStorage
+      const communityResearchRaw = localStorage.getItem('community_research_notes');
+      const communityResearchData = communityResearchRaw ? 
+        cleanAndFormatCommunityResearch(communityResearchRaw) : 
+        'No community research data available';
+      
+      // Extract user input data from the content if it contains structured data
+      let userDemographics = 'Not provided';
+      let userNeeds = 'Not provided';
+      let userAssets = 'Not provided';
+      let userOpportunities = 'Not provided';
+      
+      // Parse the content to extract user inputs
+      const lines = content.split('\n');
+      lines.forEach(line => {
+        if (line.startsWith('Demographics:')) {
+          userDemographics = line.replace('Demographics:', '').trim();
+        } else if (line.startsWith('Community Needs:')) {
+          userNeeds = line.replace('Community Needs:', '').trim();
+        } else if (line.startsWith('Community Assets:')) {
+          userAssets = line.replace('Community Assets:', '').trim();
+        } else if (line.startsWith('Opportunities for Engagement:')) {
+          userOpportunities = line.replace('Opportunities for Engagement:', '').trim();
+        }
+      });
+      
       // Get the prompt template first
       const { success, data, error } = await getAndPopulatePrompt('community_assessment', {
-        companion_name: selectedCompanion?.companion || '',
-        companion_type: selectedCompanion?.companion_type || '',
-        companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : '',
-        companion_speech_pattern: selectedCompanion?.speech_pattern || '',
-        companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
-        companion_avatar: selectedCompanion?.avatar_url || '',
+        companion_name: selectedCompanion?.companion || 'Community Guide',
+        companion_type: selectedCompanion?.companion_type || 'community assessment specialist',
+        companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : 'thoughtful, empathetic, experienced in community work',
+        companion_speech_pattern: selectedCompanion?.speech_pattern || 'Warm, professional, and encouraging',
+        companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : 'community development, ministry planning, asset-based community development',
+        companion_avatar: selectedCompanion?.companion || 'Community Guide',
         location: localStorage.getItem('user_location') || '[Location not specified]',
         community_avatar_name: sectionAvatar?.name || 'Information Gatherer',
-        community_avatar_description: sectionAvatar?.description || 'An assistant focused on community assessment'
+        community_avatar_description: sectionAvatar?.description || 'An assistant focused on community assessment',
+        community_research: communityResearchData,
+        user_demographics: userDemographics,
+        user_needs: userNeeds,
+        user_assets: userAssets,
+        user_opportunities: userOpportunities
       });
 
       if (!success || !data) {
@@ -102,7 +165,7 @@ export function useCommunityMessages() {
       const loadingMessage: Message = {
         id: Date.now() + 1,
         sender: "assistant",
-        content: "Thinking...",
+        content: "Let me consider your community assessment...",
         timestamp: new Date(),
       };
       

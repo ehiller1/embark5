@@ -99,13 +99,13 @@ export function ChurchAssessmentInterface({
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Show initial hardcoded message as a message bubble
+  // Generate initial message when text inputs are provided or component mounts
   useEffect(() => {
     if (messages.length === 0) {
       // Initial message is now handled by the useChurchAssessmentMessages hook
       generateInitialMessage();
     }
-  }, [selectedCompanion, informationGathererAvatar]);
+  }, [selectedCompanion, informationGathererAvatar, textInputs, generateInitialMessage]);
 
   // Track user scroll to toggle autoScroll
   const handleScroll = useCallback(() => {

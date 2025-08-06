@@ -56,12 +56,15 @@ import MinistryDetail from './pages/MinistryDetail';
 import ClergyMarketplace from './pages/ClergyMarketplace';
 import ServicesMarketplace from './pages/ServicesMarketplace';
 import Accounting from './pages/Accounting';
+import FinancialManagement from './pages/FinancialManagement';
 import InvestmentSuccess from './pages/InvestmentSuccess';
 import InvestmentDashboard from './pages/InvestmentDashboard';
 import Viability from './pages/Viability';
 import VocationalDiscernment from './pages/VocationalDiscernment';
 import SurveyBuild from './pages/SurveyBuild';
 import ServiceDetail from './pages/ServiceDetail';
+import PlanAssessment from './pages/PlanAssessment';
+import StrategicPlanBuilder from './pages/StrategicPlanBuilder';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,8 +120,9 @@ const App = () => {
                       <Route path="/serpapi-test" element={<SerpApiTest />} />
                       <Route path="/unauthorized" element={<Unauthorized />} />
 
-                      {/* Routes requiring any authenticated user */}
-                      {/* <Route path="/conversation" element={<ProtectedRoute><Conversation /></ProtectedRoute>} /> */}
+                      {/* Accounting with separate authentication */}
+                      <Route path="/accounting" element={<ProtectedAccountingRoute><Accounting /></ProtectedAccountingRoute>} />
+                      <Route path="/financial-management" element={<ProtectedRoute allowedRoles={['Clergy']}><FinancialManagement /></ProtectedRoute>} />
                       <Route path="/prayers" element={<ProtectedRoute><PrayersPage /></ProtectedRoute>} />
                       <Route path="/theological-resources" element={<ProtectedRoute><TheologicalResourcesPage /></ProtectedRoute>} />
                       <Route path="/case-studies" element={<ProtectedRoute><CaseStudiesPage /></ProtectedRoute>} />
@@ -155,6 +159,8 @@ const App = () => {
                       <Route path="/plan-build" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanBuilder /></ProtectedRoute>} />
                       <Route path="/plan-build/:scenarioId" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanBuilder /></ProtectedRoute>} />
                       <Route path="/discernment-plan" element={<ProtectedRoute allowedRoles={['Clergy']}><DiscernmentPlanPage /></ProtectedRoute>} />
+                      <Route path="/plan-assessment" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanAssessment /></ProtectedRoute>} />
+                      <Route path="/strategic-plan-builder" element={<ProtectedRoute allowedRoles={['Clergy']}><StrategicPlanBuilder /></ProtectedRoute>} />
                                             
                       <Route path="/viability" element={<Viability />} />
                       <Route path="/vocational-discernment" element={<ProtectedRoute allowedRoles={['Clergy']}><VocationalDiscernment /></ProtectedRoute>} />

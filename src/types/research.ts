@@ -13,6 +13,13 @@ export interface Note {
   category: string;
   content: string;
   timestamp: string;
+  metadata?: {
+    tags?: string[];
+    source?: 'web' | 'ai';
+    sourceTitle?: string;
+    sourceLink?: string;
+    [key: string]: any;
+  };
 }
 
 export type PageType = 'community_research' | 'church_research'; 

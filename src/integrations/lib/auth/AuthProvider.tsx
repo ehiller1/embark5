@@ -181,28 +181,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // If user was created successfully, update the profiles table
       if (data.user) {
-        const { error: profileError } = await supabase
+        const profileData = {
+          id: data.user.id,
+          email: email,
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          preferred_name: userData.preferredName || null, // Save preferred_name to profiles table
+          church_name: userData.churchName,
+          address: userData.address,
+          city: userData.city,
+          state: userData.state,
+          phone: userData.phone,
+          role: userData.role,
+          church_id: userData.church_id ?? null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        
+        console.log('[AuthProvider] Attempting to save profile data:', {
+          ...profileData,
+          preferred_name: profileData.preferred_name,
+          preferredName_from_form: userData.preferredName
+        });
+        
+        const { data: profileResult, error: profileError } = await supabase
           .from('profiles')
-          .upsert({
-            id: data.user.id,
-            email: email,
-            first_name: userData.firstName,
-            last_name: userData.lastName,
-            preferred_name: userData.preferredName || null, // Save preferred_name to profiles table
-            church_name: userData.churchName,
-            address: userData.address,
-            city: userData.city,
-            state: userData.state,
-            phone: userData.phone,
-            role: userData.role,
-            church_id: userData.church_id ?? null,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          });
+          .upsert(profileData)
+          .select(); // Add select to see what was actually saved
           
         if (profileError) {
-          console.error('[AuthProvider] Error updating profiles table:', profileError.message);
+          console.error('[AuthProvider] Error updating profiles table:', profileError);
+          console.error('[AuthProvider] Profile data that failed:', profileData);
           // Don't fail the signup if profile update fails, just log it
+        } else {
+          console.log('[AuthProvider] Profile saved successfully:', profileResult);
         }
       }
       

@@ -28,6 +28,8 @@ import { Edit } from "lucide-react";
 import { List } from "lucide-react";
 import { generateRelatedResources } from '@/utils/resourceGeneration';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '@/integrations/lib/auth/AuthProvider';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 
 interface ResourceItem {
   id: string;
@@ -211,19 +213,13 @@ const CategoryPreview = ({
             className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
             onClick={() => onResourceClick(resource)}
           >
-            <div className="bg-muted h-32 relative">
-              <div className="absolute inset-0 flex items-center justify-center">
-                {/* Placeholder for thumbnail */}
-                <div className="w-full h-full bg-gradient-to-br from-muted-foreground/10 to-primary/5 flex items-center justify-center">
-                  <span className="font-medium text-muted-foreground">{resource.resource_type || "Resource"}</span>
-                </div>
-              </div>
-              {resource.category && (
-                <Badge className="absolute top-2 right-2">
+            {resource.category && (
+              <div className="p-2">
+                <Badge variant="secondary" className="text-xs">
                   {resource.category}
                 </Badge>
-              )}
-            </div>
+              </div>
+            )}
             <CardHeader className="pb-2">
               <CardTitle className="text-lg line-clamp-1">{resource.title}</CardTitle>
               <CardDescription className="text-xs">
@@ -259,7 +255,14 @@ const CategoryPreview = ({
 };
 
 const ResourceLibraryPage = () => {
+  const { isAuthenticated } = useAuth();
+  const { profile } = useUserProfile();
   const [resources, setResources] = useState<ResourceItem[]>([]);
+  const [surveys, setSurveys] = useState<any[]>([]);
+  const [vocationalStatement, setVocationalStatement] = useState<string>('');
+  const [discernmentPlan, setDiscernmentPlan] = useState<any>(null);
+  const [scenarioDetails, setScenarioDetails] = useState<string>('');
+  const [communityResearch, setCommunityResearch] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
   const [selectedResource, setSelectedResource] = useState<ResourceItem | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -289,8 +292,55 @@ const ResourceLibraryPage = () => {
   });
   
   useEffect(() => {
-    fetchResources();
-  }, []);
+    if (isAuthenticated && profile?.church_id) {
+      fetchResources();
+      fetchSurveys();
+      loadLocalStorageData();
+    }
+  }, [isAuthenticated, profile?.church_id]);
+
+  // Load data from localStorage
+  const loadLocalStorageData = () => {
+    try {
+      // Load vocational statement
+      const vocationalData = localStorage.getItem('vocational_statement');
+      if (vocationalData) {
+        setVocationalStatement(vocationalData);
+      }
+
+      // Load discernment plan
+      const discernmentData = localStorage.getItem('discernment_plan');
+      if (discernmentData) {
+        try {
+          const parsed = JSON.parse(discernmentData);
+          setDiscernmentPlan(parsed);
+        } catch (e) {
+          setDiscernmentPlan({ content: discernmentData });
+        }
+      }
+
+      // Load scenario details
+      const scenarioData = localStorage.getItem('scenario_details');
+      if (scenarioData) {
+        setScenarioDetails(scenarioData);
+      }
+
+      // Load community research
+      const researchData = localStorage.getItem('community_research_notes');
+      if (researchData) {
+        setCommunityResearch(researchData);
+      }
+
+      console.log('Loaded localStorage data:', {
+        hasVocational: !!vocationalData,
+        hasDiscernment: !!discernmentData,
+        hasScenario: !!scenarioData,
+        hasResearch: !!researchData
+      });
+    } catch (error) {
+      console.error('Error loading localStorage data:', error);
+    }
+  };
   
   useEffect(() => {
     if (selectedResource && isEditMode) {
@@ -309,13 +359,48 @@ const ResourceLibraryPage = () => {
   }, [selectedResource, isEditMode, form]);
   
   const fetchResources = async () => {
+    console.log('[ResourceLibrary] fetchResources called');
+    console.log('[ResourceLibrary] profile:', profile);
+    console.log('[ResourceLibrary] profile.church_id:', profile?.church_id);
+    
+    if (!profile?.church_id) {
+      console.log('[ResourceLibrary] No church_id available, skipping resource fetch');
+      setIsLoading(false);
+      return;
+    }
+
     try {
       setIsLoading(true);
+      console.log('[ResourceLibrary] Fetching resources for church_id:', profile.church_id);
       
+      // First, let's check if there are ANY resources in the table
+      const { data: allData, error: allError } = await supabase
+        .from('resource_library')
+        .select('id, title, resource_type, user_id, church_id, created_at')
+        .limit(10);
+      
+      console.log('[ResourceLibrary] Total resources in table:', allData?.length || 0);
+      console.log('[ResourceLibrary] Sample resources with church_id:', allData);
+      
+      // Check how many resources have church_id populated
+      const resourcesWithChurchId = allData?.filter(r => r.church_id) || [];
+      const resourcesWithoutChurchId = allData?.filter(r => !r.church_id) || [];
+      console.log('[ResourceLibrary] Resources WITH church_id:', resourcesWithChurchId.length);
+      console.log('[ResourceLibrary] Resources WITHOUT church_id:', resourcesWithoutChurchId.length);
+      
+      // Check if any resources match the current user's church_id
+      const matchingResources = allData?.filter(r => r.church_id === profile.church_id) || [];
+      console.log('[ResourceLibrary] Resources matching current church_id:', matchingResources.length);
+      
+      // Now fetch resources filtered by church_id
       const { data, error } = await supabase
         .from('resource_library')
         .select('*')
+        .eq('church_id', profile.church_id)
         .order('created_at', { ascending: false });
+      
+      console.log('[ResourceLibrary] Query result - data:', data);
+      console.log('[ResourceLibrary] Query result - error:', error);
         
       if (error) {
         throw error;
@@ -332,6 +417,7 @@ const ResourceLibraryPage = () => {
         resource_type: resource.resource_type ?? "resource"
       }));
       
+      console.log(`Fetched ${processedResources.length} resources for church_id: ${profile.church_id}`);
       setResources(processedResources);
     } catch (error) {
       console.error('Error fetching resources:', error);
@@ -342,6 +428,50 @@ const ResourceLibraryPage = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchSurveys = async () => {
+    console.log('[ResourceLibrary] fetchSurveys called');
+    console.log('[ResourceLibrary] profile.church_id for surveys:', profile?.church_id);
+    
+    if (!profile?.church_id) {
+      console.log('[ResourceLibrary] No church_id available, skipping survey fetch');
+      return;
+    }
+
+    try {
+      // Check if surveys table exists, if not, skip gracefully
+      console.log('[ResourceLibrary] Attempting to fetch surveys from surveys table');
+      const { data, error } = await supabase
+        .from('surveys')
+        .select('*')
+        .eq('church_id', profile.church_id)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        // If table doesn't exist, log but don't show error to user
+        if (error.code === '42P01') {
+          console.log('Surveys table does not exist yet, skipping survey fetch');
+          setSurveys([]);
+          return;
+        }
+        throw error;
+      }
+      
+      console.log(`Fetched ${(data || []).length} surveys for church_id: ${profile.church_id}`);
+      setSurveys(data || []);
+    } catch (error) {
+      console.error('Error fetching surveys:', error);
+      // Only show toast for unexpected errors, not missing table
+      if (error.code !== '42P01') {
+        toast({
+          title: "Failed to Load Surveys",
+          description: "There was an error loading your surveys.",
+          variant: "destructive",
+        });
+      }
+      setSurveys([]);
     }
   };
   
@@ -468,30 +598,58 @@ const ResourceLibraryPage = () => {
   };
   
   const handleGenerateRelatedResources = async () => {
-    if (!selectedResource) return;
+    if (!selectedResource) {
+      toast({
+        title: "No Resource Selected",
+        description: "Please select a resource first to generate related resources.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    const relatedResources = await generateRelatedResources({
-      title: selectedResource.title,
-      content: selectedResource.content,
-      category: selectedResource.category,
-      tags: Array.isArray(selectedResource.tags) ? selectedResource.tags : []
-    });
+    console.log('[ResourceLibrary] Starting resource generation for:', selectedResource.title);
+    
+    try {
+      const relatedResources = await generateRelatedResources({
+        title: selectedResource.title,
+        content: selectedResource.content,
+        category: selectedResource.category,
+        tags: Array.isArray(selectedResource.tags) ? selectedResource.tags : []
+      });
 
-    if (relatedResources) {
-      // Optionally, refresh the resources list or update the UI
-      fetchResources();
+      console.log('[ResourceLibrary] Resource generation result:', relatedResources);
+      
+      if (relatedResources) {
+        // Refresh the resources list to show newly generated resources
+        await fetchResources();
+        toast({
+          title: "Success",
+          description: "Related resources have been generated and added to your library."
+        });
+      }
+    } catch (error) {
+      console.error('[ResourceLibrary] Error in handleGenerateRelatedResources:', error);
+      toast({
+        title: "Generation Failed",
+        description: "Failed to generate related resources. Please try again.",
+        variant: "destructive"
+      });
     }
   };
   
   const handleOpenDiscernmentResourcesModal = () => {
     const planJson = localStorage.getItem('discernment_plan');
+    
+    // If no discernment plan exists, create a basic one or proceed without it
     if (!planJson) {
-      toast({
-        title: "No Discernment Plan Found",
-        description: "Please create a discernment plan first.",
-        variant: "destructive"
-      });
-      return;
+      console.log('[ResourceLibrary] No discernment plan found, proceeding with basic resource generation');
+      // Create a basic discernment plan structure for resource generation
+      const basicPlan = {
+        community_assessment: 'Basic community assessment',
+        ministry_focus: 'General ministry development',
+        action_steps: ['Assess community needs', 'Develop ministry plan', 'Implement initiatives']
+      };
+      localStorage.setItem('discernment_plan', JSON.stringify(basicPlan));
     }
     
     setSelectedGeneratedResources([]);
@@ -728,6 +886,8 @@ const ResourceLibraryPage = () => {
                   <TabsTrigger value="discernment_plans">Discernment Plans</TabsTrigger>
                   <TabsTrigger value="vocational_statements">Vocational Statements</TabsTrigger>
                   <TabsTrigger value="scenarios">Scenarios</TabsTrigger>
+                  <TabsTrigger value="research_summary">Research Summaries</TabsTrigger>
+                  <TabsTrigger value="surveys">Surveys ({surveys.length})</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="all">
@@ -772,6 +932,67 @@ const ResourceLibraryPage = () => {
                     onResourceClick={setSelectedResource}
                     getResourceTypeLabel={getResourceTypeLabel}
                   />
+                </TabsContent>
+
+                <TabsContent value="research_summary">
+                  <ResourceDisplayGrid
+                    resourcesToDisplay={filteredResources.filter(r => r.resource_type === 'research_summary')}
+                    onResourceClick={setSelectedResource}
+                    getResourceTypeLabel={getResourceTypeLabel}
+                  />
+                </TabsContent>
+
+                <TabsContent value="surveys">
+                  {surveys.length === 0 ? (
+                    <div className="text-center py-12">
+                      <p className="text-muted-foreground mb-4">No surveys found for your church.</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {surveys.map(survey => (
+                        <Card 
+                          key={survey.id}
+                          className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                          onClick={() => {
+                            // Handle survey click - could open survey details or navigate to survey page
+                            console.log('Survey clicked:', survey);
+                          }}
+                        >
+                          <div className="bg-muted h-32 relative">
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="w-full h-full bg-gradient-to-br from-blue-100 to-blue-50 flex items-center justify-center">
+                                <span className="font-medium text-blue-700">Survey</span>
+                              </div>
+                            </div>
+                            <Badge className="absolute top-2 right-2 bg-blue-600">
+                              Survey
+                            </Badge>
+                          </div>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-lg line-clamp-1">{survey.title || 'Untitled Survey'}</CardTitle>
+                            <CardDescription className="text-xs">
+                              Created {format(new Date(survey.created_at), "MMM d, yyyy")}
+                            </CardDescription>
+                          </CardHeader>
+                          <CardContent className="pb-2">
+                            <p className="text-sm text-muted-foreground line-clamp-2">
+                              {survey.description || 'No description available'}
+                            </p>
+                            {survey.questions && (
+                              <p className="text-xs text-muted-foreground mt-2">
+                                {Array.isArray(survey.questions) ? survey.questions.length : 0} questions
+                              </p>
+                            )}
+                          </CardContent>
+                          <CardFooter className="pt-0 pb-4">
+                            <Badge variant="outline" className="text-xs">
+                              {survey.status || 'Draft'}
+                            </Badge>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             )}
@@ -1187,19 +1408,13 @@ const ResourceDisplayGrid = ({
           className="overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
           onClick={() => onResourceClick(resource)}
         >
-          <div className="bg-muted h-32 relative">
-            <div className="absolute inset-0 flex items-center justify-center">
-              {/* Placeholder for thumbnail */}
-              <div className="w-full h-full bg-gradient-to-br from-muted-foreground/10 to-primary/5 flex items-center justify-center">
-                <span className="font-medium text-muted-foreground">{getResourceTypeLabel(resource.resource_type)}</span>
-              </div>
-            </div>
-            {resource.category && (
-              <Badge className="absolute top-2 right-2">
+          {resource.category && (
+            <div className="p-2">
+              <Badge variant="secondary" className="text-xs">
                 {resource.category}
               </Badge>
-            )}
-          </div>
+            </div>
+          )}
           <CardHeader className="pb-2">
             <CardTitle className="text-lg line-clamp-1">{resource.title}</CardTitle>
             <CardDescription className="text-xs">

@@ -525,7 +525,7 @@ export function CardNetworkVisualization({
                 return;
               }
               
-              const fontSize = 14; // Increased font size for better visibility
+              const fontSize = 10; // Smaller font size for labels
               const nodeX = graphNode.x || 0;
               const nodeY = graphNode.y || 0;
               

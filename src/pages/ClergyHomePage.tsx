@@ -151,8 +151,20 @@ const PHASES = [
         color: ['#FEF3C7', '#D97706'],
       },
       {
-        key: 'accounting',
-        label: 'Financial Management',
+        key: 'ministryFinancialManagement',
+        label: 'Ministry Financial Management',
+        icon: <DollarSign className="h-5 w-5" />,
+        color: ['#FEF3C7', '#D97706'],
+      },
+    ],
+  },
+  {
+    title: 'Managing Your Community',
+    desc: 'Access Resources for Managing Your Community',
+    steps: [
+      {
+        key: 'churchFinancialManagement',
+        label: 'Community Financial Management',
         icon: <DollarSign className="h-5 w-5" />,
         color: ['#DCFCE7', '#16A34A'],
       },
@@ -160,7 +172,13 @@ const PHASES = [
         key: 'sharedResources',
         label: 'Shared Resources',
         icon: <Briefcase className="h-5 w-5" />,
-        color: ['#BBF7D0', '#10B981'],
+        color: ['#FECACA', '#DC2626'],
+      },
+      {
+        key: 'strategicPlan',
+        label: 'Strategic Planning',
+        icon: <Briefcase className="h-5 w-5" />,
+        color: ['#FCE7F3', '#DB2777'],
       },
     ],
   },
@@ -197,11 +215,17 @@ const CARD_META: Record<string, any> = {
     view: 'Open Portal',
     link: '/clergy/marketplace',
   },
-  accounting: {
-    desc: 'Manage Ministry finances, connect bank accounts, and generate financial reports',
-    action: 'Open Accounting',
-    view: 'View Accounting',
-    link: '/accounting',
+  churchFinancialManagement: {
+    desc: 'Comprehensive financial oversight for church operations, budgets, and multi-fund management',
+    action: 'Open Church Finances',
+    view: 'Manage Church Finances',
+    link: '/financial-management',
+  },
+  ministryFinancialManagement: {
+    desc: 'Track and manage ministry campaigns, fundraising activities, and donor relationships',
+    action: 'Open Ministry Finances',
+    view: 'Manage Ministry Finances',
+    link: '/financial-management',
   },
   sharedResources: {
     desc: 'Access shared services including music, bulletin design, and program materials from trusted vendors',
@@ -251,6 +275,12 @@ const CARD_META: Record<string, any> = {
     action: 'Create Summary',
     view: 'View Research Summary',
     link: '/research-summary',
+  },
+  strategicPlan: {
+    desc: "Create a comprehensive strategic plan through SWOT analysis and AI-guided planning.",
+    action: 'Start Planning',
+    view: 'View Strategic Plan',
+    link: '/plan-assessment',
   },
   vocationalStatement: {
     desc: "Clarifying your community's call by building a defining mission for your discernment.",

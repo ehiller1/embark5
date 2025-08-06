@@ -92,10 +92,10 @@ export default function CommunityAssessment() {
           {/* 3) DESCRIPTION BAR */}
           <div className="mb-8 p-4 bg-gradient-journey-light rounded-2xl">
             <p className="text- text-muted-foreground">
-              Evaluate your neighborhood and gather insights that will help shape your community’s ministry approach.
+              Continue to gather insights that will help shape your community’s ministry approach.
             </p>
             <p className="mt-4 text-lg text-gray-600">
-            Enter into conversation and provide your thoughts and point of view about your neighborhood-Its needs, aspiration and community engagement.  Your views will help shape the subsequent discernment journey and options available to you.
+              Provide your thoughts and point of view about your neighborhood--its needs, aspiration and community engagement.   Your views will help shape the subsequent discernment journey and options available to you.
             </p>
           </div>
 
@@ -162,8 +162,14 @@ export default function CommunityAssessment() {
             </div>
           </div>
           
-          {/* Next Steps Button */}
-          <div className="mt-6 flex justify-end">
+          {/* Next Steps Buttons */}
+          <div className="mt-6 flex justify-between">
+            <Button 
+              onClick={() => navigate('/neighborhood-survey')}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg flex items-center transition-colors"
+            >
+              Next Steps: Survey the Neighborhood <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
             <Button 
               onClick={() => navigate('/research-summary')}
               className="bg-journey-pink hover:bg-journey-pink/90 text-white font-medium py-2 px-6 rounded-lg flex items-center transition-colors"

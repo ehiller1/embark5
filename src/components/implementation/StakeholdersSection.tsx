@@ -10,15 +10,11 @@ import { ImplementationCard } from '@/types/ImplementationTypes';
 interface StakeholdersSectionProps {
   onCardSelect: (cards: ImplementationCard[]) => void;
   openChatModal: (nodeIds: string[]) => void;
-  onCreateNew: () => void;
-  onCreateConnection: () => void;
 }
 
 export function StakeholdersSection({
   onCardSelect,
   openChatModal,
-  onCreateNew,
-  onCreateConnection,
 }: StakeholdersSectionProps) {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('archetypes');
@@ -34,29 +30,9 @@ export function StakeholdersSection({
   return (
     <Card className="h-full flex flex-col">
       <CardHeader className="pb-2">
-        <div className="flex justify-between items-center">
-          <div>
-            <CardTitle className="text-lg font-semibold">Typical Stakeholders</CardTitle>
-            <CardDescription>Below are common stakeholders that exist in a faith community.  Chose stakeholders that might fit your community and start a dialogue.</CardDescription>
-          </div>
-          <div className="flex space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCreateNew}
-              className="h-8"
-            >
-              <Plus className="h-4 w-4 mr-2" /> New
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onCreateConnection}
-              className="h-8"
-            >
-              <MessageSquare className="h-4 w-4 mr-2" /> Connect
-            </Button>
-          </div>
+        <div>
+          <CardTitle className="text-lg font-semibold">Typical Stakeholders</CardTitle>
+          <CardDescription>Below are common stakeholders that exist in a faith community.  Chose stakeholders that might fit your community and start a dialogue.</CardDescription>
         </div>
       </CardHeader>
       <CardContent className="flex-1 p-0 overflow-hidden">

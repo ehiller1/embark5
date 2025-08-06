@@ -38,7 +38,6 @@ import { supabase } from '@/integrations/lib/supabase';
 
 import { UnifiedChatModal } from '@/components/implementation/UnifiedChatModal';
 import { ConnectionCreationPanel } from '@/components/implementation/ConnectionCreationPanel';
-import { CategoryCreationPanel } from '@/components/implementation/CategoryCreationPanel';
 import { ResponseSummaryContainer } from '@/components/implementation/ResponseSummaryContainer';
 import { ResponseSummaryModal } from '@/components/implementation/ResponseSummaryModal';
 import {
@@ -157,7 +156,7 @@ export default function Implementation() {
   const [showResponseSummaryModal, setShowResponseSummaryModal] = useState(false);
 
   // Category and Connection creation state
-  const [isCreatingCategory, setIsCreatingCategory] = useState(false);
+
   const [isCreatingConnection, setIsCreatingConnection] = useState(false);
 
   const [showConnectionModal, setShowConnectionModal] = useState(false);
@@ -406,44 +405,10 @@ export default function Implementation() {
             </div>
           </div>
           
-          {/* Step 2: Organize with Categories */}
+          {/* Step 2: Build Connections */}
           <div className="p-4 rounded-lg bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
             <div className="flex items-start mb-2">
-              <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center font-bold mr-3">2</div>
-              <div className="flex-1">
-                <h3 className="text-lg font-medium mb-1">Categorize people or groups</h3>
-                <p className="text-slate-500 text-sm mb-4">You can optionally create labels or categories to keep track of the constituencies in your faith community</p>
-                
-                <Dialog open={isCreatingCategory} onOpenChange={setIsCreatingCategory}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="w-full justify-center">
-                      <Plus className="h-4 w-4 mr-2"/> Create Category
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Create New Category</DialogTitle>
-                      <DialogDescription>Add a new category to organize people and groups.</DialogDescription>
-                    </DialogHeader>
-                    <CategoryCreationPanel 
-                      onSuccess={() => {
-                        setIsCreatingCategory(false);
-                        toast({ 
-                          title: "Success", 
-                          description: "Category created successfully" 
-                        });
-                      }} 
-                    />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-          </div>
-          
-          {/* Step 3: Build Connections */}
-          <div className="p-4 rounded-lg bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all">
-            <div className="flex items-start mb-2">
-              <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold mr-3">3</div>
+              <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center font-bold mr-3">2</div>
               <div className="flex-1">
                 <h3 className="text-lg font-medium mb-1">Create Connections</h3>
                 <p className="text-slate-500 text-sm mb-4">People or Groups in a Faith Community naturally share points of view.  You can connect people together to reflect that shared perspective and enage with them as a group</p>
@@ -491,14 +456,6 @@ export default function Implementation() {
               openChatModal={(nodeIds) => {
                 setModalSelectedNodeIds(nodeIds);
                 setShowChatModal(true);
-              }}
-              onCreateNew={() => {
-                // Open the card creation sheet
-                setIsCreatingCard(true);
-              }}
-              onCreateConnection={() => {
-                // Open the connection creation dialog
-                setIsCreatingConnection(true);
               }}
             />
           </div>
