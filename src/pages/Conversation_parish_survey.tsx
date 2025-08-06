@@ -803,21 +803,6 @@ export default function ConversationParishSurvey(): JSX.Element {
           </div>
         );
       
-      case 'select':
-        return (
-          <select
-            value={surveyResponses[field.id] || ''}
-            onChange={(e) => handleSurveyResponseChange(field.id, e.target.value)}
-            className="w-full max-w-md p-2 border border-gray-300 rounded"
-            disabled={surveySubmitted}
-          >
-            <option value="">Select an option</option>
-            {field.options?.map((option, i) => (
-              <option key={i} value={option}>{option}</option>
-            ))}
-          </select>
-        );
-      
       default:
         return null;
     }

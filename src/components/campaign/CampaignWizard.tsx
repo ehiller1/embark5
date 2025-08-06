@@ -43,6 +43,11 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
     media_urls: { value: [], justification: '' },
     logo: { value: [], justification: '' },
     impact_metrics: { value: {}, justification: '' },
+    team: { value: [], justification: '' },
+    testimonials: { value: [], justification: '' },
+    contact_info: { value: { email: '', phone: '', website: '' }, justification: '' },
+    funding_breakdown: { value: {}, justification: '' },
+    use_of_funds: { value: '', justification: '' },
     pro_forma_financials: {
       assumptions: { value: {
         growth_rate: 0,
@@ -54,8 +59,17 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
       expense_projection: { value: [], justification: '' },
       net_income_projection: { value: [], justification: '' },
       cash_flow_projection: { value: [], justification: '' },
-      kpi_metrics: { value: {}, justification: '' },
-      scenario_analysis: { value: {}, justification: '' }
+      kpi_metrics: { value: {
+        program_ratio: 0,
+        admin_ratio: 0,
+        fundraising_efficiency: 0,
+        cash_reserve_months: 0
+      }, justification: '' },
+      scenario_analysis: { value: {
+        base_case: '',
+        worst_case: '',
+        best_case: ''
+      }, justification: '' }
     },
     donation_tiers: { value: [], justification: '' },
     reporting_commitments: { value: { frequency: '', report_types: [] }, justification: '' },
@@ -86,9 +100,41 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
         campaign_end_date: { value: initialData.financials?.campaignEndDate || '', justification: 'AI-suggested campaign end date' },
         impact_metrics: { value: initialData.financials?.impactMetrics || {}, justification: 'AI-projected impact metrics' },
         
-        // Fundraising Plan
-        risk_assessment: { value: initialData.fundraisingPlan?.riskAssessment || '', justification: 'AI-analyzed risk assessment' },
-        timeline: { value: initialData.fundraisingPlan?.timeline || '', justification: 'AI-created timeline' },
+        // Additional required fields
+        church_name: { value: '', justification: '' },
+        current_amount: { value: 0, justification: '' },
+        media_urls: { value: [], justification: '' },
+        logo: { value: [], justification: '' },
+        team: { value: [], justification: '' },
+        contact_info: { value: { email: '', phone: '', website: '' }, justification: '' },
+        funding_breakdown: { value: {}, justification: '' },
+        use_of_funds: { value: '', justification: '' },
+        donation_tiers: { value: [], justification: '' },
+        reporting_commitments: { value: { frequency: '', report_types: [] }, justification: '' },
+        project_plan: { value: [], justification: '' },
+        pro_forma_financials: {
+          assumptions: { value: {
+            growth_rate: 0,
+            donor_retention_rate: 0,
+            inflation_rate: 0,
+            program_expansion_rate: 0
+          }, justification: '' },
+          revenue_projection: { value: [], justification: '' },
+          expense_projection: { value: [], justification: '' },
+          net_income_projection: { value: [], justification: '' },
+          cash_flow_projection: { value: [], justification: '' },
+          kpi_metrics: { value: {
+            program_ratio: 0,
+            admin_ratio: 0,
+            fundraising_efficiency: 0,
+            cash_reserve_months: 0
+          }, justification: '' },
+          scenario_analysis: { value: {
+            base_case: '',
+            worst_case: '',
+            best_case: ''
+          }, justification: '' }
+        }
       };
       
       setCampaignData(transformedData);
@@ -155,8 +201,8 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
         );
       case 3:
         return !!(
-          campaignData.fundraising_strategy?.value ||
-          campaignData.target_investors?.value
+          campaignData.use_of_funds?.value ||
+          campaignData.project_plan?.value?.length
         );
       default:
         return true;
@@ -380,16 +426,7 @@ export const CampaignWizard: React.FC<CampaignWizardProps> = ({
         </CardContent>
       </Card>
 
-      {/* Error Display */}
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="pt-6">
-            <div className="text-red-800">
-              <strong>Error:</strong> {error}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
     </div>
   );
 };

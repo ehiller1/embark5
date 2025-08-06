@@ -174,7 +174,7 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
 }) => {
   const { user } = useAuth();
   const { profile } = useUserProfile();
-  const { generateCampaign, isGenerating, error: generationError } = useCampaignGeneration();
+  const { generateCampaign, isGenerating } = useCampaignGeneration();
   const [currentStep, setCurrentStep] = useState(0);
   const [campaignData, setCampaignData] = useState<ComprehensiveCampaignData>(
     initialData || {
@@ -290,10 +290,8 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
         let proFormaData: any = {};
         
         // Handle different possible response structures
-        if (aiData.Ministry) {
-          ministryData = aiData.Ministry;
-        } else if (aiData.ministry) {
-          ministryData = aiData.ministry;
+        if ((aiData as any).Ministry) {
+          ministryData = (aiData as any).Ministry;
         } else {
           // Fallback: assume aiData itself contains the ministry fields
           ministryData = aiData;
@@ -1827,16 +1825,7 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
           </CardContent>
         </Card>
 
-        {/* Error Display */}
-        {generationError && (
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="pt-6">
-              <div className="text-red-800">
-                <strong>Error:</strong> {generationError}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
       </div>
     </TooltipProvider>
   );
