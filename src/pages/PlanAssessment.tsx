@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { AssessmentSidebar } from '@/components/AssessmentSidebar';
-import { usePageNavigation } from '@/hooks/usePageNavigation';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileText } from 'lucide-react';
@@ -13,7 +12,6 @@ import { FileText } from 'lucide-react';
 export default function PlanAssessment() {
   const navigate = useNavigate();
   const { session } = useAuth();
-  usePageNavigation(); // Handle scroll-to-top and back button navigation
   const [sessionKey, setSessionKey] = useState<string>('initial');
   
   // State for SWOT text inputs

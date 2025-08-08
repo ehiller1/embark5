@@ -8,7 +8,6 @@ import MinistryFinancialManagement from '@/components/financial/MinistryFinancia
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { ProtectedAccountingRoute } from '@/components/ProtectedAccountingRoute';
 import { FinancialSetupWizards } from '@/components/financial/FinancialSetupWizards';
-import { usePageNavigation } from '@/hooks/usePageNavigation';
 import { 
   Building, 
   Heart, 
@@ -33,7 +32,6 @@ const FinancialManagement: React.FC = () => {
   const [showWizard, setShowWizard] = useState(false);
   const [wizardType, setWizardType] = useState<'transaction' | 'budget' | 'analytics' | 'compliance' | null>(null);
   const { profile } = useUserProfile();
-  usePageNavigation(); // Handle scroll-to-top and back button navigation
 
   const handleViewChange = (view: FinancialView) => {
     setCurrentView(view);

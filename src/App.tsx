@@ -9,6 +9,7 @@ import { NarrativeAvatarProvider } from "@/hooks/useNarrativeAvatar";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ProtectedAccountingRoute } from "./components/ProtectedAccountingRoute";
 import { AccountingAuthGuard } from "./components/AccountingAuthGuard";
+import { ScrollToTop } from "./components/ScrollToTop";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useEffect } from "react";
 import { AuthCompanionFlow } from "./components/AuthCompanionFlow";
@@ -112,6 +113,7 @@ const App = () => {
                   <Toaster />
                   <Sonner />
                   <AuthCompanionFlow />
+                  <ScrollToTop />
                   <RouteDebugger />
                   <Routes>
                     <Route element={<MainLayout />}>
