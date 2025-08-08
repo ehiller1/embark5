@@ -3,6 +3,8 @@ import { useOpenAI } from '@/hooks/useOpenAI';
 import { usePrompts } from '@/hooks/usePrompts';
 import { CampaignData, GenerateCampaignRequest, GenerateCampaignResponse } from '@/types/campaign';
 import { useToast } from '@/hooks/use-toast';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
+import { cleanFinancialData } from '@/utils/financialTextUtils';
 
 export const useCampaignGeneration = () => {
   const [isGenerating, setIsGenerating] = useState(false);
@@ -10,6 +12,7 @@ export const useCampaignGeneration = () => {
   const { generateResponse } = useOpenAI();
   const { getPromptByType } = usePrompts();
   const { toast } = useToast();
+  const { profile } = useUserProfile();
 
   const generateCampaign = async (request?: GenerateCampaignRequest): Promise<CampaignData | null> => {
     setIsGenerating(true);
@@ -75,7 +78,7 @@ Return a comprehensive JSON response with this EXACT structure:
   "minimum_investment": { "value": 100, "justification": "Why this minimum" },
   "campaign_start_date": { "value": "2024-01-01T00:00", "justification": "Why this start date" },
   "campaign_end_date": { "value": "2024-12-31T23:59", "justification": "Why this duration" },
-  "church_name": { "value": "Church Name", "justification": "Church identity" },
+  "church_name": { "value": "${profile?.church_name || 'Community Church'}", "justification": "Church identity from profile" },
   "contact_info": { "value": { "email": "contact@church.org", "phone": "555-0123", "website": "www.church.org" }, "justification": "Contact rationale" },
   "impact_metrics": { "value": { "people_served": 500, "programs_launched": 3, "community_impact_score": 85 }, "justification": "Expected measurable impact" },
   "media_urls": { "value": ["https://example.com/photo1.jpg", "https://example.com/photo2.jpg"], "justification": "Visual storytelling assets" },
@@ -139,7 +142,7 @@ Return a comprehensive JSON response with this EXACT structure:
           }
         ],
         temperature: 0.7,
-        maxTokens: 4000
+        maxTokens: 6000
       });
 
       if (!response.text) {
@@ -159,7 +162,8 @@ Return a comprehensive JSON response with this EXACT structure:
         throw new Error('Invalid response structure: missing Ministry object');
       }
 
-      const campaignData = parsedResponse.Ministry;
+      // Clean the campaign data to remove underscores and fix formatting
+      const campaignData = cleanFinancialData(parsedResponse.Ministry);
       setGeneratedCampaign(campaignData);
 
       toast({

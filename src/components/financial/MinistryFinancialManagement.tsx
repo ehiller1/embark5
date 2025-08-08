@@ -587,9 +587,9 @@ const MinistryFinancialManagement: React.FC<MinistryFinancialManagementProps> = 
 
         <TabsContent value="donors" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">Donor Management</h2>
+            <h2 className="text-2xl font-bold">Donor and Investor Management</h2>
             <Button onClick={() => {
-              toast({ title: "Donor Management", description: "Add donor feature coming soon" });
+              toast({ title: "Donor and Investor Management", description: "Add donor feature coming soon" });
               // TODO: Implement donor creation dialog
             }}><Plus className="h-4 w-4 mr-2" />Add Donor</Button>
           </div>
@@ -685,7 +685,7 @@ const MinistryFinancialManagement: React.FC<MinistryFinancialManagementProps> = 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Donor Retention Rate</CardTitle>
+                <CardTitle>Investor/Domor Retention Rate</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold text-blue-600">85%</div>

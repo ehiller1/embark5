@@ -7,6 +7,8 @@ import ChurchFinancialManagement from '@/components/financial/ChurchFinancialMan
 import MinistryFinancialManagement from '@/components/financial/MinistryFinancialManagement';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { ProtectedAccountingRoute } from '@/components/ProtectedAccountingRoute';
+import { FinancialSetupWizards } from '@/components/financial/FinancialSetupWizards';
+import { usePageNavigation } from '@/hooks/usePageNavigation';
 import { 
   Building, 
   Heart, 
@@ -28,7 +30,10 @@ type FinancialView = 'selection' | 'church' | 'ministry';
 
 const FinancialManagement: React.FC = () => {
   const [currentView, setCurrentView] = useState<FinancialView>('selection');
+  const [showWizard, setShowWizard] = useState(false);
+  const [wizardType, setWizardType] = useState<'transaction' | 'budget' | 'analytics' | 'compliance' | null>(null);
   const { profile } = useUserProfile();
+  usePageNavigation(); // Handle scroll-to-top and back button navigation
 
   const handleViewChange = (view: FinancialView) => {
     setCurrentView(view);
@@ -36,6 +41,16 @@ const FinancialManagement: React.FC = () => {
 
   const handleBack = () => {
     setCurrentView('selection');
+  };
+
+  const openWizard = (type: 'transaction' | 'budget' | 'analytics' | 'compliance') => {
+    setWizardType(type);
+    setShowWizard(true);
+  };
+
+  const closeWizard = () => {
+    setShowWizard(false);
+    setWizardType(null);
   };
 
   if (currentView === 'church') {
@@ -67,7 +82,7 @@ const FinancialManagement: React.FC = () => {
           <Button 
             variant="outline" 
             className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-green-50 hover:border-green-300 transition-all duration-200 group"
-            onClick={() => handleViewChange('ministry')}
+            onClick={() => openWizard('transaction')}
           >
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center group-hover:bg-green-200 transition-colors">
               <DollarSign className="h-6 w-6 text-green-600" />
@@ -81,7 +96,7 @@ const FinancialManagement: React.FC = () => {
           <Button 
             variant="outline" 
             className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-amber-50 hover:border-amber-300 transition-all duration-200 group"
-            onClick={() => handleViewChange('ministry')}
+            onClick={() => openWizard('budget')}
           >
             <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center group-hover:bg-amber-200 transition-colors">
               <BarChart3 className="h-6 w-6 text-amber-600" />
@@ -95,7 +110,7 @@ const FinancialManagement: React.FC = () => {
           <Button 
             variant="outline" 
             className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-200 group"
-            onClick={() => handleViewChange('ministry')}
+            onClick={() => openWizard('analytics')}
           >
             <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
               <TrendingUp className="h-6 w-6 text-emerald-600" />
@@ -109,7 +124,7 @@ const FinancialManagement: React.FC = () => {
           <Button 
             variant="outline" 
             className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-orange-50 hover:border-orange-300 transition-all duration-200 group"
-            onClick={() => handleViewChange('ministry')}
+            onClick={() => openWizard('compliance')}
           >
             <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center group-hover:bg-orange-200 transition-colors">
               <Shield className="h-6 w-6 text-orange-600" />
@@ -125,7 +140,7 @@ const FinancialManagement: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Ministry Financial Management */}
           <Card className="relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full"
-                onClick={() => handleViewChange('ministry')}>
+                onClick={() => openWizard('budget')}>
             <div className="absolute inset-0 bg-gradient-to-br from-green-50 to-emerald-100 opacity-50"></div>
             <CardHeader className="relative z-10">
               <div className="flex items-start space-x-4 mb-4">
@@ -190,7 +205,7 @@ const FinancialManagement: React.FC = () => {
 
           {/* Advanced Ministry Analytics */}
           <Card className="relative overflow-hidden hover:shadow-xl transition-all duration-300 cursor-pointer group flex flex-col h-full"
-                onClick={() => handleViewChange('ministry')}>
+                onClick={() => openWizard('analytics')}>
             <div className="absolute inset-0 bg-gradient-to-br from-amber-50 to-orange-100 opacity-50"></div>
             <CardHeader className="relative z-10">
               <div className="flex items-start space-x-4 mb-4">
@@ -358,6 +373,13 @@ const FinancialManagement: React.FC = () => {
             </CardContent>
           </Card>
         )}
+        
+        {/* Financial Setup Wizards */}
+        <FinancialSetupWizards 
+          isOpen={showWizard}
+          onClose={closeWizard}
+          wizardType={wizardType}
+        />
       </div>
     </ProtectedAccountingRoute>
   );

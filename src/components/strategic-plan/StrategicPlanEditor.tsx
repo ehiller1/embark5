@@ -147,7 +147,7 @@ export function StrategicPlanEditor({ plan, onPlanChange }: StrategicPlanEditorP
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="church_name">Organization Name</Label>
+                  <Label htmlFor="church_name">Community Name</Label>
                   <Input
                     id="church_name"
                     value={plan.plan_metadata.church_name}

@@ -370,7 +370,7 @@ export const FinancialsStep: React.FC<FinancialsStepProps> = ({
               onChange={(e) => updateNestedFinancialField('scenario_analysis', 'base_case', e.target.value)}
               className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-md"
               rows={2}
-              placeholder="Growth at 10% with stable donor retention and grant renewals."
+              placeholder="Growth at 10% with stable donor retention, investorgroth and grant renewals."
             />
           </div>
           <div>

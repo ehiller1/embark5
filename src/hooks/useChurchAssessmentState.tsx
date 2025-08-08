@@ -46,7 +46,7 @@ export function useChurchAssessmentState() {
       
       // Show confirmation toast
       toast({
-        title: "Church Name Saved",
+        title: "Commmunity Name Saved",
         description: `"${churchName.trim()}" has been saved and will be used in the assessment.`,
       });
       

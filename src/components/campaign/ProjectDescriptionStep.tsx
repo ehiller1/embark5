@@ -61,7 +61,7 @@ export const ProjectDescriptionStep: React.FC<ProjectDescriptionStepProps> = ({
           />
 
           <JustifiedField
-            label="Church Name"
+            label="Community Name"
             value={data.church_name?.value}
             justification={data.church_name?.justification || ''}
             onChange={(value) => updateField('church_name', value)}

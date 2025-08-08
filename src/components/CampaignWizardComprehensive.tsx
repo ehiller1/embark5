@@ -12,7 +12,9 @@ import { supabase } from '@/integrations/lib/supabase';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { useCampaignGeneration } from '@/hooks/useCampaignGeneration';
+import { useOpenAI } from '@/hooks/useOpenAI';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { MediaUploadModal } from '@/components/campaign/MediaUploadModal';
 
 // Comprehensive campaign data structure matching fundraise prompt
 interface ComprehensiveCampaignData {
@@ -176,6 +178,9 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
   const { profile } = useUserProfile();
   const { generateCampaign, isGenerating } = useCampaignGeneration();
   const [currentStep, setCurrentStep] = useState(0);
+  const [loadingAiGeneration, setLoadingAiGeneration] = useState(false);
+  const [aiGenerationError, setAiGenerationError] = useState<string | null>(null);
+  const [showMediaUpload, setShowMediaUpload] = useState(false);
   const [campaignData, setCampaignData] = useState<ComprehensiveCampaignData>(
     initialData || {
       title: { value: '', justification: '' },
@@ -454,6 +459,29 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
     }
   };
 
+  // Handle media upload completion
+  const handleMediaUploaded = (mediaUrls: { logos: string[], communityPhotos: string[] }) => {
+    // Update logo URLs
+    if (mediaUrls.logos.length > 0) {
+      const currentLogos = campaignData.logo.value;
+      const newLogos = [...currentLogos, ...mediaUrls.logos];
+      updateField('logo', newLogos);
+    }
+    
+    // Update media URLs
+    if (mediaUrls.communityPhotos.length > 0) {
+      const currentMedia = campaignData.media_urls.value;
+      const newMedia = [...currentMedia, ...mediaUrls.communityPhotos];
+      updateField('media_urls', newMedia);
+    }
+    
+    setShowMediaUpload(false);
+    toast({
+      title: "Media Uploaded Successfully",
+      description: `Uploaded ${mediaUrls.logos.length} logos and ${mediaUrls.communityPhotos.length} community photos.`
+    });
+  };
+
   const renderBasicInfo = () => (
     <div className="space-y-6">
       <JustifiedFieldInput
@@ -480,7 +508,7 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
         placeholder="Detailed description"
       />
       <JustifiedFieldInput
-        label="Church Name"
+        label="Community Name"
         value={campaignData.church_name.value}
         justification={campaignData.church_name.justification}
         onChange={(value) => updateField('church_name', value)}
@@ -563,7 +591,7 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
               />
             </div>
             <div>
-              <Label>Donor Retention Rate (%)</Label>
+              <Label>Donor/Inventor Retention Rate (%)</Label>
               <Input
                 type="number"
                 step="0.01"
@@ -776,16 +804,13 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
                 </div>
               ))}
               <Button
-                onClick={() => {
-                  const newLogos = [...campaignData.logo.value, ''];
-                  updateField('logo', newLogos);
-                }}
+                onClick={() => setShowMediaUpload(true)}
                 variant="outline"
                 size="sm"
                 className="mt-2"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Logo
+                Upload Logo
               </Button>
             </div>
 
@@ -815,16 +840,13 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
                 </div>
               ))}
               <Button
-                onClick={() => {
-                  const newMedia = [...campaignData.media_urls.value, ''];
-                  updateField('media_urls', newMedia);
-                }}
+                onClick={() => setShowMediaUpload(true)}
                 variant="outline"
                 size="sm"
                 className="mt-2"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                Add Media
+                Upload Media
               </Button>
             </div>
           </div>
@@ -1250,8 +1272,13 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
         <CardHeader>
           <CardTitle>Mission & Objectives</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Define your ministry's mission statement, theological foundations, and core values
+            Create a comprehensive marketing strategy for your campaign based on the details you've entered in previous sections. This includes vision statements, theological foundations, action plans, and strategies for addressing potential donor concerns.
           </p>
+          {aiGenerationError && (
+            <div className="text-sm text-red-600 bg-red-50 p-2 rounded">
+              {aiGenerationError}
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -1827,6 +1854,17 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
 
 
       </div>
+      
+      {/* Media Upload Modal */}
+      <MediaUploadModal
+        open={showMediaUpload}
+        onClose={() => setShowMediaUpload(false)}
+        onMediaUploaded={handleMediaUploaded}
+        existingMedia={{
+          logos: campaignData.logo.value,
+          communityPhotos: campaignData.media_urls.value
+        }}
+      />
     </TooltipProvider>
   );
 };

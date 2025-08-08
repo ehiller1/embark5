@@ -30,6 +30,7 @@ import {
   LampDesk,
   Link as LinkIcon,
   DollarSign,
+  Zap,
   // Removed unused imports
 } from 'lucide-react';
 
@@ -204,6 +205,12 @@ const PHASES = [
         icon: <LinkIcon className="h-5 w-5" />,
         color: ['#E0E7FF', '#4338CA'],
       },
+      {
+        key: 'integrationHub',
+        label: 'Integration Hub',
+        icon: <Zap className="h-5 w-5" />,
+        color: ['#FEF3C7', '#F59E0B'],
+      },
     ],
   },
 ];
@@ -219,7 +226,7 @@ const CARD_META: Record<string, any> = {
     desc: 'Comprehensive financial oversight for church operations, budgets, and multi-fund management',
     action: 'Open Church Finances',
     view: 'Manage Church Finances',
-    link: '/financial-management',
+    link: '/accounting',
   },
   ministryFinancialManagement: {
     desc: 'Track and manage ministry campaigns, fundraising activities, and donor relationships',
@@ -335,6 +342,12 @@ const CARD_META: Record<string, any> = {
     action: 'Visit Marketplace',
     view: 'Start Your Funding Journey',
     link: '/clergy/marketplace',
+  },
+  integrationHub: {
+    desc: 'Connect with banking, HR, and accounting software to streamline your operations',
+    action: 'Explore Integrations',
+    view: 'Manage Integrations',
+    link: '/integrations',
   },
 };
 

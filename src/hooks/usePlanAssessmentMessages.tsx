@@ -227,7 +227,7 @@ export function usePlanAssessmentMessages(
         const welcomeMessage: Message = {
           id: Date.now(),
           sender: "assistant",
-          content: "Welcome to strategic planning! Please provide your SWOT analysis above and I'll guide you through a structured interview to develop your strategic plan.",
+          content: "Welcome to strategic planning! We will use your SWOT analysis above and I'll guide you through a structured interview to develop your strategic plan.",
           timestamp: new Date(),
           companionAvatar,
           sectionAvatar

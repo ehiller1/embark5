@@ -8,6 +8,7 @@ import { UserProfileProvider } from "@/integrations/lib/auth/UserProfileProvider
 import { NarrativeAvatarProvider } from "@/hooks/useNarrativeAvatar";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ProtectedAccountingRoute } from "./components/ProtectedAccountingRoute";
+import { AccountingAuthGuard } from "./components/AccountingAuthGuard";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { useEffect } from "react";
 import { AuthCompanionFlow } from "./components/AuthCompanionFlow";
@@ -56,6 +57,7 @@ import MinistryDetail from './pages/MinistryDetail';
 import ClergyMarketplace from './pages/ClergyMarketplace';
 import ServicesMarketplace from './pages/ServicesMarketplace';
 import Accounting from './pages/Accounting';
+import AccountingLogin from './pages/AccountingLogin';
 import FinancialManagement from './pages/FinancialManagement';
 import InvestmentSuccess from './pages/InvestmentSuccess';
 import InvestmentDashboard from './pages/InvestmentDashboard';
@@ -65,6 +67,7 @@ import SurveyBuild from './pages/SurveyBuild';
 import ServiceDetail from './pages/ServiceDetail';
 import PlanAssessment from './pages/PlanAssessment';
 import StrategicPlanBuilder from './pages/StrategicPlanBuilder';
+import Integrations from './pages/Integrations';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -120,9 +123,17 @@ const App = () => {
                       <Route path="/serpapi-test" element={<SerpApiTest />} />
                       <Route path="/unauthorized" element={<Unauthorized />} />
 
-                      {/* Accounting with separate authentication */}
-                      <Route path="/accounting" element={<ProtectedAccountingRoute><Accounting /></ProtectedAccountingRoute>} />
+                      {/* Accounting with two-factor authentication */}
+                      <Route path="/accounting-login" element={<ProtectedRoute allowedRoles={['Clergy']}><AccountingLogin /></ProtectedRoute>} />
+                      <Route path="/accounting" element={
+                        <ProtectedRoute allowedRoles={['Clergy']}>
+                          <AccountingAuthGuard>
+                            <Accounting />
+                          </AccountingAuthGuard>
+                        </ProtectedRoute>
+                      } />
                       <Route path="/financial-management" element={<ProtectedRoute allowedRoles={['Clergy']}><FinancialManagement /></ProtectedRoute>} />
+                      <Route path="/integrations" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
                       <Route path="/prayers" element={<ProtectedRoute><PrayersPage /></ProtectedRoute>} />
                       <Route path="/theological-resources" element={<ProtectedRoute><TheologicalResourcesPage /></ProtectedRoute>} />
                       <Route path="/case-studies" element={<ProtectedRoute><CaseStudiesPage /></ProtectedRoute>} />
@@ -142,13 +153,6 @@ const App = () => {
                       <Route path="/community-research" element={<ProtectedRoute allowedRoles={['Clergy']}><CommunityResearch /></ProtectedRoute>} />
                       <Route path="/church-assessment" element={<ProtectedRoute allowedRoles={['Clergy']}><ChurchAssessment /></ProtectedRoute>} />
                       <Route path="/church-research" element={<ProtectedRoute allowedRoles={['Clergy']}><ChurchResearch /></ProtectedRoute>} />
-                      <Route path="/accounting" element={
-  <ProtectedRoute allowedRoles={['Clergy']}>
-    <ProtectedAccountingRoute>
-      <Accounting />
-    </ProtectedAccountingRoute>
-  </ProtectedRoute>
-} />
                       <Route path="/research-summary" element={<ProtectedRoute allowedRoles={['Clergy']}><ResearchSummary /></ProtectedRoute>} />
                       <Route path="/community-profile" element={<ProtectedRoute allowedRoles={['Clergy']}><CommunityProfilePage /></ProtectedRoute>} />
                       <Route path="/scenario" element={<ProtectedRoute allowedRoles={['Clergy']}><Scenario /></ProtectedRoute>} />

@@ -1,3 +1,10 @@
+/* 
+ * CSS Validation Notes:
+ * - @tailwind and @apply directives are valid Tailwind CSS syntax
+ * - IDE warnings about "unknown at rules" can be safely ignored
+ * - These directives are processed by PostCSS during build
+ */
+
 /* Local font declarations instead of Google Fonts to prevent loading errors */
 @font-face {
   font-family: 'Inter';

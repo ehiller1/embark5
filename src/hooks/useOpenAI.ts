@@ -74,7 +74,7 @@ export const useOpenAI = () => {
   };
 
   const generateResponse = async (options: GenerateOptions): Promise<OpenAIResponse> => {
-    const { messages, maxTokens = 1024, temperature = 0.7 } = options;
+    const { messages, maxTokens = 4000, temperature = 0.7 } = options;
     
     // Log the full request payload
     const requestPayload = {

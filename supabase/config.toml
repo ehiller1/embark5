@@ -36,22 +36,17 @@ site_url = "http://localhost:3000"
 enabled = true
 port = 54327
 
-[[functions]]
-name = "serpapi"
+[functions.serpapi]
 verify_jwt = false
 
-[[functions]]
-name = "gemini"
+[functions.gemini]
 verify_jwt = false
 
-[[functions]]
-name = "generate-church-avatars"
+[functions.generate-church-avatars]
 verify_jwt = false
 
-[[functions]]
-name = "generate-community-avatars"
+[functions.generate-community-avatars]
 verify_jwt = false
 
-[[functions]]
-name = "openai"
+[functions.openai]
 verify_jwt = false
