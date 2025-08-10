@@ -67,7 +67,7 @@ const AccountingLogin: React.FC = () => {
       sessionStorage.setItem('accounting_auth_time', Date.now().toString());
 
       toast({
-        title: 'Demo: Accounting Access Granted',
+        title: 'Accounting Access Granted',
         description: 'Two-factor authentication simulation completed successfully.',
       });
 
@@ -111,12 +111,12 @@ const AccountingLogin: React.FC = () => {
             <Shield className="w-8 h-8 text-journey-purple" />
           </div>
           <CardTitle className="text-2xl font-serif text-journey-darkBlue">
-            {demoStep === 'initial' ? 'Demo: Accounting Access' : 'Two-Factor Authentication'}
+            {demoStep === 'initial' ? 'Accounting Access' : 'Two-Factor Authentication'}
           </CardTitle>
           <CardDescription className="text-journey-darkBlue/70">
             {demoStep === 'initial' 
-              ? 'Demo simulation of two-factor authentication for accounting access.' 
-              : 'Simulating enhanced security verification process...'}
+              ? 'Two-factor authentication for accounting access.' 
+              : 'Enhanced security verification process...'}
           </CardDescription>
           {demoStep !== 'initial' && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
@@ -129,12 +129,12 @@ const AccountingLogin: React.FC = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="accounting-password" className="text-journey-darkBlue font-medium">
-                Demo Password
+                Password
               </Label>
               <Input
                 id="accounting-password"
                 type="password"
-                placeholder="Enter any password for demo"
+                placeholder="Enter password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isLoading}
@@ -167,7 +167,7 @@ const AccountingLogin: React.FC = () => {
                     {demoStep === 'initial' && 'Authenticating...'}
                   </>
                 ) : (
-                  'Start Demo Authentication'
+                  'Authenticate'
                 )}
               </Button>
 

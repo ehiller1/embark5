@@ -14,20 +14,34 @@ export default function PlanAssessment() {
   const { session } = useAuth();
   const [sessionKey, setSessionKey] = useState<string>('initial');
   
-  // State for SWOT text inputs
-  const [textInputs, setTextInputs] = useState({
-    input1: '', // Strengths
-    input2: '', // Weaknesses
-    input3: '', // Opportunities
-    input4: ''  // Threats
+  // State for SWOT text inputs with localStorage persistence
+  const [swotInputs, setSwotInputs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('plan_assessment_swot');
+      return saved ? JSON.parse(saved) : {
+        strengths: '',
+        weaknesses: '',
+        opportunities: '',
+        threats: ''
+      };
+    } catch {
+      return {
+        strengths: '',
+        weaknesses: '',
+        opportunities: '',
+        threats: ''
+      };
+    }
   });
 
   // Handle text input changes
-  const handleInputChange = (field: keyof typeof textInputs, value: string) => {
-    setTextInputs(prev => ({
-      ...prev,
+  const handleInputChange = (field: keyof typeof swotInputs, value: string) => {
+    const updatedInputs = {
+      ...swotInputs,
       [field]: value
-    }));
+    };
+    setSwotInputs(updatedInputs);
+    localStorage.setItem('plan_assessment_swot', JSON.stringify(updatedInputs));
   };
 
   useEffect(() => {
@@ -78,8 +92,8 @@ export default function PlanAssessment() {
                 className="w-full p-2 border rounded-md" 
                 rows={3} 
                 placeholder="What are your organization's key strengths and advantages?"
-                value={textInputs.input1}
-                onChange={(e) => handleInputChange('input1', e.target.value)}
+                value={swotInputs.strengths}
+                onChange={(e) => handleInputChange('strengths', e.target.value)}
               />
             </div>
             <div className="p-4 border rounded-lg shadow-sm">
@@ -89,8 +103,8 @@ export default function PlanAssessment() {
                 className="w-full p-2 border rounded-md" 
                 rows={3} 
                 placeholder="What areas need improvement or present challenges?"
-                value={textInputs.input2}
-                onChange={(e) => handleInputChange('input2', e.target.value)}
+                value={swotInputs.weaknesses}
+                onChange={(e) => handleInputChange('weaknesses', e.target.value)}
               />
             </div>
             <div className="p-4 border rounded-lg shadow-sm">
@@ -100,8 +114,8 @@ export default function PlanAssessment() {
                 className="w-full p-2 border rounded-md" 
                 rows={3} 
                 placeholder="What external opportunities can your organization pursue?"
-                value={textInputs.input3}
-                onChange={(e) => handleInputChange('input3', e.target.value)}
+                value={swotInputs.opportunities}
+                onChange={(e) => handleInputChange('opportunities', e.target.value)}
               />
             </div>
             <div className="p-4 border rounded-lg shadow-sm">
@@ -111,8 +125,8 @@ export default function PlanAssessment() {
                 className="w-full p-2 border rounded-md" 
                 rows={3} 
                 placeholder="What external threats or challenges does your organization face?"
-                value={textInputs.input4}
-                onChange={(e) => handleInputChange('input4', e.target.value)}
+                value={swotInputs.threats}
+                onChange={(e) => handleInputChange('threats', e.target.value)}
               />
             </div>
           </div>
@@ -123,10 +137,10 @@ export default function PlanAssessment() {
               key={sessionKey}
               disableNext
               textInputs={{
-                input1: textInputs.input1,
-                input2: textInputs.input2,
-                input3: textInputs.input3,
-                input4: textInputs.input4
+                input1: swotInputs.strengths,
+                input2: swotInputs.weaknesses,
+                input3: swotInputs.opportunities,
+                input4: swotInputs.threats
               }}
             />
           </div>
@@ -144,7 +158,7 @@ export default function PlanAssessment() {
               <div className="flex gap-4">
                 <Button 
                   onClick={() => navigate('/strategic-plan-builder')}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600 hover:bg-green-700 text-white font-medium transition-colors"
                   size="lg"
                 >
                   <FileText className="mr-2 h-5 w-5" />
@@ -152,7 +166,8 @@ export default function PlanAssessment() {
                 </Button>
                 <Button
                   onClick={() => navigate('/discernment-plan')}
-                  className="bg-journey-pink hover:bg-journey-pink/90 text-white font-medium py-2 px-6 rounded-lg transition-colors"
+                  className="bg-journey-pink hover:bg-journey-pink/90 text-white font-medium transition-colors"
+                  size="lg"
                 >
                   Next Step: Discernment Plan
                 </Button>

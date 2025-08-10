@@ -191,6 +191,7 @@ export default function StrategicPlanBuilder() {
           companion_traits: Array.isArray(selectedCompanion?.traits) ? selectedCompanion.traits.join(', ') : '',
           companion_speech_pattern: selectedCompanion?.speech_pattern ?? '',
           companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
+          church_name: profile?.church_name || 'Community Church',
           ...storedData
         }
       );
@@ -347,7 +348,8 @@ export default function StrategicPlanBuilder() {
               <Button 
                 onClick={generateStrategicPlan}
                 disabled={isGenerating}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 text-white font-medium transition-colors"
+                size="lg"
               >
                 {isGenerating ? (
                   <>
@@ -375,6 +377,8 @@ export default function StrategicPlanBuilder() {
                   onClick={saveStrategicPlan}
                   disabled={isSaving}
                   variant="outline"
+                  className="border-gray-300 hover:bg-gray-50 font-medium transition-colors"
+                  size="lg"
                 >
                   {isSaving ? (
                     <>
@@ -390,7 +394,8 @@ export default function StrategicPlanBuilder() {
                 </Button>
                 <Button
                   onClick={generatePDF}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
+                  size="lg"
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Download PDF

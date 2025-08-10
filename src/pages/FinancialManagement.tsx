@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import ChurchFinancialManagement from '@/components/financial/ChurchFinancialManagement';
 import MinistryFinancialManagement from '@/components/financial/MinistryFinancialManagement';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
@@ -18,7 +19,6 @@ import {
   ArrowRight,
   BarChart3,
   PieChart,
-  Calculator,
   FileText,
   Shield,
   Zap,
@@ -32,6 +32,7 @@ const FinancialManagement: React.FC = () => {
   const [showWizard, setShowWizard] = useState(false);
   const [wizardType, setWizardType] = useState<'transaction' | 'budget' | 'analytics' | 'compliance' | null>(null);
   const { profile } = useUserProfile();
+  const navigate = useNavigate();
 
   const handleViewChange = (view: FinancialView) => {
     setCurrentView(view);
@@ -79,57 +80,57 @@ const FinancialManagement: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <Button 
             variant="outline" 
-            className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-green-50 hover:border-green-300 transition-all duration-200 group"
+            className="w-full whitespace-normal text-pretty h-auto p-6 flex flex-col items-center space-y-3 hover:bg-green-50 hover:border-green-300 transition-all duration-200 group"
             onClick={() => openWizard('transaction')}
           >
             <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center group-hover:bg-green-200 transition-colors">
               <DollarSign className="h-6 w-6 text-green-600" />
             </div>
             <div className="text-center">
-              <h3 className="font-semibold mb-1 text-gray-900 text-sm">Transaction Tracking</h3>
-              <p className="text-xs text-muted-foreground leading-tight">Record and categorize all ministry financial transactions</p>
+              <h3 className="font-semibold mb-2 text-gray-900 text-sm">Transaction Tracking</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed break-words">Record and categorize all ministry financial transactions</p>
             </div>
           </Button>
           
           <Button 
             variant="outline" 
-            className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-amber-50 hover:border-amber-300 transition-all duration-200 group"
+            className="w-full whitespace-normal text-pretty h-auto p-6 flex flex-col items-center space-y-3 hover:bg-amber-50 hover:border-amber-300 transition-all duration-200 group"
             onClick={() => openWizard('budget')}
           >
             <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center group-hover:bg-amber-200 transition-colors">
               <BarChart3 className="h-6 w-6 text-amber-600" />
             </div>
             <div className="text-center">
-              <h3 className="font-semibold mb-1 text-gray-900 text-sm">Budget Management</h3>
-              <p className="text-xs text-muted-foreground leading-tight">Create and monitor budgets across ministry campaigns</p>
+              <h3 className="font-semibold mb-2 text-gray-900 text-sm">Budget Management</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed break-words">Create and monitor budgets across ministry campaigns</p>
             </div>
           </Button>
           
           <Button 
             variant="outline" 
-            className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-200 group"
+            className="w-full whitespace-normal text-pretty h-auto p-6 flex flex-col items-center space-y-3 hover:bg-emerald-50 hover:border-emerald-300 transition-all duration-200 group"
             onClick={() => openWizard('analytics')}
           >
             <div className="w-12 h-12 bg-emerald-100 rounded-full flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
               <TrendingUp className="h-6 w-6 text-emerald-600" />
             </div>
             <div className="text-center">
-              <h3 className="font-semibold mb-1 text-gray-900 text-sm">Financial Analytics</h3>
-              <p className="text-xs text-muted-foreground leading-tight">Advanced ministry reporting and trend analysis</p>
+              <h3 className="font-semibold mb-2 text-gray-900 text-sm">Financial Analytics</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed break-words">Advanced ministry reporting and trend analysis</p>
             </div>
           </Button>
           
           <Button 
             variant="outline" 
-            className="h-auto p-6 flex flex-col items-center space-y-3 hover:bg-orange-50 hover:border-orange-300 transition-all duration-200 group"
+            className="w-full whitespace-normal text-pretty h-auto p-6 flex flex-col items-center space-y-3 hover:bg-orange-50 hover:border-orange-300 transition-all duration-200 group"
             onClick={() => openWizard('compliance')}
           >
             <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center group-hover:bg-orange-200 transition-colors">
               <Shield className="h-6 w-6 text-orange-600" />
             </div>
             <div className="text-center">
-              <h3 className="font-semibold mb-1 text-gray-900 text-sm">Compliance & Security</h3>
-              <p className="text-xs text-muted-foreground leading-tight">Secure, compliant ministry financial management</p>
+              <h3 className="font-semibold mb-2 text-gray-900 text-sm">Compliance & Security</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed break-words">Secure, compliant ministry financial management</p>
             </div>
           </Button>
         </div>
@@ -193,7 +194,7 @@ const FinancialManagement: React.FC = () => {
               </div>
               
               <div className="mt-auto pt-4">
-                <Button className="w-full bg-green-600 hover:bg-green-700 group-hover:bg-green-700">
+                <Button className="w-full bg-green-600 hover:bg-green-700 group-hover:bg-green-700 text-white font-medium transition-colors" size="lg">
                   Access Ministry Finances
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
@@ -258,7 +259,7 @@ const FinancialManagement: React.FC = () => {
               </div>
               
               <div className="mt-auto pt-4">
-                <Button className="w-full bg-amber-600 hover:bg-amber-700 group-hover:bg-amber-700">
+                <Button className="w-full bg-amber-600 hover:bg-amber-700 group-hover:bg-amber-700 text-white font-medium transition-colors" size="lg">
                   Access Advanced Analytics
                   <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
@@ -270,20 +271,7 @@ const FinancialManagement: React.FC = () => {
         {/* Additional Tools */}
         <div className="mt-12">
           <h2 className="text-2xl font-bold text-gray-900 mb-6 text-center">Additional Financial Tools</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="hover:shadow-lg transition-shadow cursor-pointer">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Calculator className="h-5 w-5 text-blue-600" />
-                  <span>Financial Calculator</span>
-                </CardTitle>
-                <CardDescription>Loan, investment, and giving calculators</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button variant="outline" className="w-full">Coming Soon</Button>
-              </CardContent>
-            </Card>
-
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="hover:shadow-lg transition-shadow cursor-pointer">
               <CardHeader>
                 <CardTitle className="flex items-center space-x-2">
@@ -293,7 +281,7 @@ const FinancialManagement: React.FC = () => {
                 <CardDescription>Generate tax documents and reports</CardDescription>
               </CardHeader>
               <CardContent>
-                <Button variant="outline" className="w-full">Coming Soon</Button>
+                <Button variant="outline" className="w-full font-medium hover:bg-gray-50 transition-colors" size="lg">Coming Soon</Button>
               </CardContent>
             </Card>
 
@@ -309,7 +297,8 @@ const FinancialManagement: React.FC = () => {
                 <div className="grid grid-cols-1 gap-3">
                   <Button 
                     variant="outline" 
-                    className="w-full justify-start hover:bg-green-50 hover:border-green-300"
+                    className="w-full justify-start hover:bg-green-50 hover:border-green-300 font-medium transition-colors"
+                    size="lg"
                     onClick={() => {
                       toast({ title: "Connecting to Bank", description: "Initializing secure Fintoc API connection..." });
                       // TODO: Implement actual Fintoc API integration
@@ -319,11 +308,12 @@ const FinancialManagement: React.FC = () => {
                     }}
                   >
                     <CreditCard className="h-4 w-4 mr-2 text-green-600" />
-                    Connect Bank Account (Fintoc API)
+                    Connect Bank Account
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="w-full justify-start hover:bg-amber-50 hover:border-amber-300"
+                    className="w-full justify-start hover:bg-amber-50 hover:border-amber-300 font-medium transition-colors"
+                    size="lg"
                     onClick={() => {
                       toast({ title: "QuickBooks Integration", description: "QuickBooks sync coming soon" });
                     }}
@@ -333,10 +323,9 @@ const FinancialManagement: React.FC = () => {
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="w-full justify-start hover:bg-orange-50 hover:border-orange-300"
-                    onClick={() => {
-                      toast({ title: "Xero Integration", description: "Xero sync coming soon" });
-                    }}
+                    className="w-full justify-start hover:bg-orange-50 hover:border-orange-300 font-medium transition-colors"
+                    size="lg"
+                    onClick={() => navigate('/integrations')}
                   >
                     <DollarSign className="h-4 w-4 mr-2 text-orange-600" />
                     Xero Integration

@@ -12,20 +12,34 @@ export default function ChurchAssessment() {
   const { session } = useAuth();
   const [sessionKey, setSessionKey] = useState<string>('initial');
   
-  // State for text inputs
-  const [textInputs, setTextInputs] = useState({
-    input1: '',
-    input2: '',
-    input3: '',
-    input4: ''
+  // State for text inputs with localStorage persistence
+  const [textInputs, setTextInputs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('church_assessment_inputs');
+      return saved ? JSON.parse(saved) : {
+        input1: '',
+        input2: '',
+        input3: '',
+        input4: ''
+      };
+    } catch {
+      return {
+        input1: '',
+        input2: '',
+        input3: '',
+        input4: ''
+      };
+    }
   });
 
   // Handle text input changes
   const handleInputChange = (field: keyof typeof textInputs, value: string) => {
-    setTextInputs(prev => ({
-      ...prev,
+    const updatedInputs = {
+      ...textInputs,
       [field]: value
-    }));
+    };
+    setTextInputs(updatedInputs);
+    localStorage.setItem('church_assessment_inputs', JSON.stringify(updatedInputs));
   };
 
   useEffect(() => {

@@ -508,7 +508,7 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
         placeholder="Detailed description"
       />
       <JustifiedFieldInput
-        label="Community Name"
+        label="Community"
         value={campaignData.church_name.value}
         justification={campaignData.church_name.justification}
         onChange={(value) => updateField('church_name', value)}

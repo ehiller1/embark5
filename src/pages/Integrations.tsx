@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useFinchIntegration } from '@/hooks/useFinchIntegration';
 import { 
   Building2, 
   Users, 
@@ -65,14 +66,25 @@ const integrations: Integration[] = [
     website: 'https://quickbooks.intuit.com'
   },
   {
-    id: 'plaid',
-    name: 'Banking (via Plaid)',
-    description: 'Securely connect bank accounts for automated transaction tracking',
+    id: 'xero',
+    name: 'Xero',
+    description: 'Connect Xero to sync chart of accounts, transactions, and reports',
+    category: 'accounting',
+    icon: <DollarSign className="h-6 w-6" />,
+    status: 'available',
+    features: ['Tenants/Organisations', 'Accounts', 'Journals', 'Reports', 'Bank Transactions'],
+    website: 'https://www.xero.com'
+  },
+  {
+    id: 'fintoc',
+    name: 'Banking (via Fintoc)',
+    description: 'Connect your church bank accounts for automated financial tracking and reconciliation',
     category: 'banking',
     icon: <CreditCard className="h-6 w-6" />,
-    status: 'coming_soon',
-    features: ['Account Balances', 'Transaction History', 'Automated Categorization', 'Multi-Account Support'],
-    website: 'https://plaid.com'
+    status: 'available',
+    features: ['Account Balances', 'Transaction History', 'Automated Categorization', 'Multi-Account Support', 'Secure Bank-Level Encryption', 'Real-time Sync'],
+    website: 'https://fintoc.com',
+    setupInstructions: 'Securely connect your bank accounts using Fintoc API for real-time financial data and automated transaction tracking'
   }
 ];
 

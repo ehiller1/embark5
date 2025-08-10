@@ -141,7 +141,7 @@ export function StrategicPlanEditor({ plan, onPlanChange }: StrategicPlanEditorP
         <TabsContent value="overview" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Plan Metadata</CardTitle>
+              <CardTitle>Plan Overview</CardTitle>
               <CardDescription>Basic information about your strategic plan</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">

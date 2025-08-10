@@ -37,6 +37,7 @@ export const REQUIRED_PROMPT_TYPES = [
   'assessment_report',
   'conversation',
   'discernment_plan',
+  'strategic_plan', // Added for strategic plan generation
   'fundraise', // Added for fundraising campaign generation
   // 'scenario_response', // Specific to certain dialog interactions, not globally required
   'unified_scenario_response',
