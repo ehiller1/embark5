@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AuthProvider } from "@/integrations/lib/auth/AuthProvider";
 import { UserProfileProvider } from "@/integrations/lib/auth/UserProfileProvider";
 import { NarrativeAvatarProvider } from "@/hooks/useNarrativeAvatar";
+
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { ProtectedAccountingRoute } from "./components/ProtectedAccountingRoute";
 import { AccountingAuthGuard } from "./components/AccountingAuthGuard";

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,10 @@ import { toast } from '@/hooks/use-toast';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
-import { Calendar as CalendarIcon, Plus, Download, Upload, RefreshCw, DollarSign, CreditCard, FileText, ArrowLeft } from 'lucide-react';
+import { Calendar as CalendarIcon, Plus, Download, Upload, RefreshCw, DollarSign, CreditCard, FileText, ArrowLeft, AlertCircle } from 'lucide-react';
+import { shouldShowDemoModals, shouldGrantClergyAccess } from '@/config/demoConfig';
+import { TwoFactorAuthDemo } from '@/components/TwoFactorAuthDemo';
+import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 
 // Mock data for transactions
 const mockTransactions = [
@@ -57,6 +60,39 @@ const Accounting: React.FC = () => {
     account: ''
   });
   const [bankConnected, setBankConnected] = useState(false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
+  const [show2FADemo, setShow2FADemo] = useState(false);
+  const { profile } = useUserProfile();
+  
+  // Show demo modal after component mounts if demo mode is enabled
+  useEffect(() => {
+    if (shouldShowDemoModals()) {
+      const timer = setTimeout(() => {
+        setShowDemoModal(true);
+      }, 100); // Small delay to ensure component is fully mounted
+      
+      return () => clearTimeout(timer);
+    }
+  }, []);
+
+  // Show 2FA demo for clergy users in demo mode after demo modal is dismissed
+  const handle2FADemo = () => {
+    if (profile?.role === 'Clergy' && shouldGrantClergyAccess()) {
+      setTimeout(() => {
+        setShow2FADemo(true);
+      }, 500); // Small delay after demo modal closes
+    }
+  };
+
+  const handleDemoModalClose = () => {
+    setShowDemoModal(false);
+    handle2FADemo();
+  };
+
+  const handle2FASuccess = () => {
+    console.log('[Accounting] 2FA Demo completed successfully');
+    // In a real implementation, this would update user security settings
+  };
   
   // Format currency
   const formatCurrency = (amount: number) => {
@@ -686,6 +722,36 @@ const Accounting: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Demo Modal */}
+      {showDemoModal && (
+        <Dialog open={showDemoModal} onOpenChange={setShowDemoModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-500" />
+                Demo Data Notice
+              </DialogTitle>
+              <DialogDescription className="text-left">
+                For demo purposes we are showing you sample financial data that will be replaced when you connect your actual bank accounts and enter real transactions.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={handleDemoModalClose} className="w-full">
+                Continue with Demo Data
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Two-Factor Authentication Demo */}
+      <TwoFactorAuthDemo
+        isOpen={show2FADemo}
+        onClose={() => setShow2FADemo(false)}
+        onSuccess={handle2FASuccess}
+        userRole={profile?.role || undefined}
+      />
     </div>
   );
 };

@@ -11,6 +11,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle, ArrowLeft, Loader2, X } from 'lucide-react';
 import { checkChurchProfileExists } from '@/utils/dbUtils';
 import { Button } from '@/components/ui/button';
+import { shouldShowDemoModals, shouldUseDemoData, getDemoChurchId } from '@/config/demoConfig';
 import {
   Dialog,
   DialogContent,
@@ -137,6 +138,8 @@ const SurveySummaryPage = () => {
   const [summaryData, setSummaryData] = useState<SurveySummary | null>(null);
   const [isGeneratingSummary, setIsGeneratingSummary] = useState<boolean>(false);
   const [selectedConversation, setSelectedConversation] = useState<ConversationHistory | null>(null);
+  const [showDemoModal, setShowDemoModal] = useState<boolean>(false);
+  const [isUsingDemoData, setIsUsingDemoData] = useState<boolean>(false);
   const [selectedSurveyResponse, setSelectedSurveyResponse] = useState<SurveyResponse | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -577,10 +580,32 @@ const SurveySummaryPage = () => {
           return;
         }
 
+        // First, check if there are any survey responses for the current church
+        const currentChurchResponses = await fetchSurveyResponses(churchId);
+        
+        let actualChurchId = churchId;
+        let shouldShowDemoModal = false;
+        
+        if (currentChurchResponses.length === 0 && shouldUseDemoData()) {
+          // No survey responses found for this church - use demo data if demo mode is enabled
+          actualChurchId = getDemoChurchId(); // Use centralized demo church ID
+          shouldShowDemoModal = shouldShowDemoModals();
+          setIsUsingDemoData(true);
+          
+          // Delay showing the modal to prevent React error #301
+          if (shouldShowDemoModal) {
+            setTimeout(() => {
+              setShowDemoModal(true);
+            }, 100);
+          }
+        } else {
+          setIsUsingDemoData(false);
+        }
+
         // Fetch conversation history and survey responses in parallel
         const [conversationData, surveyData] = await Promise.all([
-          fetchConversationHistory(churchId),
-          fetchSurveyResponses(churchId)
+          fetchConversationHistory(actualChurchId),
+          fetchSurveyResponses(actualChurchId)
         ]);
         
         setConversations(conversationData);
@@ -957,7 +982,29 @@ const SurveySummaryPage = () => {
         ))}
       </div>
 
-      {/* Modal */}
+      {/* Demo Modal */}
+      {showDemoModal && (
+        <Dialog open={showDemoModal} onOpenChange={setShowDemoModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-500" />
+                Demo Data Notice
+              </DialogTitle>
+              <DialogDescription className="text-left">
+                For demo purposes we are showing you sample responses that will be replaced when your survey respondents complete their surveys.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setShowDemoModal(false)} className="w-full">
+                Continue with Demo Data
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Survey Response Details Modal */}
       {isModalOpen && (
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent 

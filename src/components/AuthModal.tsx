@@ -361,8 +361,7 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
                     disabled={isLoading}
                   />
                 </div>
-                {/* Role selection commented out - default is 'Clergy' */}
-                {/* <div className="space-y-2">
+                <div className="space-y-2">
                   <Label>Role <span className="text-red-500">*</span></Label>
                   <div className="flex gap-4">
                     <label className="flex items-center">
@@ -390,9 +389,8 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
                       <span className="ml-2">Parish</span>
                     </label>
                   </div>
-                </div> */}
-                {/* Church selection dropdown for Parish users - commented out */}
-                {/* {role === 'Parish' && (
+                </div>
+                {role === 'Parish' && (
                   <div className="space-y-2 relative z-50">
                     <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-300 shadow-md">
                       <div className="flex items-center justify-between mb-2">
@@ -437,7 +435,7 @@ export function AuthModal({ isOpen, onClose, onLoginSuccess }: AuthModalProps) {
                       </div>
                     </div>
                   </div>
-                )} */}
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="email">Email <span className="text-red-500">*</span></Label>
                   <Input

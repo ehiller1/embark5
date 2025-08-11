@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { shouldGrantClergyAccess } from '@/config/demoConfig';
 import { useAuth } from './AuthProvider';
 import { User } from '@supabase/supabase-js';
 
@@ -90,15 +91,17 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
         return existingProfile as UserProfile;
       }
       
+      const userRole = user.user_metadata?.role || 'Clergy';
       const profileData = {
         id: user.id,
         email: user.email,
-        role: user.user_metadata?.role || 'Clergy',
+        role: userRole,
         first_name: user.user_metadata?.firstName || user.user_metadata?.first_name || '',
         last_name: user.user_metadata?.lastName || user.user_metadata?.last_name || '',
         preferred_name: user.user_metadata?.preferredName || user.user_metadata?.preferred_name || '',
         church_name: user.user_metadata?.churchName || user.user_metadata?.church_name || '',
         church_id: user.user_metadata?.church_id || '',
+        accounting_access: userRole === 'Clergy' || (userRole === 'Clergy' && shouldGrantClergyAccess()), // Grant accounting access to Clergy users (always) or in demo mode
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -153,6 +156,27 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
 
       if (!data) {
         finalProfile = await createDefaultProfile(user);
+      } else {
+        // Fix accounting access for existing Clergy users who don't have it set
+        if (data.role === 'Clergy' && data.accounting_access !== true) {
+          console.log(`[UserProfileProvider] [${timestamp}] Fixing accounting access for Clergy user: ${user.id}`);
+          const { data: updatedProfile, error: updateError } = await supabase
+            .from('profiles')
+            .update({ 
+              accounting_access: true,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', user.id)
+            .select()
+            .single();
+          
+          if (updateError) {
+            console.error(`[UserProfileProvider] [${timestamp}] Error updating accounting access:`, updateError);
+          } else {
+            console.log(`[UserProfileProvider] [${timestamp}] Successfully granted accounting access to Clergy user`);
+            finalProfile = updatedProfile;
+          }
+        }
       }
 
       if (isMounted.current) {

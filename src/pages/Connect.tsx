@@ -1,9 +1,11 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { AlertCircle } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { shouldShowDemoModals } from '@/config/demoConfig';
 import { NetworkVisualization } from '@/components/NetworkVisualization';
 import { NetworkDetailsPanel } from '@/components/NetworkDetailsPanel';
 import { useNetworkConnections } from '@/hooks/useNetworkConnections';
@@ -12,11 +14,13 @@ import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { Navigate } from 'react-router-dom';
 import { ErrorState } from '@/components/ErrorState';
 import { NetworkNode } from '@/types/NetworkTypes';
+import { AlertCircle } from 'lucide-react';
 
 const Connect = () => {
   const navigate = useNavigate();
   const { networkData, isLoading, error } = useNetworkConnections();
   const [selectedNode, setSelectedNode] = useState<NetworkNode | null>(null);
+  const [showDemoModal, setShowDemoModal] = useState(false);
 
   const { isAuthenticated } = useAuth();
   
@@ -28,6 +32,27 @@ const Connect = () => {
   const handleRetry = () => {
     window.location.reload();
   };
+
+  // Check if we're using demo/sample data and show modal
+  React.useEffect(() => {
+    if (networkData && !isLoading && !error && shouldShowDemoModals()) {
+      // Check if this looks like sample data (has connections but they might be generated)
+      const hasConnections = (
+        (networkData.church_similarity_data?.connections?.length ?? 0) > 0 ||
+        (networkData.community_similarity_data?.connections?.length ?? 0) > 0 ||
+        (networkData.plan_similarity_data?.connections?.length ?? 0) > 0
+      );
+      
+      // Show demo modal if we have connections (likely sample data) and demo mode is enabled
+      if (hasConnections) {
+        const timer = setTimeout(() => {
+          setShowDemoModal(true);
+        }, 200); // Small delay to ensure component is fully rendered
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [networkData, isLoading, error]);
 
   return (
     <div className="container mx-auto py-4 space-y-4">
@@ -68,6 +93,28 @@ const Connect = () => {
             </CardContent>
           </Card>
       </div>
+
+      {/* Demo Modal */}
+      {showDemoModal && (
+        <Dialog open={showDemoModal} onOpenChange={setShowDemoModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-500" />
+                Demo Data Notice
+              </DialogTitle>
+              <DialogDescription className="text-left">
+                For demo purposes we are showing you sample network connections that will be replaced when you complete your assessments and build real connections.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setShowDemoModal(false)} className="w-full">
+                Continue with Demo Data
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

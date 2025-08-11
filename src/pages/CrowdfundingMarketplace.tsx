@@ -9,6 +9,7 @@ import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { useOpenAI } from '@/hooks/useOpenAI';
 import { setupCampaignMediaStorage } from '@/utils/storageSetup';
+import { shouldShowDemoModals, shouldUseDemoData, getDemoChurchId } from '@/config/demoConfig';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,7 +21,7 @@ import { Separator } from '@/components/ui/separator';
 import { supabase } from '@/integrations/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Plus, ImageIcon, FileText } from 'lucide-react';
+import { Plus, ImageIcon, FileText, AlertCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { CampaignData } from '@/types/campaign';
 
@@ -67,6 +68,8 @@ const CrowdfundingMarketplace = () => {
   const [recommendations, setRecommendations] = useState<Ministry[]>([]);
   const [loadingRecommendations, setLoadingRecommendations] = useState(false);
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
+  const [showDemoModal, setShowDemoModal] = useState<boolean>(false);
+  const [isUsingDemoData, setIsUsingDemoData] = useState<boolean>(false);
   const navigate = useNavigate();
   
   // Auth and profile hooks
@@ -96,6 +99,31 @@ const CrowdfundingMarketplace = () => {
       setLoading(true);
       console.log('[CrowdfundingMarketplace] Querying Supabase ministries table...');
       
+      // First, check if there are any ministries for the current user's church
+      let churchId = profile?.church_id;
+      if (churchId) {
+        const { data: currentChurchMinistries } = await supabase
+          .from('ministries')
+          .select('*')
+          .eq('church_id', churchId)
+          .order('created_at', { ascending: false });
+        
+        // If no ministries exist for current church, use demo data if demo mode is enabled
+        if ((!currentChurchMinistries || currentChurchMinistries.length === 0) && shouldUseDemoData()) {
+          churchId = getDemoChurchId();
+          setIsUsingDemoData(true);
+          // Show demo modal with delay to prevent rendering conflicts
+          if (shouldShowDemoModals()) {
+            setTimeout(() => {
+              setShowDemoModal(true);
+            }, 300);
+          }
+        } else {
+          setIsUsingDemoData(false);
+        }
+      }
+      
+      // Fetch all ministries (for general browsing) but prioritize user's church data
       const { data, error } = await supabase
         .from('ministries')
         .select('*')
@@ -875,6 +903,28 @@ Formulate a Regulation CF compliant fundraising plan that includes extensive det
           campaignData={selectedCampaignForProspectus}
           mediaUrls={campaignMediaUrls}
         />
+      )}
+      
+      {/* Demo Modal */}
+      {showDemoModal && (
+        <Dialog open={showDemoModal} onOpenChange={setShowDemoModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-blue-500" />
+                Demo Data Notice
+              </DialogTitle>
+              <DialogDescription className="text-left">
+                For demo purposes we are showing you sample ministry campaigns that will be replaced when you create your own campaigns.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button onClick={() => setShowDemoModal(false)} className="w-full">
+                Continue with Demo Data
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );
