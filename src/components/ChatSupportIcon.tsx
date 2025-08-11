@@ -11,6 +11,7 @@ declare global {
 
 export function ChatSupportIcon() {
   const [loaded, setLoaded] = useState<boolean>(false);
+  const [iconError, setIconError] = useState<boolean>(false);
   const requestedRef = useRef<boolean>(false);
 
   useEffect(() => {
@@ -84,8 +85,11 @@ export function ChatSupportIcon() {
     }
   };
 
+  // Prefer explicit env var, otherwise fall back to Tawk favicon so the brand icon is visible
+  const iconUrl = import.meta.env.VITE_TAWK_ICON_URL || 'https://tawk.to/favicon.ico';
+
   return (
-    <div className="fixed bottom-6 right-6 z-[1000]">
+    <div className="fixed bottom-4 right-4 z-[9999] pointer-events-auto">
       <TooltipProvider delayDuration={300}>
         <Tooltip>
           <TooltipTrigger asChild>
@@ -96,12 +100,13 @@ export function ChatSupportIcon() {
                 onClick={openChat}
                 type="button"
               >
-                {import.meta.env.VITE_TAWK_ICON_URL ? (
+                {!iconError ? (
                   <img
-                    src={import.meta.env.VITE_TAWK_ICON_URL}
+                    src={iconUrl}
                     alt="Tawk.to"
                     className="h-6 w-6 object-contain"
                     referrerPolicy="no-referrer"
+                    onError={() => setIconError(true)}
                   />
                 ) : (
                   <MessageCircle className="h-6 w-6" />
