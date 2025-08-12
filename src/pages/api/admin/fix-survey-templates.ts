@@ -1,11 +1,16 @@
-import { NextApiRequest, NextApiResponse } from 'next';
 import { supabase } from '@/integrations/lib/supabase';
 
 /**
  * API endpoint to audit and fix survey_templates records
  * This ensures they have a consistent structure with fields/questions in the expected location
  */
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+// Minimal request/response typings so this doesn't depend on Next.js types
+type MinimalRequest = { method?: string } & Record<string, any>;
+type MinimalResponse = {
+  status: (code: number) => { json: (body: any) => any };
+} & Record<string, any>;
+
+export default async function handler(req: MinimalRequest, res: MinimalResponse) {
   // Only allow POST requests for security
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });

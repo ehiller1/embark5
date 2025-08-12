@@ -18,6 +18,7 @@ import { Progress } from '@/components/ui/progress';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -269,7 +270,7 @@ const CrowdfundingMarketplace = () => {
     const defaultRequest = {
       research_summary: communityResearch || 'General community research and analysis',
       vocational_statement: vocationalStatement || 'Committed to serving our community through faith-based initiatives',
-      scenario_details: `Ministry funding scenario for ${profile.church_name || 'Community Church'} in ${profile.location || 'Local Community'}`
+      scenario_details: `Ministry funding scenario for ${profile?.church_name || 'Community Church'} in ${profile?.location || 'Local Community'}`
     };
 
     // Try to get the fundraise prompt from the database
@@ -336,7 +337,7 @@ Formulate a Regulation CF compliant fundraising plan that includes extensive det
       "justification": "End of calendar year maximizes holiday giving cycles."
     },
     "church_name": {
-      "value": "${profile.church_name || 'Community Church'}",
+      "value": "${profile?.church_name || 'Community Church'}",
       "justification": "The parent or sponsoring church provides legitimacy and trust for donors."
     },
     "impact_metrics": {
@@ -611,7 +612,7 @@ Formulate a Regulation CF compliant fundraising plan that includes extensive det
           <CampaignWizardComprehensive
             onComplete={handleCampaignComplete}
             onCancel={handleCampaignCancel}
-            initialData={aiGeneratedCampaign}
+            initialData={(aiGeneratedCampaign ?? undefined) as any}
           />
         ) : (
           <div className="mb-6">
@@ -741,13 +742,13 @@ Formulate a Regulation CF compliant fundraising plan that includes extensive det
                                   filing_status: 'accepted',
                                   submission_id: 'SUB-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
                                   filing_data: {
-                                    target_amount: ministry.target_amount.toString(),
-                                    minimum_investment: ministry.minimum_investment.toString(),
+                                    target_amount: ministry.target_amount,
+                                    minimum_investment: ministry.minimum_investment,
                                     use_of_funds: {
-                                      operations: 0.4,
-                                      marketing: 0.3,
-                                      development: 0.2,
-                                      legal: 0.1
+                                      operations: '0.4',
+                                      marketing: '0.3',
+                                      development: '0.2',
+                                      legal: '0.1'
                                     },
                                     risk_factors: [
                                       'Early stage investment with potential for loss of principal',

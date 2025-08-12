@@ -13,21 +13,21 @@ export function ChatSupportIcon() {
   const [loaded, setLoaded] = useState<boolean>(false);
   const [iconError, setIconError] = useState<boolean>(false);
   const requestedRef = useRef<boolean>(false);
+  const injectedRef = useRef<boolean>(false);
 
-  useEffect(() => {
-    // Only inject once per page load
-    if (typeof window === 'undefined') return;
-    const tryHide = () => {
-      if (window.Tawk_API && typeof window.Tawk_API.hideWidget === 'function') {
-        try {
-          window.Tawk_API.hideWidget();
-        } catch {}
-      }
-    };
+  const tryHide = () => {
+    if (window.Tawk_API && typeof window.Tawk_API.hideWidget === 'function') {
+      try {
+        window.Tawk_API.hideWidget();
+      } catch {}
+    }
+  };
 
+  const injectTawk = () => {
+    if (injectedRef.current || typeof window === 'undefined') return;
     if (document.getElementById('tawkto-script')) {
+      injectedRef.current = true;
       setLoaded(true);
-      // If script already present, ensure default bubble is hidden
       tryHide();
       return;
     }
@@ -42,8 +42,8 @@ export function ChatSupportIcon() {
     s1.setAttribute('crossorigin', '*');
     s1.id = 'tawkto-script';
     s1.onload = () => {
+      injectedRef.current = true;
       setLoaded(true);
-      // Tawk API becomes available shortly after script load; poll briefly to hide default widget
       const hideInterval = setInterval(() => {
         if (window.Tawk_API && typeof window.Tawk_API.hideWidget === 'function') {
           tryHide();
@@ -52,16 +52,41 @@ export function ChatSupportIcon() {
       }, 200);
       setTimeout(() => clearInterval(hideInterval), 10000);
     };
+    s1.onerror = () => {
+      // Avoid throwing uncaught errors if vendor script fails to load
+      injectedRef.current = false;
+      setLoaded(false);
+      // We keep the button visible; clicking will retry injection
+      console.warn('[ChatSupportIcon] Tawk script failed to load; will retry on demand.');
+    };
 
-    const s0 = document.getElementsByTagName('script')[0];
-    s0?.parentNode?.insertBefore(s1, s0);
+    // Append to head to avoid race conditions with first script tag
+    document.head.appendChild(s1);
+  };
 
+  useEffect(() => {
+    // Defer injection until window has fully loaded to avoid websocket errors during navigation
+    if (typeof window === 'undefined') return;
+    if (document.readyState === 'complete') {
+      // Allow the page to settle a bit
+      setTimeout(() => injectTawk(), 500);
+    } else {
+      const onLoad = () => {
+        setTimeout(() => injectTawk(), 500);
+        window.removeEventListener('load', onLoad);
+      };
+      window.addEventListener('load', onLoad);
+    }
     return () => {
-      // We intentionally do not remove the script to keep the widget available across component unmounts
+      // Keep widget available across route changes; no teardown
     };
   }, []);
 
   const openChat = () => {
+    // Lazy inject on demand if for some reason it hasn't been injected yet or failed previously
+    if (!document.getElementById('tawkto-script')) {
+      injectTawk();
+    }
     if (window.Tawk_API && typeof window.Tawk_API.maximize === 'function') {
       window.Tawk_API.maximize();
     } else if (!requestedRef.current) {
