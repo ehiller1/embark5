@@ -89,7 +89,7 @@ export function ChatSupportIcon() {
   const iconUrl = import.meta.env.VITE_TAWK_ICON_URL || 'https://tawk.to/favicon.ico';
 
   return (
-    <div className="fixed bottom-4 right-4 z-[9999] pointer-events-auto">
+    <div className="fixed bottom-2 right-2 z-[9999] pointer-events-auto">
       <TooltipProvider delayDuration={300}>
         <Tooltip>
           <TooltipTrigger asChild>

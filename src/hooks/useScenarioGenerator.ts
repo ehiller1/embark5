@@ -244,11 +244,35 @@ export function useScenarioGenerator() {
         console.warn('[ScenarioGenerator] Template is missing these placeholders:', missingPlaceholders);
       }
       
+      // Build companion-derived fields if present
+      const companionName = ((): string => {
+        try { return (promptParameters.companionAvatar.value || '').toString(); } catch { return ''; }
+      })();
+      // If we have a JSON-like companion avatar, try to extract common fields
+      let companionTraits = '';
+      let companionSpeech = '';
+      let companionDomains = '';
+      try {
+        const c = JSON.parse(promptParameters.companionAvatar.value || '');
+        if (Array.isArray(c?.traits)) companionTraits = c.traits.join(', ');
+        if (typeof c?.speech_pattern === 'string') companionSpeech = c.speech_pattern;
+        if (Array.isArray(c?.knowledge_domains)) companionDomains = c.knowledge_domains.join(', ');
+      } catch {}
+
       let fullPrompt = template
+        // Research summary variants (case-insensitive common forms)
         .replace(/\$\(\s*ResearchSummary\s*\)/g, promptParameters.researchSummary.value)
+        .replace(/\$\(\s*research_summary\s*\)/g, promptParameters.researchSummary.value)
+        // Vocational statement
         .replace(/\$\(\s*vocational_statement\s*\)/g, promptParameters.vocationalStatement.value)
+        // Avatar blobs
         .replace(/\$\(\s*companion_avatar\s*\)/g, promptParameters.companionAvatar.value)
-        .replace(/\$\(\s*church_avatar\s*\)/g, promptParameters.churchAvatar.value);
+        .replace(/\$\(\s*church_avatar\s*\)/g, promptParameters.churchAvatar.value)
+        // Individual companion fields (fallback to parsed pieces or blanks)
+        .replace(/\$\(\s*companion_name\s*\)/g, companionName)
+        .replace(/\$\(\s*companion_traits\s*\)/g, companionTraits)
+        .replace(/\$\(\s*companion_speech_pattern\s*\)/g, companionSpeech)
+        .replace(/\$\(\s*companion_knowledge_domains\s*\)/g, companionDomains);
 
       // Handle missional_avatar replacement carefully to avoid issues if it's missing
       // and the prompt has specific structures around it (e.g., lists, conjunctions)
@@ -266,6 +290,15 @@ export function useScenarioGenerator() {
           fullPrompt = fullPrompt.replace(/\$\(\s*missional_avatar\s*\)/g, '');
         }
       }
+
+      // If any of those fields were not present in data, strip leftover labels like "with these traits $(companion_traits)" gracefully
+      fullPrompt = fullPrompt
+        .replace(/with these traits\s*\$\(\s*companion_traits\s*\)/gi, '')
+        .replace(/You communicate with these speech patterns:\s*\$\(\s*companion_speech_pattern\s*\)/gi, '')
+        .replace(/Your knowledge domains are:\s*\$\(\s*companion_knowledge_domains\s*\)/gi, '');
+
+      // Append a strict output directive to avoid the model copying any example single-scenario block
+      fullPrompt += '\n\nIMPORTANT: Output exactly 5 scenarios in JSON with this shape: { "scenarios": [ { "rank": "1-5", "title": "...", "description": "..." } ] }. Do not include any example content. Do not include markdown. Provide 5 items.';
 
       // Check if any placeholders remain in the prompt after replacement
       const remainingPlaceholders = fullPrompt.match(/\$\(\s*[^)]+\s*\)/g);
@@ -324,21 +357,24 @@ export function useScenarioGenerator() {
         .replace(/[\u201C\u201D]/g, '"') // Double smart quotes
         .replace(/[\u2013\u2014]/g, '-') // En/Em dashes
         
-      // Fix unescaped newlines in JSON string values (especially in scenario descriptions)
-      // This is a common issue with AI-generated JSON
+      // Fix common AI JSON issues inside title/description values:
+      // - Unescaped newlines
+      // - Unescaped double quotes (e.g., "Target audience": inside description strings)
+      // - Unescaped backslashes
       try {
-        // First attempt to pre-process the JSON to fix unescaped newlines in string values
-        // This regex finds all string values and replaces actual newlines with escaped \n
-        // Look for strings between quotes that might contain problematic newlines
-        const fixedJson =         responseText.replace(/"(description|title)":\s*"(.*?)"(?=\s*,|\s*})/gs, (_, key, value) => {
-          // Replace all literal newlines with the string "\n" (escaped properly for JSON)
-          const escapedValue = value.replace(/\n/g, '\\n');
-          return `"${key}": "${escapedValue}"`;
+        const fixedJson = responseText.replace(/"(description|title)":\s*"([\s\S]*?)"(?=\s*,|\s*})/g, (_match, key, value) => {
+          // Escape backslashes first to avoid double-escaping later
+          let v = String(value).replace(/\\/g, "\\\\");
+          // Escape all double quotes inside the string value
+          v = v.replace(/"/g, '\\"');
+          // Normalize newlines to \n
+          v = v.replace(/\r?\n/g, '\\n');
+          return `"${key}": "${v}"`;
         });
-        console.log('[useScenarioGenerator] JSON after fixing newlines:', fixedJson.substring(0, 200) + '...');
+        console.log('[useScenarioGenerator] JSON after escaping inner quotes/newlines:', fixedJson.substring(0, 200) + '...');
         responseText = fixedJson;
       } catch (fixError) {
-        console.warn('[useScenarioGenerator] Error during newline escaping pre-processing:', fixError);
+        console.warn('[useScenarioGenerator] Error during JSON pre-processing:', fixError);
         // Continue with original responseText if the fix attempt fails
       }
 
@@ -358,7 +394,8 @@ export function useScenarioGenerator() {
           // 1. Extract all title/description pairs using regex
           const scenarios = [];
           const titleRegex = /"title":\s*"([^"]*)"/g;
-          const descRegex = /"description":\s*"([^"]*?)"(?=\s*,|\s*})/gs;
+          // Allow inner quotes by using a non-greedy wildcard and rely on the lookahead for the closing
+          const descRegex = /"description":\s*"([\s\S]*?)"(?=\s*,|\s*})/gs;
           
           let titleMatch;
           let descMatch;
