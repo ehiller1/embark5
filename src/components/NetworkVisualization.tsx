@@ -186,6 +186,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     }
 
     const nodes: GraphNode[] = [];
+    const allowedNodeIds = new Set<string>();
     const tempLinks: IntermediateLink[] = [];
 
     // Process network data and convert to graph format
@@ -204,7 +205,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
           size: 15 // Fixed size for the center node
         });
 
-        // Process connections
+        // Process connections (primary sources of truth for nodes)
         data.connections.forEach((conn: any) => {
             const nodeId = `${groupName}-${conn.id}`;
             const node = ensureNode(nodes, nodeId, groupName, {
@@ -212,6 +213,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
               connections_strength: Math.max(0.3, Math.min(0.8, conn.similarity || 0.6)), // More conservative range 0.3-0.8 to keep nodes closer
               size: 8 // Fixed size for all other nodes
             });
+            allowedNodeIds.add(nodeId);
             
             tempLinks.push({
                 source: userId,
@@ -232,9 +234,10 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
                 const sourceId = `${conn.source_type}-${conn.source_id}`;
                 const targetId = `${conn.target_type}-${conn.target_id}`;
                 
-                // Ensure both source and target nodes exist
-                const sourceNode = ensureNode(nodes, sourceId, conn.source_type, { name: sourceId });
-                const targetNode = ensureNode(nodes, targetId, conn.target_type, { name: targetId });
+                // Only connect nodes that already exist from primary connections to avoid placeholder labels
+                const sourceNode = nodes.find(n => n.id === sourceId);
+                const targetNode = nodes.find(n => n.id === targetId);
+                if (!sourceNode || !targetNode) return;
                 
                 tempLinks.push({
                     source: sourceNode,
@@ -276,10 +279,55 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
       return processedLink;
     });
     
+    // Filter out nodes that are not connected to the "You" node
+    const connectedNodeIds = new Set<string>();
+    connectedNodeIds.add('user'); // Always include the user node
+    
+    // Find all nodes that are directly or indirectly connected to the user node
+    processedLinks.forEach(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+      
+      // If either source or target is already connected, add the other
+      if (connectedNodeIds.has(sourceId)) {
+        connectedNodeIds.add(targetId);
+      } else if (connectedNodeIds.has(targetId)) {
+        connectedNodeIds.add(sourceId);
+      }
+    });
+    
+    // Perform multiple passes to catch indirectly connected nodes
+    let foundNewConnections = true;
+    while (foundNewConnections) {
+      foundNewConnections = false;
+      processedLinks.forEach(link => {
+        const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+        const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+        
+        if (connectedNodeIds.has(sourceId) && !connectedNodeIds.has(targetId)) {
+          connectedNodeIds.add(targetId);
+          foundNewConnections = true;
+        } else if (connectedNodeIds.has(targetId) && !connectedNodeIds.has(sourceId)) {
+          connectedNodeIds.add(sourceId);
+          foundNewConnections = true;
+        }
+      });
+    }
+    
+    // Filter nodes to only include connected ones
+    const connectedNodes = nodes.filter(node => connectedNodeIds.has(node.id));
+    
+    // Filter links to only include those between connected nodes
+    const connectedLinks = processedLinks.filter(link => {
+      const sourceId = typeof link.source === 'string' ? link.source : link.source.id;
+      const targetId = typeof link.target === 'string' ? link.target : link.target.id;
+      return connectedNodeIds.has(sourceId) && connectedNodeIds.has(targetId);
+    });
+    
     // Convert links to NetworkLink format for the ForceGraph component
-    const networkLinks: NetworkLink[] = processedLinks.map(link => toNetworkLink(link));
+    const networkLinks: NetworkLink[] = connectedLinks.map(link => toNetworkLink(link));
 
-    return { nodes, links: networkLinks };
+    return { nodes: connectedNodes, links: networkLinks };
 
 
   }, [networkData, selectedGroup]);
@@ -328,6 +376,21 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
     setHighlightedNodeId(null);
     fgRef.current?.zoomToFit(400, 40);
   }, [onNodeClick]);
+
+  // Allow users to drag nodes to rearrange layout and fix their positions
+  const handleNodeDrag = useCallback((node: NodeObject) => {
+    if (isGraphNode(node)) {
+      (node as any).fx = (node as any).x;
+      (node as any).fy = (node as any).y;
+    }
+  }, []);
+
+  const handleNodeDragEnd = useCallback((node: NodeObject) => {
+    if (isGraphNode(node)) {
+      (node as any).fx = (node as any).x;
+      (node as any).fy = (node as any).y;
+    }
+  }, []);
 
   const nodeCanvasObject = useCallback((node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
     if (!isGraphNode(node) || !isPositionedNode(node)) return;
@@ -415,7 +478,7 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
 
     // Always show labels for all nodes with enhanced styling
     const label = name;
-    const fontSize = 14; // Fixed larger font size for better readability
+    const fontSize = 11; // Smaller font size for better layout
     
     ctx.save(); // Save context state
     ctx.font = `bold ${fontSize}px Arial`; // Bold font for better visibility
@@ -491,33 +554,30 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
   const graphWidth = Math.max(100, (dimensions.width || 800) - padding * 2);
   const graphHeight = Math.max(100, (dimensions.height || 600) - padding * 2);
 
-  // Constrain node positions to stay within the container
-  const constrainNodePosition = useCallback((node: GraphNode) => {
+  // Optional constraint function (only used for initial positioning, not during drag)
+  const constrainNodeToContainer = useCallback((node: GraphNode) => {
     if (!isPositionedNode(node)) return;
     
     const nodeSize = getNodeSize(node);
     const maxX = graphWidth / 2 - nodeSize;
     const maxY = graphHeight / 2 - nodeSize;
     
-    // Keep nodes within bounds
+    // Keep nodes within bounds for initial positioning only
     node.x = Math.max(-maxX, Math.min(maxX, node.x || 0));
     node.y = Math.max(-maxY, Math.min(maxY, node.y || 0));
-    
-    // Apply the position if it was changed
-    if (node.fx !== undefined && node.fy !== undefined) {
-      node.fx = node.x;
-      node.fy = node.y;
-    }
   }, [graphWidth, graphHeight, getNodeSize]);
   
-  // Apply constraints to all nodes
+  // Apply initial constraints to nodes on first load only
   useEffect(() => {
-    nodes.forEach(node => {
-      if (node.id !== 'user') {
-        constrainNodePosition(node);
-      }
-    });
-  }, [nodes, constrainNodePosition]);
+    const hasInitialPositions = nodes.some(node => node.fx !== undefined && node.fy !== undefined);
+    if (!hasInitialPositions) {
+      nodes.forEach(node => {
+        if (node.id !== 'user') {
+          constrainNodeToContainer(node);
+        }
+      });
+    }
+  }, [nodes, constrainNodeToContainer]);
 
   return (
     <div className="w-full h-[600px] relative touch-none overflow-hidden" ref={containerRef}>
@@ -532,107 +592,93 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
             #fbbf24 50%, 
             #f59e0b 65%, 
             #14b8a6 85%, 
-            #0f766e 100%
-          )`,
-          opacity: 0.15
+            #0f766e 100%)`
         }}
       />
-      
+
+      {/* Foreground Graph Layer */}
       <div className="absolute inset-4 rounded-lg border border-border/50 bg-transparent overflow-hidden" style={{ position: 'relative', zIndex: 2 }}>
         <ForceGraph2D
           ref={fgRef}
+          width={graphWidth}
+          height={graphHeight}
           graphData={{ nodes, links }}
           onNodeClick={handleNodeClick}
-        onBackgroundClick={handleBackgroundClick}
-        onNodeHover={(node: NodeObject | null) => setHighlightedNodeId(node ? (node.id as string) : null)}
-        nodeCanvasObject={useCallback((node: NodeObject, ctx: CanvasRenderingContext2D, globalScale: number) => {
-          // First draw the node using the existing nodeCanvasObject
-          nodeCanvasObject(node, ctx, globalScale);
-          
-          // Then apply constraints to the node's position
-          if (isGraphNode(node) && node.id !== 'user') {
-            constrainNodePosition(node);
-          }
-        }, [nodeCanvasObject, constrainNodePosition])}
-        nodePointerAreaPaint={nodePointerAreaPaint}
-        linkColor={() => '#3b82f6'} // Blue color for all links
-        linkWidth={2} // Make links more visible
-        cooldownTicks={100}
-        onEngineStop={() => {
-          // Keep the center node fixed in the center
-          const centerNode = nodes.find(n => n.id === 'user');
-          if (centerNode) {
-            centerNode.fx = 0;
-            centerNode.fy = 0;
-          }
-          
-          // Position other nodes based on connection strength with reduced distance mapping
-          const otherNodes = nodes.filter(n => n.id !== 'user');
-          const maxRadius = Math.min(graphWidth, graphHeight) * 0.3; // Use 30% of container size
-          const minRadius = 60; // Minimum distance from center
-          
-          otherNodes.forEach((node, index) => {
-            if (node.id !== 'user') {
-              // Reduce connection strength impact on distance
-              const strength = node.connections_strength || 0.5;
-              // Map strength to distance with much smaller range
-              const distance = minRadius + (1 - strength) * (maxRadius - minRadius);
-              
-              // Distribute nodes evenly around the circle
-              const angle = (index / otherNodes.length) * Math.PI * 2;
-              
-              node.fx = Math.cos(angle) * distance;
-              node.fy = Math.sin(angle) * distance;
-              
-              // Ensure nodes stay within bounds
-              constrainNodePosition(node);
+          onBackgroundClick={handleBackgroundClick}
+          onNodeHover={(node: NodeObject | null) => setHighlightedNodeId(node ? (node.id as string) : null)}
+          nodeCanvasObject={nodeCanvasObject}
+          nodePointerAreaPaint={nodePointerAreaPaint}
+          linkColor={() => '#3b82f6'}
+          linkWidth={2}
+          cooldownTicks={100}
+          onEngineStop={() => {
+            // Only set initial positions if nodes don't already have fixed positions
+            const centerNode = nodes.find(n => n.id === 'user');
+            if (centerNode && centerNode.fx === undefined) {
+              centerNode.fx = 0;
+              centerNode.fy = 0;
             }
-          });
-          
-          // Auto-zoom removed to prevent zoom-out/contract animation on page load
-          // The visualization will maintain its natural scale
-        }}
-        // Prevent nodes from going outside the visible area
-        nodeDrag={useCallback((node: GraphNode) => {
-          // Allow dragging but constrain position
-          node.fx = node.x;
-          node.fy = node.y;
-          constrainNodePosition(node);
-          return true;
-        }, [constrainNodePosition])}
-        d3VelocityDecay={0.1}
-        d3AlphaDecay={0.01}
-        d3AlphaMin={0.1}
-        // Add some padding to prevent nodes from touching the edges
-        width={graphWidth}
-        height={graphHeight}
-        // Limit zoom and pan
-        minZoom={0.5}
-        maxZoom={2}
-        // Center the graph
-        centerAt={[0, 0]}
-        // Keep nodes from going too far from center
-        onNodeDrag={constrainNodePosition}
-        // Prevent nodes from being too large
-        nodeVal={(node: GraphNode) => {
-          const baseSize = 8;
-          const maxSize = 20;
-          const importance = 'connections_strength' in node ? (node.connections_strength as number) : 0.5;
-          return Math.min(maxSize, baseSize + importance * 10);
-        }}
-        zoom={1}
-        onZoom={handleZoom}
-        onWheel={() => false}
-        onTouchStart={(e: TouchEvent) => {
-          e.preventDefault();
-          return false;
-        }}
-        onTouchMove={(e: TouchEvent) => {
-          e.preventDefault();
-          return false;
-        }}
-        cooldownTime={5000}
-      />
+            
+            const otherNodes = nodes.filter(n => n.id !== 'user');
+            const hasFixedPositions = otherNodes.some(node => node.fx !== undefined);
+            
+            if (!hasFixedPositions) {
+              // More organic initial positioning with some randomness
+              const maxRadius = Math.min(graphWidth, graphHeight) * 0.35;
+              const minRadius = 80;
+              
+              otherNodes.forEach((node, index) => {
+                if (node.id !== 'user') {
+                  const strength = node.connections_strength || 0.5;
+                  const baseDistance = minRadius + (1 - strength) * (maxRadius - minRadius);
+                  // Add some randomness to avoid rigid circular layout
+                  const randomOffset = (Math.random() - 0.5) * 40;
+                  const distance = baseDistance + randomOffset;
+                  
+                  // More organic angle distribution
+                  const baseAngle = (index / otherNodes.length) * Math.PI * 2;
+                  const angleOffset = (Math.random() - 0.5) * 0.5; // Random angle variation
+                  const angle = baseAngle + angleOffset;
+                  
+                  node.fx = Math.cos(angle) * distance;
+                  node.fy = Math.sin(angle) * distance;
+                }
+              });
+            }
+          }}
+          enableNodeDrag={true}
+          onNodeDrag={(node: NodeObject) => {
+            if (isGraphNode(node)) {
+              // Allow free dragging - update fixed position to current position
+              (node as any).fx = (node as any).x;
+              (node as any).fy = (node as any).y;
+              // Don't constrain during drag - allow nodes to move freely
+            }
+          }}
+          onNodeDragEnd={(node: NodeObject) => {
+            if (isGraphNode(node)) {
+              (node as any).fx = (node as any).x;
+              (node as any).fy = (node as any).y;
+            }
+          }}
+          d3VelocityDecay={0.3}
+          d3AlphaDecay={0.02}
+          d3AlphaMin={0.05}
+          minZoom={0.5}
+          maxZoom={2}
+          centerAt={[0, 0]}
+          onZoom={handleZoom}
+          onWheel={() => false}
+          onTouchStart={(e: TouchEvent) => {
+            e.preventDefault();
+            return false;
+          }}
+          onTouchMove={(e: TouchEvent) => {
+            e.preventDefault();
+            return false;
+          }}
+          cooldownTime={5000}
+        />
       </div>
     </div>
   );
