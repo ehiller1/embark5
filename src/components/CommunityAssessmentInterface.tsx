@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { ArrowRight } from 'lucide-react';
-import { useCommunityMessages, Message } from '@/hooks/useCommunityMessages';
+import { useCommunityAssessmentMessages, Message } from '@/hooks/useCommunityAssessmentMessages';
 import { useSelectedCompanion } from '@/hooks/useSelectedCompanion';
 import { useSectionAvatars } from '@/hooks/useSectionAvatars';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { renderMessageContent } from '@/utils/messageUtils';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
+import { Companion } from '@/hooks/useSelectedCompanion';
 
 interface CommunityAssessmentInterfaceProps {
   disableNext?: boolean;
@@ -24,6 +25,24 @@ interface CommunityAssessmentInterfaceProps {
   };
 }
 
+// Function to get companion from companions_cache in localStorage
+const getCachedCompanion = (): Companion | null => {
+  try {
+    const cachedData = localStorage.getItem('companions_cache');
+    if (cachedData) {
+      const companions = JSON.parse(cachedData);
+      // Find the selected companion (usually the first one in the cache)
+      if (Array.isArray(companions) && companions.length > 0) {
+        return companions[0];
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting cached companion:', error);
+    return null;
+  }
+};
+
 export function CommunityAssessmentInterface({ 
   disableNext = false,
   onUserMessageSent,
@@ -37,26 +56,73 @@ export function CommunityAssessmentInterface({
     input4: ''
   }
 }: CommunityAssessmentInterfaceProps) {
-  const { messages, setMessages, isLoading, generateInitialMessage, handleSendMessage, isFirstUserMessageSent } = useCommunityMessages();
   const { selectedCompanion } = useSelectedCompanion();
   const { getAvatarForPage } = useSectionAvatars();
+  const [input, setInput] = useState('');
+  const [churchName] = useState(
+    () => localStorage.getItem('church_name') || ""
+  );
+  const [location] = useState(
+    () => localStorage.getItem("user_location") || ""
+  );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
-  const [input, setInput] = useState('');
+  // Start with autoScroll disabled so the view does not jump on initial render
+  const [autoScroll, setAutoScroll] = useState(false);
+  const didMountRef = useRef(false);
+  const [cachedCompanion, setCachedCompanion] = useState<Companion | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Load cached companion on mount
+  useEffect(() => {
+    setCachedCompanion(getCachedCompanion());
+  }, []);
+
+  // Prevent initial focus from jumping the window to the input at the bottom
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el && document.activeElement === el) {
+      try { el.blur(); } catch {}
+      try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); } catch {}
+    }
+  }, []);
 
   const informationGathererAvatar = getAvatarForPage('community-assessment');
 
-  // Scroll-to-bottom logic
+  const {
+    messages,
+    isLoading,
+    sendMessage,
+    generateInitialMessage,
+  } = useCommunityAssessmentMessages(
+    churchName,
+    location,
+    selectedCompanion,
+    informationGathererAvatar?.avatar_url,
+    textInputs
+  );
+
+  // Scroll-to-bottom logic (only within the scroll area; do not jump page on mount)
   const scrollToBottom = useCallback(() => {
-    if (messagesEndRef.current && (autoScroll || messages.length <= 2)) {
-      messagesEndRef.current.scrollIntoView({
-        behavior: messages.length <= 2 ? 'auto' : 'smooth',
-      });
+    if (!scrollAreaRef.current) return;
+    if (!(autoScroll || messages.length <= 2)) return;
+    try {
+      const el = scrollAreaRef.current;
+      el.scrollTo({ top: el.scrollHeight, behavior: messages.length <= 2 ? 'auto' : 'smooth' });
+    } catch {
+      // Fallback to end marker if needed
+      if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     }
   }, [autoScroll, messages.length]);
 
   useEffect(() => {
+    // Skip auto-scroll on initial mount to keep page at top inputs
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
@@ -91,85 +157,7 @@ export function CommunityAssessmentInterface({
     }
   };
 
-  // Auto-create message when text inputs are filled (with dependency control to prevent loops)
-  const [hasCreatedAutoMessage, setHasCreatedAutoMessage] = useState(false);
-  
-  useEffect(() => {
-    // COMPLETELY DISABLE auto-message creation if ANY messages exist
-    if (messages.length > 0) {
-      console.log('[CommunityAssessment] Messages already exist, skipping auto-creation');
-      return;
-    }
-    
-    // Only create auto-message if we haven't already created one
-    if (hasCreatedAutoMessage) {
-      console.log('[CommunityAssessment] Auto-message already created, skipping');
-      return;
-    }
-    
-    const hasTextInputs = Object.values(textInputs).some(input => input.trim() !== '');
-    const communityResearchRaw = localStorage.getItem('community_research_notes');
-    const cleanedResearchData = communityResearchRaw ? cleanCommunityResearchData(communityResearchRaw) : null;
-    const hasResearchData = cleanedResearchData && Object.keys(cleanedResearchData).length > 0;
-    
-    // Only auto-create if we have content and haven't already created the message
-    if ((hasTextInputs || hasResearchData) && !isLoading && !hasCreatedAutoMessage) {
-      console.log('[CommunityAssessment] Auto-creating clean user message');
-      setHasCreatedAutoMessage(true); // Prevent multiple creations
-      
-      // Create a simple, clean user message
-      const userMessage = [];
-      
-      // Add text input data if available
-      if (hasTextInputs) {
-        userMessage.push('Here is my assessment of my community:');
-        if (textInputs.input1?.trim()) {
-          userMessage.push(`Demographics: ${textInputs.input1}`);
-        }
-        if (textInputs.input2?.trim()) {
-          userMessage.push(`Community Needs: ${textInputs.input2}`);
-        }
-        if (textInputs.input3?.trim()) {
-          userMessage.push(`Community Assets: ${textInputs.input3}`);
-        }
-        if (textInputs.input4?.trim()) {
-          userMessage.push(`Opportunities for Engagement: ${textInputs.input4}`);
-        }
-      }
-      
-      // Add research data if available
-      if (hasResearchData) {
-        if (userMessage.length > 0) userMessage.push('');
-        userMessage.push('I have also conducted research on my community and found:');
-        
-        Object.keys(cleanedResearchData).forEach(category => {
-          userMessage.push(`\n${category}:`);
-          cleanedResearchData[category].forEach((item: any) => {
-            userMessage.push(`- ${item.title}: ${item.content}`);
-            if (item.annotation) {
-              userMessage.push(`  Note: ${item.annotation}`);
-            }
-          });
-        });
-      }
-      
-      if (userMessage.length === 0) {
-        userMessage.push('I would like to discuss my community and explore ministry opportunities.');
-      }
-      
-      const finalContent = userMessage.join('\n');
-      
-      console.log('[CommunityAssessment] Sending clean user message:', finalContent);
-      
-      // Send the clean user message
-      handleSendMessage(finalContent);
-      
-      // Notify parent component about user message
-      if (onUserMessageSent) {
-        onUserMessageSent();
-      }
-    }
-  }, [textInputs, messages.length, isLoading, handleSendMessage, onUserMessageSent, hasCreatedAutoMessage]);
+  // Removed auto-created clean user message to prevent duplicates
 
   // Track user scroll
   const handleScroll = useCallback(() => {
@@ -250,7 +238,7 @@ export function CommunityAssessmentInterface({
       finalContent = inputSummary;
     }
     
-    await handleSendMessage(finalContent);
+    await sendMessage(finalContent);
     setInput('');
     
     // Notify parent component about user message
@@ -276,12 +264,11 @@ export function CommunityAssessmentInterface({
         timestamp: new Date(),
       };
       
-      setMessages((prev: Message[]) => [...prev, reminderMsg]);
-      
-      // Notify parent that reminder was shown
+      // For now, just notify parent that reminder was shown
+      // The reminder message functionality can be added later if needed
       onReminderMessageShown();
     }
-  }, [showReminderMessage, reminderMessage, onReminderMessageShown, setMessages]);
+  }, [showReminderMessage, reminderMessage, onReminderMessageShown]);
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">

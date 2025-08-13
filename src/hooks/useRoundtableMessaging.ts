@@ -267,7 +267,7 @@ export function useRoundtableMessaging(systemPromptType: PromptType | null) {
       }
 
       try {
-        // Parse the response
+        // Parse the response (first try strict JSON)
         const response = JSON.parse(aiResponse.text);
         let refinedScenarios: ScenarioItem[] = [];
         
@@ -278,27 +278,39 @@ export function useRoundtableMessaging(systemPromptType: PromptType | null) {
         } else if (response.scenarios && Array.isArray(response.scenarios)) {
           // Format: { scenarios: [...] }
           refinedScenarios = response.scenarios;
-        } else if (response.scenario || response.scenarioTitle || response.title) {
+        } else if (response.scenario || response.scenarioTitle || response.title || (response as any).Title) {
           // Format: Single scenario object - used by scenario_refinement prompt type
-          refinedScenarios = [{
-            id: response.id || `scenario-${Date.now()}`,
-            title: response.scenarioTitle || response.title || response.scenario || 'Refined Scenario',
-            description: response.description || response.scenarioDescription || '',
-            targetAudience: Array.isArray(response.targetAudience) 
-              ? response.targetAudience 
-              : typeof response.targetAudience === 'string'
-                ? response.targetAudience.split(',').map((item: string) => item.trim())
-                : [],
-            strategicRationale: response.strategicRationale || response.rationale || '',
-            theologicalJustification: response.theologicalJustification || '',
-            potentialChallengesBenefits: response.potentialChallengesBenefits || 
-              (response.potentialChallenges ? 
-                `Challenges: ${response.potentialChallenges}\n\nBenefits: ${response.potentialBenefits || ''}`.trim() 
-                : ''),
-            successIndicators: response.successIndicators || '',
-            impactOnCommunity: response.impactOnCommunity || '',
+          const getVal = (...keys: string[]) => {
+            for (const k of keys) {
+              const val = (response as any)[k];
+              if (val !== undefined && val !== null) return val;
+            }
+            return '';
+          };
+          const rawTargetAudience = getVal('targetAudience', 'Target audience', 'target_audience');
+          const normalizedTargetAudience = Array.isArray(rawTargetAudience)
+            ? rawTargetAudience
+            : typeof rawTargetAudience === 'string'
+              ? rawTargetAudience.split(',').map((s: string) => s.trim()).filter(Boolean)
+              : [];
+          
+          const scenario = {
+            id: (response as any).id || `scenario-${Date.now()}`,
+            title: getVal('scenarioTitle', 'title', 'scenario', 'Title') || 'Refined Scenario',
+            description: getVal('description', 'scenarioDescription', 'Description') || '',
+            targetAudience: normalizedTargetAudience,
+            strategicRationale: getVal('strategicRationale', 'rationale', 'Strategic rationale', 'strategic_rationale'),
+            theologicalJustification: getVal('theologicalJustification', 'Theological justification', 'theological_justification'),
+            potentialChallengesBenefits: getVal('potentialChallengesBenefits', 'Potential challenges/benefits', 'potential_challenges_benefits') || 
+              ((response as any).potentialChallenges ?
+                `Challenges: ${(response as any).potentialChallenges}\n\nBenefits: ${(response as any).potentialBenefits || ''}`.trim() : ''),
+            successIndicators: getVal('successIndicators', 'success_indicators', 'Success indicators'),
+            impactOnCommunity: getVal('impactOnCommunity', 'impact_on_community', 'Impact on community'),
             is_refined: true // Mark as refined
-          }];
+          };
+          
+          console.log('Parsed single scenario with all fields:', scenario);
+          refinedScenarios = [scenario];
           
           console.log('Successfully parsed single scenario format:', refinedScenarios[0]);
         } else {
@@ -345,15 +357,31 @@ export function useRoundtableMessaging(systemPromptType: PromptType | null) {
         return refinedScenarios;
         
       } catch (parseError) {
-        console.error('Failed to parse AI response as JSON, using raw text:', {
-          error: parseError,
-          response: aiResponse.text
-        });
-        // If JSON parsing fails, return the raw text as a scenario
+        console.error('Failed to parse AI response as JSON. Attempting regex extraction...', parseError);
+        const text = aiResponse.text || '';
+        const titleMatch = text.match(/\btitle\s*:\s*(.+?)(?=;|\n|$)/i);
+        const descMatch = text.match(/\bdescription\s*:\s*([\s\S]+)/i);
+        if (titleMatch || descMatch) {
+          const extractedTitle = titleMatch ? titleMatch[1].trim() : 'Refined Scenario';
+          const extractedDesc = descMatch ? descMatch[1].trim() : text.trim();
+          return [{
+            id: `scenario-${Date.now()}`,
+            title: extractedTitle,
+            description: extractedDesc,
+            targetAudience: [],
+            strategicRationale: '',
+            theologicalJustification: '',
+            potentialChallengesBenefits: '',
+            successIndicators: '',
+            impactOnCommunity: ''
+          }];
+        }
+        console.warn('Regex extraction failed; using raw text as description.');
+        // If JSON parsing and regex both fail, return the raw text as a scenario
         return [{
           id: `scenario-${Date.now()}`,
           title: 'Refined Scenario',
-          description: aiResponse.text,
+          description: text,
           targetAudience: [],
           strategicRationale: '',
           theologicalJustification: '',

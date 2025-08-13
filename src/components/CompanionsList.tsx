@@ -88,16 +88,19 @@ export function CompanionsList() {
           <p className="text-muted-foreground text-center py-2 text-xs">No companions found</p>
         ) : (
           <div className="grid grid-cols-1 gap-1">
-            {allCompanions.map((companion) => {
+            {allCompanions.map((companion, index) => {
               const initials = companion.name 
                 ? companion.name.charAt(0).toUpperCase() 
                 : "C";
               
               const isSelected = selectedCompanion?.id === companion.id;
+              
+              // Ensure we always have a unique key, fallback to index if id is missing
+              const uniqueKey = companion.id || `companion-${index}`;
                 
               return (
                 <div 
-                  key={companion.id} 
+                  key={uniqueKey} 
                   className={`
                     relative flex items-center gap-2 p-1.5 rounded-md 
                     hover:bg-accent/80 cursor-pointer transition-all duration-200

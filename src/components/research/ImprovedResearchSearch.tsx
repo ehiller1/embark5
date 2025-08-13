@@ -39,6 +39,8 @@ interface ImprovedResearchSearchProps {
   onNext: () => void;
   location: string;
   onLocationChange: (location: string) => void;
+  onSelectResult?: (result: SearchResult) => void;
+  selectedResultIds?: string[];
 }
 
 export function ImprovedResearchSearch({
@@ -55,6 +57,8 @@ export function ImprovedResearchSearch({
   onNext,
   location,
   onLocationChange,
+  onSelectResult,
+  selectedResultIds = [],
 }: ImprovedResearchSearchProps) {
   const [selectedResult, setSelectedResult] = useState<SearchResult | null>(null);
   const [isAnnotationModalOpen, setIsAnnotationModalOpen] = useState(false);
@@ -246,10 +250,13 @@ export function ImprovedResearchSearch({
                 {results.map((result) => (
                   <Card
                     key={result.id}
+                    onClick={() => onSelectResult?.(result)}
                     className={`transition-all cursor-pointer ${
-                      isResultSaved(result.id)
-                        ? 'bg-green-50 border-green-200'
-                        : 'hover:shadow-md hover:bg-accent/20'
+                      selectedResultIds.includes(result.id)
+                        ? 'bg-blue-50 border-blue-300 shadow-md'
+                        : isResultSaved(result.id)
+                          ? 'bg-green-50 border-green-200'
+                          : 'hover:shadow-md hover:bg-accent/20'
                     }`}
                   >
                     <CardContent className="p-4">
@@ -315,22 +322,7 @@ export function ImprovedResearchSearch({
         </Card>
       )}
 
-      {/* Action Bar */}
-      {totalSavedCount > 0 && (
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div className="text-sm text-muted-foreground">
-                {totalSavedCount} research items collected
-              </div>
-              <Button onClick={onNext} className="bg-primary hover:bg-primary/90">
-                Review & Organize
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Annotation Modal */}
       <ResearchAnnotationModal

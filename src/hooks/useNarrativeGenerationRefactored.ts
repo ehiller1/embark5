@@ -244,15 +244,31 @@ export function useNarrativeGenerationRefactored(
         return;
       }
 
-      let tpl = pr.data.prompt;
-      tpl = tpl
-        .replace(/<AVATAR_TYPE>/g, avatarType)
-        .replace(/<VOCATIONAL_STATEMENT>/g, userMessage)
-        .replace(/<CONVERSATION_HISTORY>/g, conversationHistory);
+      // Get the actual vocational statement from localStorage or database
+      const storedVocationalStatement = localStorage.getItem('vocational_statement') || 'No vocational statement available';
+      
+      // Handle different avatar types and their properties
+      let companionTraits = 'wisdom and guidance';
+      let companionSpeechPattern = 'thoughtful and clear';
+      let churchAvatarPerspective = 'church perspective';
+      
+      if (avatarType === 'church' || avatarType === 'community') {
+        churchAvatarPerspective = avatar?.avatar_point_of_view || `${avatarType} perspective`;
+      }
+      
+      let systemPrompt = pr.data.prompt;
+      systemPrompt = systemPrompt
+        .replace(/\$\(avatar_type\)/g, avatarType)
+        .replace(/\$\(vocational_statement\)/g, storedVocationalStatement)
+        .replace(/\$\(conversation_history\)/g, conversationHistory)
+        .replace(/\$\(companion_traits\)/g, companionTraits)
+        .replace(/\$\(companion_speech_pattern\)/g, companionSpeechPattern)
+        .replace(/\$\(church_avatar\)/g, churchAvatarPerspective);
 
       const resp = await generateResponse({
         messages: [
-          { role: 'user', content: tpl }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
         ],
         temperature: 0.7,
         maxTokens: 200
@@ -297,15 +313,27 @@ export function useNarrativeGenerationRefactored(
         return;
       }
 
-      let tpl = pr.data.prompt;
-      tpl = tpl
-        .replace(/<AVATAR_TYPE>/g, 'companion')
-        .replace(/<VOCATIONAL_STATEMENT>/g, userMessage)
-        .replace(/<CONVERSATION_HISTORY>/g, conversationHistory);
+      // Get the actual vocational statement from localStorage or database
+      const storedVocationalStatement = localStorage.getItem('vocational_statement') || 'No vocational statement available';
+      
+      // Handle companion-specific properties
+      const companionTraits = comp?.traits || 'wisdom and guidance';
+      const companionSpeechPattern = comp?.speech_pattern || 'thoughtful and clear';
+      const churchAvatarPerspective = 'companion perspective';
+      
+      let systemPrompt = pr.data.prompt;
+      systemPrompt = systemPrompt
+        .replace(/\$\(avatar_type\)/g, 'companion')
+        .replace(/\$\(vocational_statement\)/g, storedVocationalStatement)
+        .replace(/\$\(conversation_history\)/g, conversationHistory)
+        .replace(/\$\(companion_traits\)/g, companionTraits)
+        .replace(/\$\(companion_speech_pattern\)/g, companionSpeechPattern)
+        .replace(/\$\(church_avatar\)/g, churchAvatarPerspective);
 
       const resp = await generateResponse({
         messages: [
-          { role: 'user', content: tpl }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
         ],
         temperature: 0.7,
         maxTokens: 200

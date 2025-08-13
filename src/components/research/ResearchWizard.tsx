@@ -56,6 +56,7 @@ export function ResearchWizard({
 }: ResearchWizardProps) {
   const [currentStep, setCurrentStep] = useState<WizardStep>('search');
   const [savedResultIds, setSavedResultIds] = useState<string[]>([]);
+  const [selectedResultIds, setSelectedResultIds] = useState<string[]>([]);
   const { toast } = useToast();
 
   // Load saved result IDs from localStorage
@@ -106,6 +107,39 @@ export function ResearchWizard({
       description: 'Your annotated research has been added to your collection.',
     });
   };
+
+  const handleSelectResult = (result: SearchResult) => {
+    setSelectedResultIds(prev => 
+      prev.includes(result.id) 
+        ? prev.filter(id => id !== result.id)
+        : [...prev, result.id]
+    );
+  };
+
+  const handleAnnotateFromReview = (result: SearchResult) => {
+    // Find the original search result to get metadata
+    const metadata = {
+      tags: ['annotated'],
+      source: result.type || 'web',
+      sourceTitle: result.title,
+      sourceLink: result.link,
+    };
+
+    // Save the note with enhanced metadata
+    onSaveNote(result.snippet, activeCategory, metadata);
+
+    // Mark this result as saved
+    const newSavedIds = [...savedResultIds, result.id];
+    updateSavedResults(newSavedIds);
+
+    toast({
+      title: 'Research Item Saved',
+      description: 'Your selected research has been added to your collection.',
+    });
+  };
+
+  // Get selected results from the current search results
+  const selectedResults = results.filter(result => selectedResultIds.includes(result.id));
 
   const handleStepChange = (step: WizardStep) => {
     setCurrentStep(step);
@@ -242,16 +276,21 @@ export function ResearchWizard({
             onNext={() => handleStepChange('review')}
             location={location}
             onLocationChange={onLocationChange}
+            onSelectResult={handleSelectResult}
+            selectedResultIds={selectedResultIds}
           />
         )}
 
         {currentStep === 'review' && (
           <ResearchCollectionDashboard
             notes={notes}
+            selectedResults={selectedResults}
+            activeCategory={activeCategory}
             onEditNote={onEditNote}
             onDeleteNote={onDeleteNote}
+            onAnnotateResult={handleAnnotateFromReview}
             onNext={onNext}
-            totalNoteCount={totalNoteCount}
+            totalNoteCount={totalNoteCount + selectedResults.length}
           />
         )}
       </div>
@@ -295,7 +334,7 @@ export function ResearchWizard({
                     disabled={totalNoteCount === 0}
                     className="bg-primary hover:bg-primary/90"
                   >
-                    Continue to Assessment
+                    Next Step: Continue to Assessment
                     <ArrowRight className="h-4 w-4 ml-2" />
                   </Button>
                 )}

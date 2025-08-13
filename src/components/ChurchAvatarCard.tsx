@@ -8,23 +8,54 @@ interface ChurchAvatarCardProps {
   showChangeButton?: boolean;
 }
 
-interface ChurchAvatar {
+// Support both legacy and current avatar shapes
+interface LegacyChurchAvatar {
   avatar_id: string;
   avatar_name: string;
   avatar_image: string;
   avatar_description: string;
-  avatar_point_of_view: string;
+  avatar_point_of_view?: string;
 }
+
+interface CurrentChurchAvatar {
+  id: string;
+  name?: string; // sometimes present
+  role?: 'church';
+  image_url?: string;
+  description?: string; // often mirrors avatar_point_of_view
+  avatar_name: string;
+  avatar_point_of_view: string;
+  avatar_structured_data?: unknown;
+}
+
+type AnyChurchAvatar = LegacyChurchAvatar | CurrentChurchAvatar;
 
 export const ChurchAvatarCard: React.FC<ChurchAvatarCardProps> = ({
   onChangeAspiration,
   showChangeButton = true
 }) => {
-  const [churchAvatar, setChurchAvatar] = useState<ChurchAvatar | null>(null);
+  const [churchAvatar, setChurchAvatar] = useState<AnyChurchAvatar | null>(null);
+
+  const normalize = (raw: AnyChurchAvatar | null) => {
+    if (!raw) return null;
+    // Prefer current shape fields, fall back to legacy
+    const avatarName = (raw as CurrentChurchAvatar).avatar_name || (raw as LegacyChurchAvatar).avatar_name;
+    const image = (raw as CurrentChurchAvatar).image_url || (raw as LegacyChurchAvatar).avatar_image || '';
+    const pov = (raw as CurrentChurchAvatar).avatar_point_of_view || (raw as LegacyChurchAvatar).avatar_point_of_view || '';
+    const description = pov || (raw as LegacyChurchAvatar).avatar_description || (raw as CurrentChurchAvatar).description || '';
+    return {
+      avatar_name: avatarName,
+      image_url: image,
+      avatar_point_of_view: pov,
+      description,
+    };
+  };
 
   useEffect(() => {
-    // Fetch church avatar from localStorage
-    const storedAvatar = localStorage.getItem('church_avatar');
+    // Read current key first, then fall back to legacy key for backward compatibility
+    const storedSelected = localStorage.getItem('selected_church_avatar');
+    const storedLegacy = !storedSelected ? localStorage.getItem('church_avatar') : null;
+    const storedAvatar = storedSelected || storedLegacy;
     if (storedAvatar) {
       try {
         setChurchAvatar(JSON.parse(storedAvatar));
@@ -47,23 +78,25 @@ export const ChurchAvatarCard: React.FC<ChurchAvatarCardProps> = ({
     return description.length > 100 ? `${description.substring(0, 97)}...` : description;
   };
 
+  const normalized = normalize(churchAvatar);
+
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-3">
           <Avatar className="h-10 w-10 border-2 border-primary/20">
-            <AvatarImage src={churchAvatar.avatar_image} alt={churchAvatar.avatar_name} />
-            <AvatarFallback>{churchAvatar.avatar_name.charAt(0).toUpperCase()}</AvatarFallback>
+            <AvatarImage src={normalized?.image_url || ''} alt={normalized?.avatar_name || 'Avatar'} />
+            <AvatarFallback>{(normalized?.avatar_name || 'A').charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
-          {churchAvatar.avatar_name}
+          {normalized?.avatar_name}
         </CardTitle>
       </CardHeader>
       <CardContent className="pb-2">
         <p className="text-sm text-muted-foreground">
-          {truncateDescription(churchAvatar.avatar_description)}
+          {truncateDescription(normalized?.description || '')}
         </p>
         <p className="text-xs text-muted-foreground mt-1 italic">
-          {churchAvatar.avatar_point_of_view}
+          {normalized?.avatar_point_of_view}
         </p>
       </CardContent>
       {showChangeButton && (

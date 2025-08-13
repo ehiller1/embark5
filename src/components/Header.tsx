@@ -6,7 +6,7 @@ import { MobileNavigation } from './navigation/MobileNavigation';
 import { UserMenu } from './navigation/UserMenu';
 import { useUserProfile } from '@/integrations/lib/auth/UserProfileProvider';
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
-import { ChatSupportIcon } from './ChatSupportIcon';
+
 import { AuthModal } from '@/components/AuthModal';
 import { Clock } from 'lucide-react'; // Add this at the top with other icon imports
 import {
@@ -200,9 +200,7 @@ export function Header() {
               Log In
             </button>
           )}
-          <div className="ml-4 absolute top-[calc(100%+12px)] right-0">
-            <ChatSupportIcon />
-          </div>
+
         </div>
 
         {/* AuthModal for header login button */}

@@ -303,12 +303,12 @@ export const RoundtableMessaging: React.FC<RoundtableMessagingProps> = ({
             </Button>
           </div>
           
-          {/* Main content area with messages - fixed height with scroll */}
-          <div className="flex-grow flex flex-col overflow-hidden">
+          {/* Main content area with messages - larger, responsive height with scroll */}
+          <div className="flex-grow flex flex-col overflow-hidden min-h-[400px]">
           {error ? (
             <ErrorState error={error} onRetry={() => setError(null)} />
           ) : (
-            <div className="flex flex-col space-y-4 overflow-y-auto h-[calc(100vh-350px)] pb-4">
+            <div className="flex flex-col space-y-4 overflow-y-auto min-h-[320px] max-h-[calc(100vh-260px)] pb-4">
               {/* Hardcoded message bubble with avatar info (church or companion) */}
               {displayAvatar && (
                 <div className="flex items-start gap-3 p-3 rounded-lg">

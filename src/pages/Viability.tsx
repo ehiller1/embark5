@@ -121,6 +121,8 @@ const Analysis = () => {
   });
   const [isCalculatingScore, setIsCalculatingScore] = useState(false);
   const { generateResponse } = useOpenAI();
+  // Prevent overlapping score calculations
+  const calcInFlightRef = useRef(false);
 
   // Track which stage score has been calculated: 'none' | 'stage1' | 'stage2'
   const [scoreStage, setScoreStage] = useState<'none' | 'stage1' | 'stage2'>('none');
@@ -192,7 +194,12 @@ const Analysis = () => {
       setViabilityScore(null);
       return;
     }
-    
+
+    // Guard against overlapping requests
+    if (calcInFlightRef.current) {
+      return;
+    }
+    calcInFlightRef.current = true;
     setIsCalculatingScore(true);
     
     try {
@@ -307,6 +314,7 @@ const Analysis = () => {
       });
     } finally {
       setIsCalculatingScore(false);
+      calcInFlightRef.current = false;
     }
   };
 
@@ -320,16 +328,11 @@ const Analysis = () => {
   // Allow access without authentication
   // The viability page should be accessible to users who are uncertain about starting
 
-  // Generate initial message when component mounts
+  // Generate initial message once on mount (hook guards against duplicates)
   useEffect(() => {
-    const hasUserMessage = messages.some(msg => msg.sender === 'user');
-    const hasAssistantMessage = messages.some(msg => msg.sender === 'assistant');
-    
-    if (!hasUserMessage && !hasAssistantMessage) {
-      // Only generate initial message if there are no messages yet
-      generateInitialMessage(textInputs);
-    }
-  }, [textInputs, generateInitialMessage, messages]);
+    generateInitialMessage(textInputs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Function to scroll to the bottom of the conversation
   const scrollToBottom = useCallback(() => {
@@ -357,7 +360,16 @@ const Analysis = () => {
      } else if (scoreStage === 'stage1' && isStage2Ready(textInputs, messages)) {
        triggerCalculation('stage2');
      }
-   }, [textInputs, messages, scoreStage]);
+    }, [textInputs, messages, scoreStage]);
+
+    // Clear any pending debounce timer on unmount
+    useEffect(() => {
+      return () => {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+        }
+      };
+    }, []);
 
    // Track if this is the first render with messages
   const isFirstRender = useRef(true);

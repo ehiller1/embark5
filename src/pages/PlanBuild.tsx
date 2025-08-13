@@ -132,13 +132,28 @@ export function PlanBuilder(props: PlanBuilderProps) {
           if (Array.isArray(parsed) && parsed.length > 0) {
             scenarios = parsed;
           } else if (parsed && !Array.isArray(parsed)) {
-            scenarios = [parsed];
+            // If parsed is an object, wrap it. If it's a string, convert to minimal ScenarioItem
+            if (typeof parsed === 'string') {
+              const trimmed = parsed.trim();
+              scenarios = trimmed
+                ? [{ id: 'local-storage-scenario', title: 'Saved Scenario', description: trimmed } as unknown as ScenarioItem]
+                : [];
+            } else {
+              scenarios = [parsed];
+            }
           } else {
             scenarios = [];
           }
         } catch {
-          scenarios = [];
+          // If it's not valid JSON, treat the raw string as a scenario description
+          const trimmed = scenariosStr.trim();
+          scenarios = trimmed
+            ? [{ id: 'local-storage-scenario', title: 'Saved Scenario', description: trimmed } as unknown as ScenarioItem]
+            : [];
         }
+      } else {
+        // Initialize as empty array if no localStorage data
+        scenarios = [];
       }
   
       // --- Supabase fallback ---
@@ -183,7 +198,7 @@ export function PlanBuilder(props: PlanBuilderProps) {
       setFetchedVocationalStatement(voc);
       setFetchedScenarios(scenarios);
   
-      const ok = !!summary && !!voc && !!(scenarios && scenarios.length > 0);
+      const ok = !!summary && !!voc && !!(scenarios && Array.isArray(scenarios) && scenarios.length > 0);
       setPrereqsMet(ok);
       setIsLoadingPrereqs(false);
       if (!ok && !isDialogOpen) setIsDialogOpen(true);
@@ -269,12 +284,12 @@ export function PlanBuilder(props: PlanBuilderProps) {
         .replace(/\$\(companion_type\)/g, 'Guide')
         .replace(/\$\(messages from previous conversation\)/g, msgText)
         
-        // Also handle the {{var}} format for backward compatibility
-        .replace(/{{scenario}}/g, scenarioDesc)
-        .replace(/{{vocational_statement}}/g, vocationalStmt)
-        .replace(/{{research_summary}}/g, researchSummary)
-        .replace(/{{avatar_perspectives}}/g, [...churchAvatars, ...communityAvatars].join('\n'))
-        .replace(/{{message_history}}/g, msgText);
+        // Also handle the $(var) format for consistency
+        .replace(/\$\(scenario\)/g, scenarioDesc)
+        .replace(/\$\(vocational_statement\)/g, vocationalStmt)
+        .replace(/\$\(research_summary\)/g, researchSummary)
+        .replace(/\$\(avatar_perspectives\)/g, [...churchAvatars, ...communityAvatars].join('\n'))
+        .replace(/\$\(message_history\)/g, msgText);
       
       console.log('[PlanBuild] Populated prompt:', prompt);
 
@@ -407,11 +422,13 @@ const renderJsonSection = (value: any): React.ReactNode => {
       toast({ title: "Plan Saved" });
       setShowSaveDialog(false);
       onSaveSuccess?.();
+      // Redirect to Clergy Home after a successful save
+      navigate('/clergy-home');
     } catch (err: any) {
       console.error("Save Error:", err);
       toast({ title: "Save Failed", description: err.message, variant: "destructive" });
     }
-  }, [plan, selectedScenario, onSaveSuccess, toast, user]);
+  }, [plan, selectedScenario, onSaveSuccess, toast, user, navigate]);
 
   // ----------- 7. MAIN RENDER -----------
   return (

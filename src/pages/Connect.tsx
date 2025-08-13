@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { AlertCircle } from 'lucide-react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { shouldShowDemoModals } from '@/config/demoConfig';
 import { NetworkVisualization } from '@/components/NetworkVisualization';
@@ -14,7 +14,6 @@ import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { Navigate } from 'react-router-dom';
 import { ErrorState } from '@/components/ErrorState';
 import { NetworkNode } from '@/types/NetworkTypes';
-import { AlertCircle } from 'lucide-react';
 
 const Connect = () => {
   const navigate = useNavigate();
@@ -132,15 +131,40 @@ const NetworkMapSection: React.FC<NetworkMapSectionProps> = ({
 }) => {
   const [activeGroup, setActiveGroup] = useState<'all' | 'church' | 'community' | 'plan'>('all');
 
-  const hasConnections = networkData && (
+  // Build a capped view of the data: top 5 connections per group by similarity
+  const buildCappedGroup = (groupData: any) => {
+    if (!groupData) return { connections: [], connections_between_nodes: [] };
+    const sorted = Array.isArray(groupData.connections)
+      ? [...groupData.connections].sort((a, b) => (b?.similarity ?? 0) - (a?.similarity ?? 0))
+      : [];
+    const connections = sorted.slice(0, 5);
+    const allowedIds = new Set(connections.map((c: any) => c.id).filter(Boolean));
+    const edges = Array.isArray(groupData.connections_between_nodes)
+      ? groupData.connections_between_nodes.filter((e: any) =>
+          allowedIds.has(e?.source_id) && allowedIds.has(e?.target_id)
+        )
+      : [];
+    return { connections, connections_between_nodes: edges };
+  };
+
+  const cappedData = networkData
+    ? {
+        ...networkData,
+        church_similarity_data: buildCappedGroup(networkData.church_similarity_data),
+        community_similarity_data: buildCappedGroup(networkData.community_similarity_data),
+        plan_similarity_data: buildCappedGroup(networkData.plan_similarity_data),
+      }
+    : null;
+
+  const hasConnections = cappedData && (
     (activeGroup === 'all' && (
-      networkData.church_similarity_data?.connections?.length > 0 ||
-      networkData.community_similarity_data?.connections?.length > 0 ||
-      networkData.plan_similarity_data?.connections?.length > 0
+      cappedData.church_similarity_data?.connections?.length > 0 ||
+      cappedData.community_similarity_data?.connections?.length > 0 ||
+      cappedData.plan_similarity_data?.connections?.length > 0
     )) ||
-    (activeGroup === 'church' && networkData.church_similarity_data?.connections?.length > 0) ||
-    (activeGroup === 'community' && networkData.community_similarity_data?.connections?.length > 0) ||
-    (activeGroup === 'plan' && networkData.plan_similarity_data?.connections?.length > 0)
+    (activeGroup === 'church' && cappedData.church_similarity_data?.connections?.length > 0) ||
+    (activeGroup === 'community' && cappedData.community_similarity_data?.connections?.length > 0) ||
+    (activeGroup === 'plan' && cappedData.plan_similarity_data?.connections?.length > 0)
   );
 
   return (
@@ -191,7 +215,7 @@ const NetworkMapSection: React.FC<NetworkMapSectionProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
             <NetworkVisualization 
-              networkData={networkData}
+              networkData={cappedData}
               onNodeClick={setSelectedNode}
               selectedGroup={activeGroup}
             />

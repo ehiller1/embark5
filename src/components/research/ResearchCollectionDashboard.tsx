@@ -32,8 +32,9 @@ import {
   Eye,
   Grid3X3,
   List,
+  Plus,
 } from 'lucide-react';
-import { Note } from '@/types/research';
+import { Note, SearchResult } from '@/types/research';
 
 interface ResearchItem extends Note {
   tags: string[];
@@ -44,16 +45,22 @@ interface ResearchItem extends Note {
 
 interface ResearchCollectionDashboardProps {
   notes: Record<string, Note[]>;
+  selectedResults?: SearchResult[];
+  activeCategory?: string;
   onEditNote: (note: Note) => void;
   onDeleteNote: (category: string, noteId: string) => void;
+  onAnnotateResult?: (result: SearchResult) => void;
   onNext: () => void;
   totalNoteCount: number;
 }
 
 export function ResearchCollectionDashboard({
   notes,
+  selectedResults = [],
+  activeCategory,
   onEditNote,
   onDeleteNote,
+  onAnnotateResult,
   onNext,
   totalNoteCount,
 }: ResearchCollectionDashboardProps) {
@@ -63,12 +70,13 @@ export function ResearchCollectionDashboard({
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filteredItems, setFilteredItems] = useState<ResearchItem[]>([]);
 
-  // Convert notes to research items with enhanced metadata
+  // Convert notes and selected results to research items with enhanced metadata
   const allResearchItems: ResearchItem[] = React.useMemo(() => {
     const items: ResearchItem[] = [];
+    
+    // Add saved notes
     Object.entries(notes).forEach(([category, categoryNotes]) => {
       categoryNotes.forEach(note => {
-        // Parse tags from content if they exist (assuming they're stored in metadata)
         const tags = note.metadata?.tags || [];
         const source = note.metadata?.source || 'web';
         const sourceTitle = note.metadata?.sourceTitle;
@@ -83,8 +91,36 @@ export function ResearchCollectionDashboard({
         });
       });
     });
+    
+    // Add selected results that haven't been saved yet
+    selectedResults.forEach(result => {
+      // Check if this result is already saved as a note
+      const isAlreadySaved = items.some(item => 
+        item.content.includes(result.snippet) || 
+        (result.title && item.content.includes(result.title))
+      );
+      
+      if (!isAlreadySaved) {
+        const selectedItem: ResearchItem = {
+          id: `selected-${result.id}`,
+          content: result.snippet,
+          category: activeCategory || 'selected',
+          timestamp: new Date().toISOString(),
+          tags: ['selected'],
+          source: result.type === 'ai' ? 'ai' : 'web',
+          sourceTitle: result.title,
+          sourceLink: result.link,
+          metadata: {
+            isSelected: true,
+            originalResult: result
+          }
+        };
+        items.push(selectedItem);
+      }
+    });
+    
     return items.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [notes]);
+  }, [notes, selectedResults, activeCategory]);
 
   // Get all unique tags
   const allTags = React.useMemo(() => {
@@ -97,7 +133,11 @@ export function ResearchCollectionDashboard({
 
   // Get all categories
   const allCategories = React.useMemo(() => {
-    return Object.keys(notes).sort();
+    const categories = new Set(Object.keys(notes));
+    if (selectedResults.length > 0) {
+      categories.add('selected');
+    }
+    return Array.from(categories).sort();
   }, [notes]);
 
   // Filter items based on search and filters
@@ -216,11 +256,16 @@ export function ResearchCollectionDashboard({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
-              {allCategories.map(category => (
-                <SelectItem key={category} value={category}>
-                  {category} ({notes[category]?.length || 0})
-                </SelectItem>
-              ))}
+              {allCategories.map(category => {
+                const count = category === 'selected' 
+                  ? selectedResults.length 
+                  : (notes[category]?.length || 0);
+                return (
+                  <SelectItem key={category} value={category}>
+                    {category} ({count})
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
 
@@ -258,7 +303,9 @@ export function ResearchCollectionDashboard({
               : 'space-y-4'
             }>
               {filteredItems.map((item) => (
-                <Card key={item.id} className="group hover:shadow-md transition-shadow">
+                <Card key={item.id} className={`group hover:shadow-md transition-shadow ${
+                  item.metadata?.isSelected ? 'border-blue-300 bg-blue-50/50' : ''
+                }`}>
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
@@ -271,34 +318,45 @@ export function ResearchCollectionDashboard({
                           {item.category}
                         </Badge>
                       </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => onEditNote(item)}>
-                            <Edit3 className="h-4 w-4 mr-2" />
-                            Edit
-                          </DropdownMenuItem>
-                          {item.sourceLink && (
-                            <DropdownMenuItem asChild>
-                              <a href={item.sourceLink} target="_blank" rel="noopener noreferrer">
-                                <Eye className="h-4 w-4 mr-2" />
-                                View Source
-                              </a>
+                      {item.metadata?.isSelected ? (
+                        <Button 
+                          size="sm" 
+                          onClick={() => onAnnotateResult?.(item.metadata.originalResult)}
+                          className="bg-primary hover:bg-primary/90"
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Annotate
+                        </Button>
+                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onEditNote(item)}>
+                              <Edit3 className="h-4 w-4 mr-2" />
+                              Edit
                             </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem 
-                            onClick={() => onDeleteNote(item.category, item.id)}
-                            className="text-red-600"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            {item.sourceLink && (
+                              <DropdownMenuItem asChild>
+                                <a href={item.sourceLink} target="_blank" rel="noopener noreferrer">
+                                  <Eye className="h-4 w-4 mr-2" />
+                                  View Source
+                                </a>
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuItem 
+                              onClick={() => onDeleteNote(item.category, item.id)}
+                              className="text-red-600"
+                            >
+                              <Trash2 className="h-4 w-4 mr-2" />
+                              Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">

@@ -141,7 +141,33 @@ export const CARD_STATE_CONFIG: Record<CardType, {
   checkDb?: (churchId: string) => Promise<boolean>;
 }> = {
   churchProfile: {
-    checkDb: (churchId: string) => checkChurchProfileExists(churchId),
+    checkDb: async (churchId: string) => {
+      // Directly check the database without calling checkChurchProfileExists to avoid recursion
+      if (!churchId) return false;
+      
+      try {
+        // Check church_profile table
+        const { data: profileData } = await supabase
+          .from('church_profile')
+          .select('church_id')
+          .eq('church_id', churchId)
+          .maybeSingle();
+          
+        if (profileData?.church_id) return true;
+        
+        // Check profiles table for church_name
+        const { data: altProfileData } = await supabase
+          .from('profiles')
+          .select('id, church_name')
+          .eq('id', churchId)
+          .maybeSingle();
+          
+        return !!altProfileData?.church_name;
+      } catch (error) {
+        console.error('Error checking church profile in churchProfile card:', error);
+        return false;
+      }
+    },
     storageKeys: (churchId: string) => [
       `cp_accomplish_${churchId}`,
       `cp_community_${churchId}`,

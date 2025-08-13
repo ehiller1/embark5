@@ -123,10 +123,13 @@ export const NarrativeMessageInput: React.FC<NarrativeMessageInputProps> = ({
                 <TooltipTrigger asChild>
                   <Button
                     onClick={handleFinalizeMissionStatement || handleNavigateToScenario}
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 flex gap-2"
+                    className="text-black font-medium py-2 px-6 rounded-lg transition-colors flex gap-2"
+                    style={{ backgroundColor: '#fdcd62' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fcc332'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fdcd62'}
                   >
                     <ArrowRight className="h-4 w-4" />
-                    <span>Next Step: Finalize the Mission</span>
+                    <span>Next Step: Finalize the Mission Statement</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Finalize your mission statement based on your conversation</TooltipContent>

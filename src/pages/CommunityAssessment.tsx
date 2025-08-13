@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { CommunityAssessmentInterface } from '@/components/CommunityAssessmentInterface';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -17,63 +17,77 @@ interface TextInputs {
 export default function CommunityAssessment() {
   const navigate = useNavigate();
   const { session } = useAuth();
-  const [sessionKey, setSessionKey] = useState<string>('initial');
+  const titleRef = useRef<HTMLHeadingElement | null>(null);
+  const [showChat, setShowChat] = useState(false);
+  
+  // State for text inputs with localStorage persistence
+  const [textInputs, setTextInputs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('community_assessment_inputs');
+      return saved ? JSON.parse(saved) : {
+        input1: '',
+        input2: '',
+        input3: '',
+        input4: ''
+      };
+    } catch {
+      return {
+        input1: '',
+        input2: '',
+        input3: '',
+        input4: ''
+      };
+    }
+  });
+  
   const [userMessageCount, setUserMessageCount] = useState<number>(0);
   const [showReminderMessage, setShowReminderMessage] = useState<boolean>(false);
-  const [autoScroll, setAutoScroll] = useState<boolean>(true);
-  const [textInputs, setTextInputs] = useState<TextInputs>({
-    input1: '',
-    input2: '',
-    input3: '',
-    input4: ''
-  });
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   // Handle text input changes
   const handleInputChange = (field: keyof TextInputs, value: string) => {
-    setTextInputs(prev => ({
-      ...prev,
+    const updatedInputs = {
+      ...textInputs,
       [field]: value
-    }));
+    };
+    setTextInputs(updatedInputs);
+    localStorage.setItem('community_assessment_inputs', JSON.stringify(updatedInputs));
   };
 
-  useEffect(() => {
-    setSessionKey(session?.access_token?.substring(0, 8) || 'no-session');
-  }, [session]);
-
-  // Reset message counter when component unmounts
-  useEffect(() => {
-    return () => {
-      setUserMessageCount(0);
-      setShowReminderMessage(false);
-    };
+  useLayoutEffect(() => {
+    // Simply scroll to top on page load without disabling scroll
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, []);
 
-  // Track user scroll
-  const handleScroll = useCallback(() => {
-    if (!scrollAreaRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
-    setAutoScroll(scrollHeight - scrollTop - clientHeight < 100);
+  // After mount, blur any auto-focused element that could force-scroll the page
+  useEffect(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (el && (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')) {
+      try { el.blur(); } catch {}
+      // Ensure we remain at the top after blurring
+      window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    }
+    // Anchor focus to the title at the very top
+    if (titleRef.current) {
+      // Make it programmatically focusable without tab stop
+      titleRef.current.setAttribute('tabindex', '-1');
+      try { titleRef.current.focus({ preventScroll: true } as any); } catch {}
+    }
   }, []);
 
-  // Track user messages and show reminder
+  // Defer rendering of the chat a bit to prevent scroll anchoring towards the bottom input
+  useEffect(() => {
+    const t = setTimeout(() => setShowChat(true), 200);
+    return () => clearTimeout(t);
+  }, []);
+
+  // These functions are kept for compatibility but not currently used
+  // since the new hook handles messaging internally
   const handleUserMessage = useCallback(() => {
-    setUserMessageCount(prevCount => {
-      const updated = prevCount + 1;
-      console.log(`[CommunityAssessment] Message count: ${updated}`);
-      if (updated >= 3) { // Changed from 10 to 3 for testing, change back to 10 for production
-        console.log('[CommunityAssessment] Showing reminder message');
-        setShowReminderMessage(true);
-      }
-      return updated;
-    });
+    // No-op for now
   }, []);
 
-  // Handle reminder message shown
   const handleReminderShown = useCallback(() => {
-    console.log('[CommunityAssessment] Reminder message shown, resetting counter');
-    setShowReminderMessage(false);
-    setUserMessageCount(0);
+    // No-op for now
   }, []);
 
   return (
@@ -85,8 +99,8 @@ export default function CommunityAssessment() {
           {/* Back button removed */}
 
           {/* 2) TITLE */}
-          <h1 className="text-4xl font-serif font-semibold bg-clip-text text-transparent bg-gradient-journey mb-4">
-            Your Neighborhood Assessment
+          <h1 ref={titleRef} className="text-4xl font-serif font-semibold bg-clip-text text-transparent bg-gradient-journey mb-4">
+            Community Assessment
           </h1>
 
           {/* 3) DESCRIPTION BAR */}
@@ -148,33 +162,30 @@ export default function CommunityAssessment() {
           </div>
 
           {/* 5) EMBEDDED CHAT */}
-          <div className="flex-1 overflow-hidden" ref={scrollAreaRef} onScroll={handleScroll}>
-            <div className="flex-1 overflow-auto">
+          <div className="flex-1" style={{ overflowAnchor: 'none' as any }}>
+            {showChat && (
               <CommunityAssessmentInterface
-                key={sessionKey}
-                disableNext  // this prop removes the “Next” button inside the form
-                onUserMessageSent={handleUserMessage}
-                showReminderMessage={showReminderMessage}
-                onReminderMessageShown={handleReminderShown}
-                textInputs={textInputs}
-                reminderMessage="You have provided a lot of information. Do you want to continue or I can integrate everything you said and you can just click the Next Step button and we can move on"
+                disableNext
+                textInputs={{
+                  input1: textInputs.input1,
+                  input2: textInputs.input2,
+                  input3: textInputs.input3,
+                  input4: textInputs.input4
+                }}
               />
-            </div>
+            )}
           </div>
           
           {/* Next Steps Buttons */}
-          <div className="mt-6 flex justify-between">
+          <div className="mt-6 flex justify-end">
             <Button 
               onClick={() => navigate('/neighborhood-survey')}
-              className="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg flex items-center transition-colors"
+              className="text-black font-medium py-2 px-6 rounded-lg flex items-center transition-colors"
+              style={{ backgroundColor: '#fdcd62' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fcc332'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fdcd62'}
             >
-              Next Steps: Survey the Neighborhood <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-            <Button 
-              onClick={() => navigate('/research-summary')}
-              className="bg-journey-pink hover:bg-journey-pink/90 text-white font-medium py-2 px-6 rounded-lg flex items-center transition-colors"
-            >
-              Next Step: Research Summary <ArrowRight className="ml-2 h-4 w-4" />
+              Next Step: Survey the Neighborhood <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </div>
         </main>

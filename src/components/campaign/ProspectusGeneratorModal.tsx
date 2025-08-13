@@ -249,11 +249,33 @@ For image sections, reference the available logos and community photos.
 For financial sections, use the campaign's financial data.
 `;
 
-      const response = await generateResponse(prompt, 'prospectus_generation');
-      
-      if (response) {
+      const aiResponse = await generateResponse({
+        messages: [
+          {
+            role: 'system',
+            content:
+              'You are a helpful assistant that returns valid JSON only. Do not include any prose or markdown. Always respond strictly with a single JSON object.'
+          },
+          { role: 'user', content: prompt }
+        ],
+        maxTokens: 2000,
+        temperature: 0.7
+      });
+
+      if (aiResponse) {
         try {
-          const parsed = JSON.parse(response);
+          // Prefer the text field returned by useOpenAI hook
+          let rawText = (aiResponse as any).text ?? '';
+          if (typeof rawText !== 'string') rawText = String(rawText || '');
+
+          // Extract JSON block if extra text is present
+          let jsonCandidate = rawText.trim();
+          const jsonMatch = jsonCandidate.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            jsonCandidate = jsonMatch[0];
+          }
+
+          const parsed = JSON.parse(jsonCandidate);
           
           // Add image sections for available media
           const imageSections: ProspectusSection[] = [];
@@ -282,9 +304,10 @@ For financial sections, use the campaign's financial data.
             });
           }
 
+          const baseSections = Array.isArray(parsed.sections) ? parsed.sections : [];
           const allSections = [
             ...imageSections,
-            ...parsed.sections.map((section: any, index: number) => ({
+            ...baseSections.map((section: any, index: number) => ({
               ...section,
               id: section.id || `section-${index}`,
               order: section.order || index + 1,
@@ -306,7 +329,7 @@ For financial sections, use the campaign's financial data.
             description: "AI-powered prospectus content has been generated successfully."
           });
         } catch (parseError) {
-          console.error('Error parsing prospectus response:', parseError);
+          console.error('Error parsing prospectus response:', parseError, aiResponse);
           toast({
             title: "Generation Error",
             description: "Failed to parse the generated prospectus. Please try again.",

@@ -55,6 +55,7 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
   const { user } = useAuth();
   const [editableScenarios, setEditableScenarios] = useState<ExtendedScenarioItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>('0');
+  const [saving, setSaving] = useState<boolean>(false);
 
   useEffect(() => {
     console.log('[RefinedScenarioModal] refinedScenarios prop received:', refinedScenarios);
@@ -96,20 +97,9 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
 
   const handleSave = async () => {
     try {
-      // Convert ExtendedScenarioItem back to ScenarioItem when saving
-      const scenariosToSave: ScenarioItem[] = editableScenarios.map(scenario => ({
-        id: scenario.id,
-        title: scenario.title,
-        description: scenario.description,
-        is_refined: true // Mark as refined when saving
-      }));
-      
-      // Save scenarios using the original onSave function (which saves to 'refined_scenarios')
-      await onSave(scenariosToSave);
-      
-      // Also save to 'scenario_details' in localStorage and database
+      setSaving(true);
+      // Save only the active scenario to 'scenario_details' (localStorage + DB)
       if (user?.id) {
-        // Save the active scenario (the one being viewed) to scenario_details
         const activeScenario = editableScenarios[parseInt(activeTab)];
         if (activeScenario) {
           await saveScenarioDetails(activeScenario, user.id);
@@ -118,22 +108,21 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
       } else {
         console.warn('User ID not available, scenario details not saved to database');
       }
-      
+
       toast({
         title: "Success",
-        description: "Scenarios saved successfully",
+        description: "Scenario saved successfully",
       });
-      
-      // Navigate to narrative-build page after saving
-      navigate('/narrative-build');
-      onClose();
+      // Do not navigate or close the modal per requirements
     } catch (error) {
-      console.error('Error saving scenarios:', error);
+      console.error('Error saving scenario:', error);
       toast({
         title: "Error",
-        description: "Failed to save scenarios. Please try again.",
+        description: "Failed to save scenario. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -146,7 +135,7 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
       is_refined: true // Mark as refined when passing to next page
     }));
     
-    navigate('/plan_build', { 
+    navigate('/plan-build', { 
       state: { 
         scenarios: scenariosToPass,
         fromRefinement: true 
@@ -200,7 +189,7 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
                           />
                         </div>
 
-                        {/* Handle optional extended fields */}
+                        {/* Handle optional extended fields - always show if they exist in the scenario object */}
                         {('targetAudience' in scenario) && (
                           <div className="space-y-2">
                             <Label htmlFor={`targetAudience-${scenarioIndex}`}>Target Audience</Label>
@@ -218,60 +207,60 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
                           </div>
                         )}
 
-                        {(scenario as ExtendedScenarioItem).strategicRationale && (
+                        {('strategicRationale' in scenario) && (
                           <div className="space-y-2">
                             <Label htmlFor={`strategicRationale-${scenarioIndex}`}>Strategic Rationale</Label>
                             <Textarea
                               id={`strategicRationale-${scenarioIndex}`}
-                              value={(scenario as ExtendedScenarioItem).strategicRationale}
+                              value={(scenario as ExtendedScenarioItem).strategicRationale || ''}
                               onChange={(e) => handleInputChange(scenarioIndex, 'strategicRationale', e.target.value)}
                               rows={3}
                             />
                           </div>
                         )}
 
-                        {(scenario as ExtendedScenarioItem).theologicalJustification && (
+                        {('theologicalJustification' in scenario) && (
                           <div className="space-y-2">
                             <Label htmlFor={`theologicalJustification-${scenarioIndex}`}>Theological Justification</Label>
                             <Textarea
                               id={`theologicalJustification-${scenarioIndex}`}
-                              value={(scenario as ExtendedScenarioItem).theologicalJustification}
+                              value={(scenario as ExtendedScenarioItem).theologicalJustification || ''}
                               onChange={(e) => handleInputChange(scenarioIndex, 'theologicalJustification', e.target.value)}
                               rows={3}
                             />
                           </div>
                         )}
 
-                        {(scenario as ExtendedScenarioItem).potentialChallengesBenefits && (
+                        {('potentialChallengesBenefits' in scenario) && (
                           <div className="space-y-2">
                             <Label htmlFor={`potentialChallengesBenefits-${scenarioIndex}`}>Potential Challenges & Benefits</Label>
                             <Textarea
                               id={`potentialChallengesBenefits-${scenarioIndex}`}
-                              value={(scenario as ExtendedScenarioItem).potentialChallengesBenefits}
+                              value={(scenario as ExtendedScenarioItem).potentialChallengesBenefits || ''}
                               onChange={(e) => handleInputChange(scenarioIndex, 'potentialChallengesBenefits', e.target.value)}
                               rows={3}
                             />
                           </div>
                         )}
 
-                        {(scenario as ExtendedScenarioItem).successIndicators && (
+                        {('successIndicators' in scenario) && (
                           <div className="space-y-2">
                             <Label htmlFor={`successIndicators-${scenarioIndex}`}>Success Indicators</Label>
                             <Textarea
                               id={`successIndicators-${scenarioIndex}`}
-                              value={(scenario as ExtendedScenarioItem).successIndicators}
+                              value={(scenario as ExtendedScenarioItem).successIndicators || ''}
                               onChange={(e) => handleInputChange(scenarioIndex, 'successIndicators', e.target.value)}
                               rows={3}
                             />
                           </div>
                         )}
 
-                        {(scenario as ExtendedScenarioItem).impactOnCommunity && (
+                        {('impactOnCommunity' in scenario) && (
                           <div className="space-y-2">
                             <Label htmlFor={`impactOnCommunity-${scenarioIndex}`}>Impact on Community</Label>
                             <Textarea
                               id={`impactOnCommunity-${scenarioIndex}`}
-                              value={(scenario as ExtendedScenarioItem).impactOnCommunity}
+                              value={(scenario as ExtendedScenarioItem).impactOnCommunity || ''}
                               onChange={(e) => handleInputChange(scenarioIndex, 'impactOnCommunity', e.target.value)}
                               rows={3}
                             />
@@ -319,23 +308,26 @@ export const RefinedScenarioModal: React.FC<RefinedScenarioModalProps> = ({
           <div className="flex gap-2">
             <Button 
               onClick={handleSave} 
-              disabled={isSaving}
+              disabled={saving}
               variant="default"
             >
-              {isSaving ? (
+              {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
                 </>
               ) : (
-                'Save Scenarios'
+                'Save Scenario'
               )}
             </Button>
-            <Button 
+            <Button
               onClick={handleContinueToPlanBuild}
               variant="default"
-              className="bg-teal-600 hover:bg-teal-700 text-white"
-              disabled={isSaving}
+              className="text-black font-medium py-2 px-6 rounded-lg transition-colors"
+              style={{ backgroundColor: '#fdcd62' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fcc332'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fdcd62'}
+              disabled={saving}
             >
               Next Step
             </Button>

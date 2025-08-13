@@ -225,6 +225,10 @@ export const NetworkVisualization: React.FC<NetworkVisualizationProps> = ({
         // Process connections between nodes
         if (data.connections_between_nodes) {
             data.connections_between_nodes.forEach((conn: any) => {
+                // If a specific group is selected, only include intra-group edges
+                if (selectedGroup !== 'all' && (conn.source_type !== groupName || conn.target_type !== groupName)) {
+                  return;
+                }
                 const sourceId = `${conn.source_type}-${conn.source_id}`;
                 const targetId = `${conn.target_type}-${conn.target_id}`;
                 

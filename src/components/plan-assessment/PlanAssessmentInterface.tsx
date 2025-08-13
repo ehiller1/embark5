@@ -60,7 +60,8 @@ export function PlanAssessmentInterface({
   );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  // Start with autoScroll disabled so initial load stays at top
+  const [autoScroll, setAutoScroll] = useState(false);
   const [cachedCompanion, setCachedCompanion] = useState<Companion | null>(null);
 
   // Load cached companion on mount
@@ -83,17 +84,12 @@ export function PlanAssessmentInterface({
     textInputs
   );
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change (only if user opted into auto-scroll)
   const scrollToBottom = useCallback(() => {
-    if (
-      messagesEndRef.current &&
-      (autoScroll || messages.length <= 2)
-    ) {
-      messagesEndRef.current.scrollIntoView({
-        behavior: messages.length <= 2 ? "auto" : "smooth",
-      });
+    if (messagesEndRef.current && autoScroll) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
     }
-  }, [autoScroll, messages.length]);
+  }, [autoScroll]);
 
   useEffect(() => {
     scrollToBottom();
@@ -125,6 +121,8 @@ export function PlanAssessmentInterface({
       !isLoading
     ) {
       e.preventDefault();
+      // Enable auto-scroll once the user engages
+      setAutoScroll(true);
       sendMessage(input);
       setInput("");
     }
@@ -133,6 +131,8 @@ export function PlanAssessmentInterface({
   // Send on click
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
+    // Enable auto-scroll once the user engages
+    setAutoScroll(true);
     await sendMessage(input);
     setInput("");
   };

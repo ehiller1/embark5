@@ -576,8 +576,15 @@ const SurveySummaryPage = () => {
 
         const hasChurchProfile = await checkChurchProfileExists(churchId);
         if (!hasChurchProfile) {
-          setError('Please complete your church profile before accessing the survey summary.');
-          return;
+          // In demo mode, allow page to proceed so we can render using demo data
+          if (shouldUseDemoData()) {
+            console.warn('[SurveySummary] Church profile missing; proceeding with demo data.');
+            setIsUsingDemoData(true);
+            // Do not return; the demo fallback below will switch to demo church id
+          } else {
+            setError('Please complete your church profile before accessing the survey summary.');
+            return;
+          }
         }
 
         // First, check if there are any survey responses for the current church
@@ -720,6 +727,20 @@ const SurveySummaryPage = () => {
         </Button>
       </div>
       <h1 className="text-3xl font-bold mb-6">Survey Summary</h1>
+
+      {/* Next Step Button */}
+      <div className="mb-8 flex justify-end">
+        <Button 
+          size="lg" 
+          onClick={() => navigate('/community-research')}
+          className="text-black font-medium py-2 px-6 rounded-lg transition-colors"
+          style={{ backgroundColor: '#fdcd62' }}
+          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fcc332'}
+          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fdcd62'}
+        >
+          Next Step: Research Your Neighborhood
+        </Button>
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -1229,16 +1250,7 @@ const SurveySummaryPage = () => {
         </Dialog>
       )}
 
-      {/* Next Steps Button */}
-      <div className="mt-8 flex justify-center">
-        <Button 
-          size="lg" 
-          onClick={() => navigate('/community-research')}
-          className="bg-journey-pink hover:bg-journey-pink/90 text-white"
-        >
-          Next Steps: Know Your Neighborhood
-        </Button>
-      </div>
+
     </div>
   );
 };

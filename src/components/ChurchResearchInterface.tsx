@@ -263,10 +263,12 @@ export function ChurchResearchInterface({ activeCategory, searchPrompt, onNext }
             onSearch={handleSearch}
             results={searchResults}
             isLoading={isLoading}
-            onSaveResult={saveNoteFromResult}
+            onSelectResult={handleSelectResult}
+            onAnnotate={handleAnnotate}
             activeCategory={activeCategory}
             hasValidationError={!!validationError}
             pageType="church_research"
+            selectedResultId={selectedResultId}
           />
         </div>
         <div className="h-full min-h-0">

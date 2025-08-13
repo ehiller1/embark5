@@ -165,7 +165,7 @@ const App = () => {
                       <Route path="/narrative-build/:scenarioId" element={<ProtectedRoute allowedRoles={['Clergy']}><NarrativeBuild /></ProtectedRoute>} />
                       <Route path="/plan-build" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanBuilder /></ProtectedRoute>} />
                       <Route path="/plan-build/:scenarioId" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanBuilder /></ProtectedRoute>} />
-                      <Route path="/discernment-plan" element={<ProtectedRoute allowedRoles={['Clergy']}><DiscernmentPlanPage /></ProtectedRoute>} />
+                      <Route path="/discernment-plan" element={<ProtectedRoute allowedRoles={['Clergy', 'Parish']}><DiscernmentPlanPage /></ProtectedRoute>} />
                       <Route path="/plan-assessment" element={<ProtectedRoute allowedRoles={['Clergy']}><PlanAssessment /></ProtectedRoute>} />
                       <Route path="/strategic-plan-builder" element={<ProtectedRoute allowedRoles={['Clergy']}><StrategicPlanBuilder /></ProtectedRoute>} />
                                             

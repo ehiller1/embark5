@@ -168,7 +168,10 @@ export default function ScenarioMessagingPage() {
           <div className="flex justify-end mt-6">
             <Button 
               onClick={() => navigate('/narrative-build')} 
-              className="btn-next-step"
+              className="text-black font-medium py-2 px-6 rounded-lg transition-colors"
+              style={{ backgroundColor: '#fdcd62' }}
+              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fcc332'}
+              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fdcd62'}
             >
               Next Steps: Create a Community Mission Statement
               <ArrowRight className="ml-2 h-4 w-4" />

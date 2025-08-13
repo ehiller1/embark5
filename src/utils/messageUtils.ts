@@ -188,24 +188,22 @@ export function renderMessageContent(content: string): string {
         if (typeof parsed === 'object' && parsed !== null && Array.isArray(parsed.messages)) {
           console.log('[renderMessageContent] Found messages array with', parsed.messages.length, 'messages');
           
-          // First check for system messages
-          const systemMsg = parsed.messages.find(
-            (m: { role: string; content: string }) => m.role === 'system' && m.content
-          );
-          
-          if (systemMsg?.content) {
-            console.log('[renderMessageContent] Using system message content');
-            return systemMsg.content;
-          }
-          
-          // Then check for assistant messages
+          // Prefer assistant messages first
           const assistantMsg = parsed.messages.find(
             (m: { role: string; content: string }) => m.role === 'assistant' && m.content
           );
-          
           if (assistantMsg?.content) {
             console.log('[renderMessageContent] Using assistant message content');
             return assistantMsg.content;
+          }
+
+          // Then fall back to system messages
+          const systemMsg = parsed.messages.find(
+            (m: { role: string; content: string }) => m.role === 'system' && m.content
+          );
+          if (systemMsg?.content) {
+            console.log('[renderMessageContent] Using system message content (no assistant present)');
+            return systemMsg.content;
           }
           
           // Fall back to any message with content

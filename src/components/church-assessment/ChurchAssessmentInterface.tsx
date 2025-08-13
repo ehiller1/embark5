@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from "react";
+import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -49,6 +50,7 @@ export function ChurchAssessmentInterface({
     input4: ''
   },
 }: ChurchAssessmentInterfaceProps) {
+  const navigate = useNavigate();
   const { selectedCompanion } = useSelectedCompanion();
   const { getAvatarForPage } = useSectionAvatars();
   const [input, setInput] = useState("");
@@ -60,12 +62,24 @@ export function ChurchAssessmentInterface({
   );
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  // Start with autoScroll disabled so the view does not jump on initial render
+  const [autoScroll, setAutoScroll] = useState(false);
+  const didMountRef = useRef(false);
   const [cachedCompanion, setCachedCompanion] = useState<Companion | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   // Load cached companion on mount
   useEffect(() => {
     setCachedCompanion(getCachedCompanion());
+  }, []);
+
+  // Prevent initial focus from jumping the window to the input at the bottom
+  useEffect(() => {
+    const el = inputRef.current;
+    if (el && document.activeElement === el) {
+      try { el.blur(); } catch {}
+      try { window.scrollTo({ top: 0, left: 0, behavior: 'auto' }); } catch {}
+    }
   }, []);
 
   const informationGathererAvatar = getAvatarForPage("church-assessment");
@@ -83,36 +97,44 @@ export function ChurchAssessmentInterface({
     textInputs
   );
 
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change (within ScrollArea only)
   const scrollToBottom = useCallback(() => {
-    if (
-      messagesEndRef.current &&
-      (autoScroll || messages.length <= 2)
-    ) {
-      messagesEndRef.current.scrollIntoView({
-        behavior: messages.length <= 2 ? "auto" : "smooth",
-      });
-    }
+    const root = scrollAreaRef.current;
+    if (!root) return;
+    // Target the Radix ScrollArea viewport if using shadcn/ui
+    const viewport = root.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+    const el = viewport || root;
+    // Only auto-scroll when explicitly enabled (e.g., after user interaction)
+    if (!autoScroll) return;
+    try {
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } catch {}
   }, [autoScroll, messages.length]);
 
   useEffect(() => {
+    // On initial mount, do not auto-scroll. Subsequent message updates will scroll only if autoScroll is enabled.
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
     scrollToBottom();
   }, [messages, scrollToBottom]);
 
-  // Generate initial message when text inputs are provided or component mounts
+  // Ask the hook to (re)consider generating the initial message on mount and when inputs/avatars change.
+  // The hook prevents duplicates and only generates when appropriate (e.g., inputs provided or welcome message state).
   useEffect(() => {
-    if (messages.length === 0) {
-      // Initial message is now handled by the useChurchAssessmentMessages hook
-      generateInitialMessage();
-    }
+    generateInitialMessage();
   }, [selectedCompanion, informationGathererAvatar, textInputs, generateInitialMessage]);
 
-  // Track user scroll to toggle autoScroll
+  // Track user scroll to toggle autoScroll 
   const handleScroll = useCallback(() => {
-    if (!scrollAreaRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } =
-      scrollAreaRef.current;
+    const root = scrollAreaRef.current;
+    if (!root) return;
+    const viewport = root.querySelector('[data-radix-scroll-area-viewport]') as HTMLDivElement | null;
+    const scroller = viewport || root;
+    const { scrollTop, scrollHeight, clientHeight } = scroller;
     const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+    // Enable auto-scroll when the user has navigated near the bottom
     setAutoScroll(isNearBottom);
   }, []);
 
@@ -125,6 +147,8 @@ export function ChurchAssessmentInterface({
       !isLoading
     ) {
       e.preventDefault();
+      // Enable auto-scroll when the user sends a message
+      setAutoScroll(true);
       sendMessage(input);
       setInput("");
     }
@@ -133,14 +157,16 @@ export function ChurchAssessmentInterface({
   // Send on click
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
+    // Enable auto-scroll when the user sends a message
+    setAutoScroll(true);
     await sendMessage(input);
     setInput("");
   };
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col">
       {/* Messages */}
-      <div className="flex-1 overflow-hidden mb-4">
+      <div className="flex-1 mb-4">
         <ScrollArea
           className="h-full pr-4"
           onScrollCapture={handleScroll}
@@ -212,11 +238,14 @@ export function ChurchAssessmentInterface({
         <div className="flex flex-col gap-3">
           <div className="flex items-end gap-3">
             <Textarea
+              ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type here what you want to say"
               className="flex-1 resize-none min-h-[60px] max-h-[120px]"
+              // Explicitly ensure no auto focus on mount
+              autoFocus={false as unknown as undefined}
             />
             <Button
               onClick={handleSendMessage}
@@ -230,9 +259,8 @@ export function ChurchAssessmentInterface({
           
           <div className="flex justify-between mt-2">
             <Button 
-              variant="outline" 
-              onClick={() => window.location.href = '/scenario'}
-              className="btn-next-step"
+              onClick={() => navigate('/research-summary')}
+              className="bg-journey-pink hover:bg-journey-pink/90 text-white font-medium py-2 px-6 rounded-lg transition-colors"
             >
               Next Step:  Summarize the Findings <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

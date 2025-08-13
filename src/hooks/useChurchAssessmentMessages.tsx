@@ -62,6 +62,21 @@ export function useChurchAssessmentMessages(
   const { getAndPopulatePrompt } = usePrompts();
   const { getAvatarForPage } = useSectionAvatars();
 
+  // Helper: detect legacy input-summary message created by older code (user or assistant)
+  const isInputSummaryMessage = (msg: any) => {
+    if (!msg || typeof msg.content !== 'string') return false;
+    const c = msg.content;
+    return (
+      c.includes('Celebrations:') || c.includes('**Celebrations:**')
+    ) && (
+      c.includes('Opportunities:') || c.includes('**Opportunities:**')
+    ) && (
+      c.includes('Obstacles:') || c.includes('**Obstacles:**')
+    ) && (
+      c.includes('Engagement:') || c.includes('**Engagement:**')
+    );
+  };
+
   // Load cached companion on mount
   useEffect(() => {
     setCachedCompanion(getCachedCompanion());
@@ -76,20 +91,41 @@ export function useChurchAssessmentMessages(
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        const parsed = JSON.parse(stored).map((msg: any) => ({
+        // Parse and sanitize any legacy input-summary user message
+        const parsedRaw = JSON.parse(stored).map((msg: any) => ({
           ...msg,
           timestamp: new Date(msg.timestamp)
         }));
+        const parsed = parsedRaw.filter((m: any) => !isInputSummaryMessage(m));
         if (parsed.length > 0) {
           setMessages(parsed);
-          setIsInitialMessageGenerated(true);
+          // Persist cleaned messages so the legacy message does not reappear
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+          // Consider initial message "generated" only if we already have a user message
+          // This allows input-based generation later when only a welcome assistant message exists
+          const hasUser = parsed.some((m: any) => m.sender === 'user');
+          setIsInitialMessageGenerated(hasUser);
           console.log('[useChurchAssessmentMessages] Loaded stored messages:', parsed.length);
+        } else {
+          setMessages([]);
+          setIsInitialMessageGenerated(false);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
         }
       } catch (err) {
         console.error('[useChurchAssessmentMessages] Failed to parse stored messages:', err);
       }
     }
   }, []);
+
+  // Trigger initial message generation when text inputs change
+  useEffect(() => {
+    const hasTextInputs = !!(textInputs && Object.values(textInputs).some(input => input.trim() !== ''));
+    
+    if (hasTextInputs && !initialMessageInProgressRef.current) {
+      console.log('[useChurchAssessmentMessages] Text inputs detected, triggering initial message generation');
+      generateInitialMessage();
+    }
+  }, [textInputs, churchName, location, selectedCompanion, displayAvatar]);
 
   // Scroll handler
   const handleScroll = () => {
@@ -102,9 +138,31 @@ export function useChurchAssessmentMessages(
 
   // Generate initial message with text inputs - similar to CommunityAssessment logic
   const generateInitialMessage = async () => {
-    // Skip if already generated or in progress
-    if (isInitialMessageGenerated || initialMessageInProgressRef.current || messages.length > 0) {
-      console.log('[useChurchAssessmentMessages] Skipping initial message generation - already exists');
+    // Early guard conditions BEFORE setting the flag
+    const hasTextInputs = !!(textInputs && Object.values(textInputs).some(input => input.trim() !== ''));
+    const hasUserMessage = messages.some(m => m.sender === 'user');
+    const hasOnlyWelcomeAssistant = (
+      messages.length === 1 &&
+      messages[0].sender === 'assistant' &&
+      (
+        messages[0].content.includes('Provide your answers above') ||
+        messages[0].content.includes("I'm ready to help you assess your church")
+      )
+    );
+
+    // Check if already in progress or already generated
+    if (initialMessageInProgressRef.current) {
+      console.log('[useChurchAssessmentMessages] Skipping generation: already in progress');
+      return;
+    }
+
+    if (hasUserMessage && isInitialMessageGenerated) {
+      console.log('[useChurchAssessmentMessages] Skipping generation: already has user message and initial generated');
+      return;
+    }
+
+    if (messages.length > 0 && !hasOnlyWelcomeAssistant && isInitialMessageGenerated) {
+      console.log('[useChurchAssessmentMessages] Skipping generation: messages present and initial already generated');
       return;
     }
 
@@ -114,27 +172,32 @@ export function useChurchAssessmentMessages(
       
       console.log('[useChurchAssessmentMessages] Generating initial message with text inputs');
 
-      // Check if we have text inputs to include
-      const hasTextInputs = textInputs && Object.values(textInputs).some(input => input.trim() !== '');
-      
+      // Guard conditions:
+      // - If no inputs yet: only show welcome if there are no messages at all
+      if (!hasTextInputs) {
+        if (messages.length === 0 && !isInitialMessageGenerated) {
+          const welcomeMessage: Message = {
+            id: Date.now(),
+            sender: "assistant",
+            content: "Provide your answers above and then I will dig into asking for additional detail that will solicit additional information and your perspective on your church.",
+            timestamp: new Date(),
+            companionAvatar,
+            sectionAvatar
+          };
+          setMessages([welcomeMessage]);
+        }
+        setIsInitialMessageGenerated(true);
+        return;
+      }
+
       if (hasTextInputs) {
-        // Create formatted user message with text inputs (similar to CommunityAssessment)
+        // Create formatted inputs payload for the model, but do NOT show it in the chat UI
         const formattedInputs = [
-          textInputs.input1 && `**Celebrations:** ${textInputs.input1}`,
-          textInputs.input2 && `**Opportunities:** ${textInputs.input2}`,
-          textInputs.input3 && `**Obstacles:** ${textInputs.input3}`,
-          textInputs.input4 && `**Engagement:** ${textInputs.input4}`
+          textInputs.input1 && `Celebrations: ${textInputs.input1}`,
+          textInputs.input2 && `Opportunities: ${textInputs.input2}`,
+          textInputs.input3 && `Obstacles: ${textInputs.input3}`,
+          textInputs.input4 && `Engagement: ${textInputs.input4}`
         ].filter(Boolean).join('\n\n');
-
-        // Add user message with the formatted inputs
-        const userMessage: Message = {
-          id: Date.now(),
-          sender: "user",
-          content: formattedInputs,
-          timestamp: new Date()
-        };
-
-        setMessages([userMessage]);
 
         // Generate AI response using the church_assessment prompt
         const { success, data, error } = await getAndPopulatePrompt(
@@ -161,7 +224,7 @@ export function useChurchAssessmentMessages(
           throw new Error(error as string || 'Failed to get church assessment prompt');
         }
 
-        // Add loading message
+        // Add loading message (and remove any prior welcome-only assistant)
         const loadingMsg: Message = {
           id: Date.now() + 1,
           sender: "assistant",
@@ -170,12 +233,18 @@ export function useChurchAssessmentMessages(
           companionAvatar,
           sectionAvatar
         };
-
-        setMessages([userMessage, loadingMsg]);
+        setMessages(prev => {
+          const filtered = prev.filter(m => !(m.sender === 'assistant' && (
+            m.content.includes('Provide your answers above') ||
+            m.content.includes("I'm ready to help you assess your church")
+          )) || !isInputSummaryMessage(m));
+          return [...filtered, loadingMsg];
+        });
 
         // Generate AI response
         const apiMessages = [
           { role: 'system', content: data.prompt },
+          // Provide inputs as a user payload to drive the model, but we do not persist this as a user chat bubble
           { role: 'user', content: formattedInputs }
         ];
         
@@ -189,7 +258,7 @@ export function useChurchAssessmentMessages(
           throw new Error(res.error || 'Failed to generate response');
         }
 
-        // Update loading message with AI response
+        // Update loading message with AI response (replace loading)
         const aiMsg: Message = {
           id: loadingMsg.id,
           sender: "assistant",
@@ -198,23 +267,12 @@ export function useChurchAssessmentMessages(
           companionAvatar,
           sectionAvatar
         };
-        
-        setMessages([userMessage, aiMsg]);
+        setMessages(prev => prev.map(m => m.id === loadingMsg.id ? aiMsg : m));
+        setIsInitialMessageGenerated(true);
       } else {
-        // Show welcome message if no text inputs
-        const welcomeMessage: Message = {
-          id: Date.now(),
-          sender: "assistant",
-          content: "Provide your answers above and then I will dig into asking for additional detail that will solicit additional information and your perspective on your church.",
-          timestamp: new Date(),
-          companionAvatar,
-          sectionAvatar
-        };
-
-        setMessages([welcomeMessage]);
+        // (kept for completeness; handled earlier)
       }
       
-      setIsInitialMessageGenerated(true);
       console.log('[useChurchAssessmentMessages] Initial message generation completed');
     } catch (error) {
       console.error('[useChurchAssessmentMessages] Error generating initial message:', error);
@@ -230,7 +288,7 @@ export function useChurchAssessmentMessages(
       };
 
       setMessages([errorMessage]);
-      setIsInitialMessageGenerated(true);
+      setIsInitialMessageGenerated(false);
     } finally {
       initialMessageInProgressRef.current = false;
     }
@@ -283,11 +341,11 @@ export function useChurchAssessmentMessages(
             companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
             church_avatar_name: displayAvatar?.name ?? '',
             church_avatar_description: displayAvatar?.description ?? '',
-            // Include text inputs if available
-            church_input1: textInputs?.input1 ?? '',
-            church_input2: textInputs?.input2 ?? '',
-            church_input3: textInputs?.input3 ?? '',
-            church_input4: textInputs?.input4 ?? '',
+            // Include text inputs if available (standardized keys)
+            church_celebrations: textInputs?.input1 ?? '',
+            church_opportunities: textInputs?.input2 ?? '',
+            church_obstacles: textInputs?.input3 ?? '',
+            church_engagement: textInputs?.input4 ?? '',
             // Include the user's first message
             user_message: content.trim()
           }
@@ -338,11 +396,11 @@ export function useChurchAssessmentMessages(
             companion_knowledge_domains: Array.isArray(selectedCompanion?.knowledge_domains) ? selectedCompanion.knowledge_domains.join(', ') : '',
             church_avatar_name: displayAvatar?.name ?? '',
             church_avatar_description: displayAvatar?.description ?? '',
-            // Include text inputs if available
-            church_input1: textInputs?.input1 ?? '',
-            church_input2: textInputs?.input2 ?? '',
-            church_input3: textInputs?.input3 ?? '',
-            church_input4: textInputs?.input4 ?? ''
+            // Include text inputs if available (standardized keys)
+            church_celebrations: textInputs?.input1 ?? '',
+            church_opportunities: textInputs?.input2 ?? '',
+            church_obstacles: textInputs?.input3 ?? '',
+            church_engagement: textInputs?.input4 ?? ''
           }
         );
 

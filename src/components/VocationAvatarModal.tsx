@@ -51,6 +51,8 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
   const [showChurchModal, setShowChurchModal] = useState(false);
   // State for managing selected church avatar details modal
   const [showChurchDetailsModal, setShowChurchDetailsModal] = useState(false);
+  // State to track the newly selected avatar before confirmation
+  const [pendingChurchAvatar, setPendingChurchAvatar] = useState<ChurchAvatar | null>(null);
 
   // Log companion information when modal opens
   useEffect(() => {
@@ -62,8 +64,8 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
 
   // Handle church avatar selection
   const handleSelectChurchAvatar = (avatar: ChurchAvatar) => {
-    // Select the church avatar using the hook function (which will handle localStorage)
-    selectChurchAvatar(avatar);
+    // Store the pending selection temporarily
+    setPendingChurchAvatar(avatar);
     
     // Close the church avatar selection modal
     setShowChurchModal(false);
@@ -75,17 +77,18 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
   // Note: onRequestCompanionChange prop is available but currently not used in this component
   
   const handleContinue = () => {
-    // Always proceed to narrative-build regardless of avatar selection
-    onOpenChange(false);
-    
     toast({
       title: "Navigating to narrative build",
       description: "Opening narrative build page...",
     });
-    
-    // Give toast a chance to show before navigation
-    // Use React Router navigation to the Narrative-Build screen
-    navigate('/narrative-build');
+    // Navigate first, then close modal shortly after to avoid racing unmount
+    setTimeout(() => {
+      navigate('/narrative-build', { replace: false });
+      // Second attempt to ensure navigation even if first was pre-commit
+      setTimeout(() => navigate('/narrative-build', { replace: false }), 150);
+      // Now close modals after navigation attempts
+      setTimeout(() => onOpenChange(false), 10);
+    }, 120);
   };
 
   // Function to handle church avatar change
@@ -95,13 +98,29 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
   
   // Function to handle closing the church avatar details modal
   const handleCloseChurchDetailsModal = () => {
-    setShowChurchDetailsModal(false);
-    // Use React Router navigation instead of window.location to prevent page reload
-    navigate('/narrative-build');
+    // Confirm the avatar selection by persisting it
+    if (pendingChurchAvatar) {
+      selectChurchAvatar(pendingChurchAvatar);
+      setPendingChurchAvatar(null);
+    }
+    
+    toast({
+      title: "Avatar selected",
+      description: "Your aspiration has been updated. Proceeding to narrative build...",
+    });
+    // Navigate first, then close dialogs; use small stagger to avoid race conditions
+    setTimeout(() => {
+      navigate('/narrative-build', { replace: false });
+      setTimeout(() => navigate('/narrative-build', { replace: false }), 150);
+      setTimeout(() => setShowChurchDetailsModal(false), 10);
+      setTimeout(() => onOpenChange(false), 20);
+    }, 120);
   };
   
   // Function to go back to church avatar selection from details modal
   const handleBackToSelection = () => {
+    // Clear the pending selection
+    setPendingChurchAvatar(null);
     // Close the details modal
     setShowChurchDetailsModal(false);
     // Open the selection modal
@@ -111,7 +130,7 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
   return (
     <>
       <AlertDialog open={open} onOpenChange={onOpenChange}>
-        <AlertDialogContent className="sm:max-w-2xl">
+        <AlertDialogContent className="sm:max-w-4xl max-h-[80vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-2xl font-serif">
               Choosing an Aspiration
@@ -178,7 +197,7 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
       />
       
       {/* Church Avatar Details Modal */}
-      {churchAvatar && (
+      {pendingChurchAvatar && (
         <AlertDialog open={showChurchDetailsModal} onOpenChange={setShowChurchDetailsModal}>
           <AlertDialogContent>
             <AlertDialogHeader>
@@ -193,12 +212,12 @@ export const VocationAvatarModal: React.FC<VocationAvatarModalProps> = ({
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <Avatar className="h-16 w-16">
-                      <AvatarImage src={churchAvatar.image_url} alt={churchAvatar.avatar_name} />
-                      <AvatarFallback>{churchAvatar.avatar_name?.charAt(0) || 'C'}</AvatarFallback>
+                      <AvatarImage src={pendingChurchAvatar.image_url} alt={pendingChurchAvatar.avatar_name} />
+                      <AvatarFallback>{pendingChurchAvatar.avatar_name?.charAt(0) || 'C'}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-medium text-lg">{churchAvatar.avatar_name}</h3>
-                      <p className="text-sm text-muted-foreground">{churchAvatar.avatar_point_of_view}</p>
+                      <h3 className="font-medium text-lg">{pendingChurchAvatar.avatar_name}</h3>
+                      <p className="text-sm text-muted-foreground">{pendingChurchAvatar.avatar_point_of_view}</p>
                     </div>
                   </div>
                 </CardContent>

@@ -8,6 +8,22 @@ import { useLocation } from 'react-router-dom';
 export function ScrollToTop() {
   const { pathname } = useLocation();
 
+  // Set global manual scroll restoration to avoid browser restoring old positions
+  useEffect(() => {
+    type HistoryWithScroll = History & { scrollRestoration?: 'auto' | 'manual' };
+    const h = window.history as HistoryWithScroll;
+    let previous: 'auto' | 'manual' | undefined;
+    if (typeof h.scrollRestoration !== 'undefined') {
+      previous = h.scrollRestoration;
+      h.scrollRestoration = 'manual';
+    }
+    return () => {
+      if (typeof h.scrollRestoration !== 'undefined' && previous) {
+        h.scrollRestoration = previous;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     // Scroll to top when route changes
     window.scrollTo(0, 0);

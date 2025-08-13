@@ -176,9 +176,9 @@ const CrowdfundingMarketplace = () => {
         if (promptResult.success && promptResult.data?.prompt) {
           console.log('[CrowdfundingMarketplace] Successfully retrieved fundraise prompt for recommendations');
           populatedPrompt = promptResult.data.prompt
-            .replace('{research_summary}', communityResearch || 'General community research and analysis')
-            .replace('{vocational_statement}', 'Committed to serving our community through faith-based initiatives')
-            .replace('{scenario_details}', `Ministry funding scenario for ${profile.church_name || 'Community Church'} in ${profile.location || 'Local Community'}`);
+            .replace('$(research_summary)', communityResearch || 'General community research and analysis')
+            .replace('$(vocational_statement)', 'Committed to serving our community through faith-based initiatives')
+            .replace('$(scenario_details)', `Ministry funding scenario for ${profile.church_name || 'Community Church'} in ${profile.location || 'Local Community'}`);
         } else {
           throw new Error('Fundraise prompt not available');
         }
@@ -284,9 +284,9 @@ const CrowdfundingMarketplace = () => {
       if (promptResult.success && promptResult.data?.prompt) {
         console.log('[CrowdfundingMarketplace] Successfully retrieved fundraise prompt');
         populatedPrompt = promptResult.data.prompt
-          .replace('{research_summary}', defaultRequest.research_summary)
-          .replace('{vocational_statement}', defaultRequest.vocational_statement)
-          .replace('{scenario_details}', defaultRequest.scenario_details);
+          .replace('$(research_summary)', defaultRequest.research_summary)
+          .replace('$(vocational_statement)', defaultRequest.vocational_statement)
+          .replace('$(scenario_details)', defaultRequest.scenario_details);
       } else {
         throw new Error('Fundraise prompt not available');
       }
@@ -634,7 +634,7 @@ Formulate a Regulation CF compliant fundraising plan that includes extensive det
                   ) : (
                     <Plus className="h-4 w-4" />
                   )}
-                  {loadingAiGeneration ? 'Generating with AI...' : 'Generate with AI'}
+                  {loadingAiGeneration ? 'Generating with AI...' : 'Generate'}
                 </Button>
                 
                 <Button 
@@ -737,6 +737,9 @@ Formulate a Regulation CF compliant fundraising plan that includes extensive det
                               filings={[
                                 {
                                   id: 'mock-1',
+                                  title: 'Form C Filing',
+                                  date: new Date().toISOString(),
+                                  url: '#',
                                   filing_type: 'form_c',
                                   filing_date: new Date().toISOString(),
                                   filing_status: 'accepted',

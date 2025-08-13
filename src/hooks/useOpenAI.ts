@@ -74,7 +74,7 @@ export const useOpenAI = () => {
   };
 
   const generateResponse = async (options: GenerateOptions): Promise<OpenAIResponse> => {
-    const { messages, maxTokens = 4000, temperature = 0.7 } = options;
+    const { messages, maxTokens = 800, temperature = 0.7 } = options;
     
     // Log the full request payload
     const requestPayload = {
@@ -189,7 +189,14 @@ export const useOpenAI = () => {
       console.log('[useOpenAI] Received response:', response);
 
       if (response.error) {
-        throw new Error(response.error.message || 'Failed to generate response');
+        console.error('[useOpenAI] Edge function error:', {
+          message: response.error.message,
+          name: (response.error as any)?.name,
+        });
+        return {
+          text: '',
+          error: response.error.message || 'Failed to generate response',
+        };
       }
 
       return {

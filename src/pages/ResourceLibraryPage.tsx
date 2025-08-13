@@ -392,11 +392,10 @@ const ResourceLibraryPage = () => {
       const matchingResources = allData?.filter(r => r.church_id === profile.church_id) || [];
       console.log('[ResourceLibrary] Resources matching current church_id:', matchingResources.length);
       
-      // Now fetch resources filtered by church_id
+      // Now fetch ALL resources; we'll filter client-side to enforce visibility rules
       const { data, error } = await supabase
         .from('resource_library')
         .select('*')
-        .eq('church_id', profile.church_id)
         .order('created_at', { ascending: false });
       
       console.log('[ResourceLibrary] Query result - data:', data);
@@ -406,7 +405,28 @@ const ResourceLibraryPage = () => {
         throw error;
       }
       
-      const processedResources: ResourceItem[] = (data || []).map(resource => ({
+      // Enforce visibility rules:
+      // - Global resources (prayers, case studies, spiritual guide, ministry ideas, etc.)
+      //   should be visible regardless of church_id
+      // - Private resources (scenario_details, vocational_statements, research_summary, discernment_plan)
+      //   should be visible only for the authenticated user's church_id
+      const PRIVATE_TYPES = new Set([
+        'discernment_plan',
+        'vocational_statement',
+        'research_summary',
+        'scenario',
+        'scenario_building',
+      ]);
+
+      const filtered = (data || []).filter((r: any) => {
+        const type = r.resource_type || 'resource';
+        if (PRIVATE_TYPES.has(type)) {
+          return r.church_id === profile.church_id;
+        }
+        return true; // global/public types visible to everyone
+      });
+
+      const processedResources: ResourceItem[] = filtered.map(resource => ({
         ...resource,
         category: resource.category || "Uncategorized",
         tags: Array.isArray(resource.tags) ? resource.tags : [],
@@ -417,7 +437,7 @@ const ResourceLibraryPage = () => {
         resource_type: resource.resource_type ?? "resource"
       }));
       
-      console.log(`Fetched ${processedResources.length} resources for church_id: ${profile.church_id}`);
+      console.log(`Fetched ${processedResources.length} visible resources (private filtered by church_id: ${profile.church_id})`);
       setResources(processedResources);
     } catch (error) {
       console.error('Error fetching resources:', error);

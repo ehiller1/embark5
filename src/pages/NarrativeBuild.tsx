@@ -1,56 +1,98 @@
-// src/pages/NarrativeBuild.tsx
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { supabase } from '@/integrations/lib/supabase'; // Fixed import path for DB access
-import { toast } from '@/hooks/use-toast'; // Added for notifications
-import { saveVocationalStatement } from '@/utils/dbUtils'; // Import the utility function
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/lib/supabase';
+import { toast } from '@/hooks/use-toast';
+import { saveVocationalStatement } from '@/utils/dbUtils';
 import { v4 as uuidv4 } from 'uuid';
 import { VocationAvatarModal } from '@/components/VocationAvatarModal';
 import { VocationalStatementDialog } from '@/components/VocationalStatementDialog';
-import { ArrowLeft, ArrowRight } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { UIVocationalStatement as ImportedUIVocationalStatement, AvatarRole } from '@/types/NarrativeTypes';
 import { ChurchAvatarModal } from '@/components/ChurchAvatarModal';
-// REQUIRED_PROMPT_TYPES import removed, PromptType defined via path
 import { useAuth } from '@/integrations/lib/auth/AuthProvider';
 import { AvatarProvider, useAvatarContext } from '@/hooks/useAvatarContext';
 import { useNarrativeAvatar, ChurchAvatar, Companion } from '@/hooks/useNarrativeAvatar';
 import { ExtendedUser } from '@/types/UserTypes';
 
-import { useNarrativeGenerationRefactored } from '@/hooks/useNarrativeGenerationRefactored';
+import { useNarrativeBuildConversation } from '@/hooks/useNarrativeBuildConversation';
 import { useOpenAI } from '@/hooks/useOpenAI';
-import { usePrompts, Prompt } from '@/hooks/usePrompts'; // Import Prompt type
+import { usePrompts, Prompt } from '@/hooks/usePrompts';
 import { useVocationalStatements, VocationalStatement as HookVocationalStatement } from '@/hooks/useVocationalStatements';
 import { populatePrompt } from '@/utils/promptUtils';
-import { Card, CardHeader, CardContent, CardTitle, CardFooter, CardDescription } from '@/components/ui/card';
+import { Card, CardHeader, CardContent, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { EditVocationalStatementModal } from '@/components/narrative-build/EditVocationalStatementModal';
-// import { toast } from '@/components/ui/use-toast'; // Removed to avoid duplicate declaration, using toast from @/hooks/use-toast
 import { EnhancedNarrativeConversation } from '@/components/narrative-build/EnhancedNarrativeConversation';
 import { NarrativeMessageInput } from '@/components/narrative-build/NarrativeMessageInput';
 import { ChurchAvatarCard } from '@/components/ChurchAvatarCard';
+import { Loader2 } from 'lucide-react';
+
+// ----- LocalStorage keys (consolidated) -----
+const LS = {
+  RESEARCH_SUMMARY: 'research_summary',
+  AVAILABLE_AVATARS: 'available_avatars',
+  VOCATIONAL_STATEMENT: 'vocational_statement',
+} as const;
 
 // Define PromptType correctly
 type PromptType = typeof import('@/utils/promptUtils').REQUIRED_PROMPT_TYPES[number];
 
-// Use the imported UIVocationalStatement which already has UI fields, and add isSelected.
-interface UIVocationalStatement extends ImportedUIVocationalStatement {
+// Use the imported UIVocationalStatement and add additional properties
+type UIVocationalStatement = ImportedUIVocationalStatement & {
   isSelected?: boolean;
   key_insights?: string[];
   counter_arguments?: string[];
   supporting_scriptures?: string[];
+  rank?: number; // optional ranking if present
 };
 
-// Type for data coming from VocationalStatementDialog, should align with UIVocationalStatement
+// Type for data coming from VocationalStatementDialog
 type StatementDataFromDialog = UIVocationalStatement & {
   mission_statement?: string;
   contextual_explanation?: string;
   theological_justification?: string;
   practical_application?: string;
-  // any other fields the dialog might send
 };
+
+// Generate stable ID based on role and content
+const stableId = (role: string, s: { id?: string; name?: string; mission_statement?: string; content?: string }) => {
+  if (s.id) return s.id;
+  const base = `${role}|${s.name ?? ''}|${s.mission_statement ?? ''}|${s.content ?? ''}`;
+  // Simple hash function for stable IDs
+  let h = 0; 
+  for (let i = 0; i < base.length; i++) {
+    h = (h * 31 + base.charCodeAt(i)) | 0;
+  }
+  return `stmt_${role}_${Math.abs(h)}`;
+};
+
+// Normalize statements to a consistent shape
+function normalizeStatement(s: Partial<HookVocationalStatement>, role?: string): HookVocationalStatement {
+  const name = s.name ?? s.mission_statement ?? 'Untitled Statement';
+  const content = s.content ?? s.contextual_explanation ?? s.mission_statement ?? '';
+  return {
+    id: s.id ?? (role ? stableId(role, s) : `stmt_${Date.now()}_${Math.random()}`),
+    name,
+    content,
+    createdAt: s.createdAt ?? new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    resourceType: 'narrative_statement',
+    category: 'narrative',
+    avatar_role: (s.avatar_role as any) ?? 'system',
+    mission_statement: s.mission_statement ?? '',
+    contextual_explanation: s.contextual_explanation ?? '',
+    theological_justification: s.theological_justification ?? '',
+    practical_application: s.practical_application ?? '',
+    original_ids: s.original_ids ?? [],
+    user_id: s.user_id,
+    key_insights: s.key_insights,
+    counter_arguments: s.counter_arguments,
+    supporting_scriptures: s.supporting_scriptures,
+  };
+}
 
 const NarrativeBuildContent: React.FC = () => {
   // --- Missing Requirements Modal State ---
@@ -58,137 +100,54 @@ const NarrativeBuildContent: React.FC = () => {
   const [showMissingModal, setShowMissingModal] = useState(false);
 
   const navigate = useNavigate();
-  const { scenarioId } = useParams<{ scenarioId: string }>();
   const { user } = useAuth();
-  // Cast the user to ExtendedUser type to access church_id
   const currentUser = user as ExtendedUser;
-  
-  // State to store the active scenario
-  const [activeScenarioId, setActiveScenarioId] = useState<string | null>(scenarioId || null);
-  const [scenarioDetails, setScenarioDetails] = useState<any>(null);
-  
-  // Fetch the most recent scenario if none is specified in the URL
-  // Modal state for missing scenarios
-  const [showMissingScenariosModal, setShowMissingScenariosModal] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'selected' | 'unselected'>('all');
-  const [sorter, setSorter] = useState<'date' | 'rank'>('date');
-  const [showChurchCard, setShowChurchCard] = useState(false);
-  // Store scenarios in a ref to use in prompt creation without triggering re-renders
-  const scenariosRef = useRef<any[]>([]);
 
-  useEffect(() => {
-    const fetchMostRecentScenario = async () => {
-      let foundScenarios = [];
-      // 1. Try localStorage for scenarios
-      const localScenarios = localStorage.getItem('scenarios');
-      if (localScenarios) {
-        try {
-          const parsed = JSON.parse(localScenarios);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            foundScenarios = parsed;
-          }
-        } catch {}
-      }
-      // 2. If not found in localStorage, fetch from DB using church_id
-      if (foundScenarios.length === 0 && currentUser && currentUser.church_id) {
-        try {
-          const { data, error } = await supabase
-            .from('scenarios')
-            .select('*')
-            .eq('church_id', currentUser.church_id)
-            .order('created_at', { ascending: false });
-          if (error) {
-            console.error('Error fetching scenarios from DB:', error);
-          } else if (data && data.length > 0) {
-            foundScenarios = data;
-          }
-        } catch (error) {
-          console.error('Error in fetchMostRecentScenario:', error);
-        }
-      }
-      scenariosRef.current = foundScenarios;
-      if (foundScenarios.length > 0) {
-        setActiveScenarioId(foundScenarios[0].id);
-        localStorage.setItem('activeScenarioId', foundScenarios[0].id);
-      } else {
-        setShowMissingScenariosModal(true);
-      }
-    };
-    fetchMostRecentScenario();
-  }, [scenarioId, currentUser]);
-
-  // Fetch scenario details when activeScenarioId changes
-  useEffect(() => {
-    const fetchScenarioDetails = async () => {
-      if (!activeScenarioId) return;
-      try {
-        const { data, error } = await supabase
-          .from('scenarios')
-          .select('*')
-          .eq('id', activeScenarioId)
-          .single();
-        if (error) {
-          console.error('Error fetching scenario details:', error);
-          return;
-        }
-        if (data) {
-          setScenarioDetails(data);
-        }
-      } catch (error) {
-        console.error('Error in fetchScenarioDetails:', error);
-      }
-    };
-    
-    fetchScenarioDetails();
-  }, [activeScenarioId, currentUser]);
+  // Avatar / companions
   const {
     churchAvatar: selectedChurchAvatar,
     companions,
-    selectCompanion, // This is the function to select a companion
-    selectedCompanionId, // The ID of the selected companion
+    selectCompanion,
+    selectedCompanionId,
   } = useNarrativeAvatar();
 
   const selectedCompanion = useMemo(() => {
     return companions.find(c => c.id === selectedCompanionId) || null;
   }, [companions, selectedCompanionId]);
-  const { isLoading: avatarsLoading, /* error: avatarsError, */ missingAvatars } = useAvatarContext(); // avatarsError removed
 
-  // Check for missing requirements on mount and when relevant data changes
+  const { isLoading: avatarsLoading, missingAvatars } = useAvatarContext();
+
+  // Check for missing requirements (research summary only)
   useEffect(() => {
-    // Only check for research summary, not other requirements
     const checkResearchSummary = async () => {
       const missing: string[] = [];
-      
-      // First check localStorage with the correct key
-      const localStorageSummary = localStorage.getItem('research_summary');
-      
+      const localStorageSummary = localStorage.getItem(LS.RESEARCH_SUMMARY);
+
       if (!localStorageSummary) {
-        // If not in localStorage, check database
         try {
-          const { data } = await supabase
+          const { data, error } = await supabase
             .from('resource_library')
             .select('content')
             .eq('resource_type', 'research_summary')
             .order('created_at', { ascending: false })
             .limit(1);
-          
-          if (!data || data.length === 0 || !data[0].content) {
+
+          if (error || !data || data.length === 0 || !data[0].content) {
             missing.push('Research summary');
           }
-        } catch (error) {
-          console.error('[NarrativeBuild] Error checking research summary in DB:', error);
+        } catch {
           missing.push('Research summary');
         }
       }
-      
+
       setMissingRequirements(missing);
       setShowMissingModal(missing.length > 0);
     };
-    
-    checkResearchSummary();
-  }, []); // Run once on mount
 
+    checkResearchSummary();
+  }, []);
+
+  // State
   const [selectedStatements, setSelectedStatements] = useState<UIVocationalStatement[]>([]);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [showChurchModal, setShowChurchModal] = useState(false);
@@ -200,7 +159,7 @@ const NarrativeBuildContent: React.FC = () => {
   const [dialogAvatarRole, setDialogAvatarRole] = useState<AvatarRole>('church');
   const [isSynthesizingForEdit, setIsSynthesizingForEdit] = useState(false);
 
-  // State for the new Edit Vocational Statement flow
+  // New Edit Vocational Statement flow
   const [showEditVocationalModal, setShowEditVocationalModal] = useState(false);
   const [editingVocationalContent, setEditingVocationalContent] = useState('');
   const [isSavingEditedVocationalStatement, setIsSavingEditedVocationalStatement] = useState(false);
@@ -210,48 +169,77 @@ const NarrativeBuildContent: React.FC = () => {
     const handleOpenEditVocationalStatementModal = (event: CustomEvent) => {
       const statement = event.detail?.statement;
       if (statement) {
-        console.log('[NarrativeBuild] Received custom event to open modal with statement:', statement);
         setEditingVocationalContent(statement);
         setShowEditVocationalModal(true);
       }
     };
-    
-    // Add event listener
     window.addEventListener('openEditVocationalStatementModal', handleOpenEditVocationalStatementModal as EventListener);
-    
-    // Remove event listener on cleanup
     return () => {
       window.removeEventListener('openEditVocationalStatementModal', handleOpenEditVocationalStatementModal as EventListener);
     };
   }, []);
-  
-  // Get avatar context
+
   const { selectChurchAvatar } = useNarrativeAvatar();
 
   const [isSynthesizingStatement, setIsSynthesizingStatement] = useState(false);
   const [isDiscussingStatements, setIsDiscussingStatements] = useState(false);
+  const [conversationStarted, setConversationStarted] = useState(false);
+  const [hasInitiatedDiscussion, setHasInitiatedDiscussion] = useState(false);
 
-  const churchAvatarForNarrative = useMemo(() => (
-    selectedChurchAvatar
-      ? { ...selectedChurchAvatar, role: 'church' as const } 
-      : null
-  ), [selectedChurchAvatar]);
+  // Conversation hooks
+  const {
+    messages: rawMessages,
+    isLoading: isNarrativeLoading,
+    sendMessage,
+    setMessages: setRawMessages,
+    initializeConversation
+  } = useNarrativeBuildConversation();
 
-  // Narrative generation hook and related utilities
-  const { 
-    messages: narrativeMessages, 
-    userInput, 
-    setUserInput, 
-    handleUserMessageSubmit, 
-    addMessage, 
-    isLoading: isNarrativeLoading, 
-    isGenerating, 
-    error: narrativeError,
-  } = useNarrativeGenerationRefactored(
-    selectedCompanion, // This now correctly comes from useNarrativeAvatar
-    churchAvatarForNarrative ? [churchAvatarForNarrative] : [],
-    [] // Empty array for communityAvatars parameter
-  );
+  const narrativeMessages = useMemo(() => {
+    // Only show messages if conversation has been started by "Refine Statements" button
+    if (!conversationStarted) {
+      return [];
+    }
+    
+    // Filter out system messages and the initial "kick off" message
+    const filteredRawMessages = rawMessages.filter((msg, index) => {
+      // Skip system messages
+      if (msg.role === 'system') return false;
+      
+      // Skip the initial "kick off" message (usually the first user message)
+      if (msg.role === 'user' && msg.content.includes('Kick off the conversation')) return false;
+      
+      return true;
+    });
+    
+    return filteredRawMessages.map((msg, index) => ({
+      id: `msg-${index}`,
+      content: msg.content,
+      role: msg.role === 'assistant' ? 'companion' : msg.role === 'system' ? 'system' : 'user' as AvatarRole,
+      name: msg.role === 'assistant' ? 
+        ((selectedCompanion as any)?.companion || selectedCompanion?.name || 'Companion') : 
+        msg.role === 'system' ? 'System' : 'You',
+      avatarUrl: msg.role === 'assistant' ? 
+        (selectedCompanion?.avatar_url || '/avatars/companion.png') : 
+        undefined,
+      timestamp: new Date(),
+      selected: false
+    }));
+  }, [rawMessages, selectedCompanion, conversationStarted]);
+
+  const [userInput, setUserInput] = useState('');
+
+  const handleUserMessageSubmit = useCallback(async (message: string) => {
+    if (!message.trim()) return;
+    await sendMessage(message);
+    setUserInput('');
+  }, [sendMessage]);
+
+  const addMessage = useCallback(() => {
+    // no-op; useConversationMessages manages messages
+  }, []);
+
+  const narrativeError = null;
 
   const { generateResponse } = useOpenAI();
   const { getPromptByType: getPromptFromPromptsHook } = usePrompts();
@@ -266,23 +254,21 @@ const NarrativeBuildContent: React.FC = () => {
       case 'church': return churchVocationalHook;
       case 'companion': return companionVocationalHook;
       case 'system': return systemVocationalHook;
-      default: 
+      default:
         console.warn(`[NarrativeBuild] Unknown role passed to getHookForRole: ${role}. Defaulting to system hook.`);
-        return systemVocationalHook; 
+        return systemVocationalHook;
     }
   };
 
-  // const researchSummary = useMemo(() => localStorage.getItem('research_summary') || '', []); // Old version, replaced
   const [researchSummary, setResearchSummary] = useState<string>('');
-  const { prompts /*, getPromptByType, getPromptByTypeStrong */ } = usePrompts(); // Removed loading, as it does not exist in usePrompts
+  const { prompts } = usePrompts();
 
+  // Load research summary (LS → DB)
   useEffect(() => {
     const fetchAndSetResearchSummary = async () => {
-      let summary = localStorage.getItem('research_summary');
-      console.log('[NarrativeBuild] Initial researchSummary from localStorage:', summary ? summary.substring(0, 100) + "..." : "null/empty");
+      let summary = localStorage.getItem(LS.RESEARCH_SUMMARY);
 
       if (!summary) {
-        console.log('[NarrativeBuild] ResearchSummary not in localStorage, attempting to fetch from DB...');
         try {
           const { data, error } = await supabase
             .from('resource_library')
@@ -292,28 +278,11 @@ const NarrativeBuildContent: React.FC = () => {
             .limit(1)
             .single();
 
-          if (error && error.code !== 'PGRST116') { // PGRST116: 'single' row expected, but 0 rows found (not an error for us here)
-            console.error('[NarrativeBuild] Error fetching research_summary from DB:', error);
-            toast({
-              title: 'Failed to load research summary',
-              description: 'Could not retrieve research summary from the database. Please ensure one exists.',
-              variant: 'destructive',
-            });
-          } else if (data && data.content) {
+          if (!error && data?.content) {
             summary = data.content;
-            console.log('[NarrativeBuild] Successfully fetched research_summary from DB:', summary!.substring(0, 100) + "...");
-            localStorage.setItem('research_summary', summary ?? ''); // Cache it
-          } else {
-            console.log('[NarrativeBuild] No research_summary found in DB.');
-            // Not showing a toast here, as it might be normal for a new user
-            // toast({
-            //   title: 'No Research Summary Available',
-            //   description: 'A research summary is needed. None found in storage or database.',
-            //   variant: 'info',
-            // });
+            localStorage.setItem(LS.RESEARCH_SUMMARY, summary ?? '');
           }
         } catch (e) {
-          console.error('[NarrativeBuild] Exception while fetching research_summary from DB:', e);
           toast({
             title: 'Error accessing research summary',
             description: 'An unexpected error occurred while fetching from database.',
@@ -321,33 +290,22 @@ const NarrativeBuildContent: React.FC = () => {
           });
         }
       }
-      setResearchSummary(summary ?? ''); // Ensure string, never null
+      setResearchSummary(summary ?? '');
     };
 
     fetchAndSetResearchSummary();
-  }, []); // Runs once on mount
+  }, []);
 
   const mapHookStatementsToUI = useCallback((
     statements: HookVocationalStatement[],
     role: 'church' | 'companion' | 'system',
     currentSelected: UIVocationalStatement[]
   ): UIVocationalStatement[] => {
-    console.log(`[NarrativeBuild] mapHookStatementsToUI called for role ${role} with ${statements.length} statements:`, statements);
-    
-    if (statements.length === 0) {
-      console.log(`[NarrativeBuild] No statements for role ${role}, returning empty array`);
-      return [];
-    }
-    
-    const result = statements.map((s) => {
-      const id = s.id || uuidv4();
+    if (statements.length === 0) return [];
+    return statements.map((s) => {
+      const id = stableId(role, s);
       const name = s.name || s.mission_statement || 'Untitled Statement';
-      const content =
-        s.content ||
-        [s.mission_statement, s.contextual_explanation, s.theological_justification, s.practical_application]
-          .filter(Boolean)
-          .join('\n\n') ||
-        'No content provided.';
+      const content = s.content || [s.mission_statement, s.contextual_explanation, s.theological_justification, s.practical_application].filter(Boolean).join('\n\n') || 'No content provided.';
 
       const uiStatement: UIVocationalStatement = {
         id,
@@ -357,33 +315,36 @@ const NarrativeBuildContent: React.FC = () => {
         updatedAt: s.updatedAt || new Date().toISOString(),
         resourceType: s.resourceType || 'narrative_statement',
         category: s.category || 'narrative',
-        user_id: s.user_id || currentUser?.id || undefined,
+        user_id: s.user_id || currentUser?.id,
         original_ids: s.original_ids || [],
         mission_statement: s.mission_statement || '',
         contextual_explanation: s.contextual_explanation || '',
         theological_justification: s.theological_justification || '',
         practical_application: s.practical_application || '',
         avatar_role: role,
-        avatar_name: role === 'church' ? selectedChurchAvatar?.name : role === 'companion' ? selectedCompanion?.name : 'System',
-        avatar_url: role === 'church' ? (selectedChurchAvatar?.avatar_url || selectedChurchAvatar?.image_url) : role === 'companion' ? selectedCompanion?.avatar_url : undefined,
+        avatar_name:
+          role === 'church' ? selectedChurchAvatar?.name :
+          role === 'companion' ? selectedCompanion?.name :
+          'System',
+        avatar_url:
+          role === 'church' ? (selectedChurchAvatar?.avatar_url || selectedChurchAvatar?.image_url) :
+          role === 'companion' ? selectedCompanion?.avatar_url :
+          undefined,
         isSelected: currentSelected.some(sel => sel.id === id),
-        ...(s.key_insights && { key_insights: s.key_insights }),
-        ...(s.counter_arguments && { counter_arguments: s.counter_arguments }),
-        ...(s.supporting_scriptures && { supporting_scriptures: s.supporting_scriptures }),
+        key_insights: s.key_insights,
+        counter_arguments: s.counter_arguments,
+        supporting_scriptures: s.supporting_scriptures,
       };
       return uiStatement;
     });
-    
-    console.log(`[NarrativeBuild] Mapped ${result.length} statements for role ${role}:`, result);
-    return result;
-  }, [currentUser, selectedChurchAvatar, selectedCompanion, uuidv4]);
+  }, [selectedChurchAvatar, selectedCompanion]);
 
   const generateAdaptedStatement = useCallback(async (
     originalStatement: UIVocationalStatement,
     newData: StatementDataFromDialog,
     context?: string
   ): Promise<Partial<HookVocationalStatement>> => {
-    const promptResult = await getPromptByTypeStrong('scenario_adaptation' as PromptType);
+    const promptResult = await getPromptByTypeStrong('scenario_adaptation' as PromptType); // keeping name, but no scenario id used
     if (!promptResult.success || !promptResult.data) {
       toast({ title: 'Error', description: 'Failed to load adaptation prompt.', variant: 'destructive' });
       throw new Error('Failed to load adaptation prompt.');
@@ -396,10 +357,10 @@ const NarrativeBuildContent: React.FC = () => {
     }
 
     const populatedPrompt = promptTemplate
-      .replace('{{original_statement_content}}', originalStatement.content || '')
-      .replace('{{original_mission_statement}}', originalStatement.mission_statement || originalStatement.name || '')
-      .replace('{{adaptation_request_details}}', newData.content || newData.mission_statement || 'Adapt based on new input.')
-      .replace('{{contextual_summary}}', context || '');
+      .replace('$(original_statement_content)', originalStatement.content || '')
+      .replace('$(original_mission_statement)', originalStatement.mission_statement || originalStatement.name || '')
+      .replace('$(adaptation_request_details)', newData.content || newData.mission_statement || 'Adapt based on new input.')
+      .replace('$(contextual_summary)', context || '');
 
     const aiResponse = await generateResponse({
       messages: [{ role: 'user', content: populatedPrompt }],
@@ -411,146 +372,91 @@ const NarrativeBuildContent: React.FC = () => {
       throw new Error(aiResponse.error || 'AI adaptation failed.');
     }
 
-    try {
-      // Assuming AI response is the new mission_statement/content
-      // A more robust solution would parse a structured response (e.g. JSON)
-      return {
-        mission_statement: aiResponse.text,
-        // Potentially update other fields like contextual_explanation based on AI response
-        // For example, if AI provides a more detailed breakdown:
-        // contextual_explanation: parsedResponse.contextual_explanation, 
-      };
-    } catch (parseError) {
-      toast({ title: 'Error', description: 'Failed to parse AI adaptation response.', variant: 'destructive' });
-      throw new Error('Failed to parse AI adaptation response.');
-    }
+    return {
+      mission_statement: aiResponse.text,
+    };
   }, [getPromptByTypeStrong, generateResponse, toast]);
-
-  // const handleOpenEditDialog = useCallback((statement: UIVocationalStatement, role: AvatarRole | 'system') => {
-  //   setDialogAvatarRole(role);
-  //   setEditingStatement(statement || null);
-  //   setDialogMode('edit');
-  //   setShowVocationalDialog(true);
-  // }, []);
 
   const handleSaveVocationalStatement = useCallback(async (statementData: StatementDataFromDialog, mode: 'add' | 'edit' | 'adapt', originalStatement?: UIVocationalStatement) => {
     const rawAvatarRole = statementData.avatar_role || dialogAvatarRole || 'system';
     let effectiveAvatarRole: 'church' | 'companion' | 'system';
-
     switch (rawAvatarRole) {
       case 'church':
       case 'companion':
       case 'system':
         effectiveAvatarRole = rawAvatarRole;
         break;
-      default: // Maps 'user', 'synthesized', or any other to 'system'
-        console.warn(`[NarrativeBuild] Mapping avatar role '${rawAvatarRole}' to 'system' for vocational statement.`);
+      default:
         effectiveAvatarRole = 'system';
         break;
     }
 
     const hookToUse = getHookForRole(effectiveAvatarRole);
-    console.log(`[NarrativeBuild] Saving statement for role: ${effectiveAvatarRole}`, statementData);
 
     if (mode === 'edit' && editingStatement?.id) {
-      const statementToUpdate: HookVocationalStatement = {
-        // CoreVocationalStatement fields
+      const statementToUpdate = normalizeStatement({
+        ...editingStatement,
+        ...statementData,
         id: editingStatement.id,
-        name: statementData.name, // Already on UIVocationalStatement -> StatementDataFromDialog
-        content: statementData.content, // Already on UIVocationalStatement -> StatementDataFromDialog
-        createdAt: editingStatement.createdAt || new Date().toISOString(), // Keep original or set new if missing
+        avatar_role: effectiveAvatarRole,
         updatedAt: new Date().toISOString(),
         resourceType: 'narrative_statement',
         category: 'narrative',
-        user_id: currentUser?.id || editingStatement.user_id || undefined,
-        original_ids: editingStatement.original_ids || (statementData.original_ids || []),
-        // HookVocationalStatement specific fields (from useVocationalStatements.ts definition)
-        avatar_role: effectiveAvatarRole,
-        mission_statement: statementData.mission_statement || '',
-        contextual_explanation: statementData.contextual_explanation || '',
-        theological_justification: statementData.theological_justification || '',
-        practical_application: statementData.practical_application || '',
-        // Include any other fields from statementData that are part of HookVocationalStatement
-        ...(statementData as Partial<HookVocationalStatement>),
-      };
+        user_id: currentUser?.id || editingStatement.user_id,
+      });
       hookToUse.updateStatement(statementToUpdate);
       toast({ title: 'Statement Updated', description: `Vocational statement for ${effectiveAvatarRole} updated.` });
       setShowVocationalDialog(false);
       setEditingStatement(null);
-    } else if (mode === 'add') {
-      const newId = uuidv4();
-      const statementToAdd: HookVocationalStatement = {
-        // CoreVocationalStatement fields
-        id: newId,
-        name: statementData.name,
-        content: statementData.content,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        resourceType: 'narrative_statement',
-        category: 'narrative',
-        user_id: currentUser?.id || undefined,
-        original_ids: statementData.original_ids || [],
-        // HookVocationalStatement specific fields
+      return;
+    }
+
+    if (mode === 'add') {
+      const statementToAdd = normalizeStatement({
+        ...statementData,
+        id: uuidv4(),
         avatar_role: effectiveAvatarRole,
-        mission_statement: statementData.mission_statement || '',
-        contextual_explanation: statementData.contextual_explanation || '',
-        theological_justification: statementData.theological_justification || '',
-        practical_application: statementData.practical_application || '',
-        // Include any other fields from statementData that are part of HookVocationalStatement
-        ...(statementData as Partial<HookVocationalStatement>),
-      };
+        user_id: currentUser?.id,
+      });
       hookToUse.addStatement(statementToAdd);
       toast({ title: 'Statement Added', description: `New vocational statement for ${effectiveAvatarRole} added.` });
       setShowVocationalDialog(false);
       setEditingStatement(null);
-    } else if (mode === 'adapt' && originalStatement) {
+      return;
+    }
+
+    if (mode === 'adapt' && originalStatement) {
       setIsSynthesizingStatement(true);
       const adaptedStatement = await generateAdaptedStatement(originalStatement, statementData, researchSummary);
       setIsSynthesizingStatement(false);
-      if (adaptedStatement) { // Check if adaptation was successful and returned data
-        const statementToUpdate: HookVocationalStatement = {
-          // Spread originalStatement fields first
-          id: originalStatement.id,
-          name: originalStatement.name, // Fallback
-          content: originalStatement.content, // Fallback
-          createdAt: originalStatement.createdAt,
-          updatedAt: new Date().toISOString(),
-          resourceType: originalStatement.resourceType,
-          category: originalStatement.category,
-          user_id: originalStatement.user_id,
-          original_ids: originalStatement.original_ids,
-          avatar_role: effectiveAvatarRole,
-          mission_statement: originalStatement.mission_statement ?? '',
-          contextual_explanation: originalStatement.contextual_explanation ?? '',
-          theological_justification: originalStatement.theological_justification ?? '',
-          practical_application: originalStatement.practical_application ?? '',
-          key_insights: originalStatement.key_insights,
-          counter_arguments: originalStatement.counter_arguments,
-          supporting_scriptures: originalStatement.supporting_scriptures,
-          // Now, override with adapted fields from adaptedStatement (which is Partial<HookVocationalStatement>)
+      if (adaptedStatement) {
+        const statementToUpdate = normalizeStatement({
+          ...originalStatement,
           ...adaptedStatement,
-          // Ensure name/content are updated if mission_statement is the primary adapted field and part of adaptedStatement
-          ...(adaptedStatement.mission_statement && { 
-              name: adaptedStatement.mission_statement, 
-              content: adaptedStatement.contextual_explanation || adaptedStatement.mission_statement 
-          }),
-        };
+          avatar_role: effectiveAvatarRole,
+          updatedAt: new Date().toISOString(),
+        });
+
+        // if AI returned mission_statement only, set name/content from it
+        if (adaptedStatement.mission_statement) {
+          statementToUpdate.name = adaptedStatement.mission_statement;
+          statementToUpdate.content = adaptedStatement.mission_statement;
+        }
+
         hookToUse.updateStatement(statementToUpdate);
         toast({ title: 'Statement Adapted', description: `Vocational statement for ${effectiveAvatarRole} adapted and updated.` });
         setShowVocationalDialog(false);
         setEditingStatement(null);
-      } else {
-        console.warn('[NarrativeBuild] Adaptation did not return data or failed, dialog remains open.');
-        // Error toast should have been shown by generateAdaptedStatement or its calling logic if an error was thrown
       }
-    } else {
-      console.error('[NarrativeBuild] Invalid mode or missing editingStatement ID for save:', mode, editingStatement);
-      toast({ title: 'Save Error', description: 'Could not save statement due to invalid mode or missing ID.', variant: 'destructive' });
       return;
     }
-  }, [churchVocationalHook, companionVocationalHook, systemVocationalHook, currentUser, editingStatement, dialogAvatarRole, getHookForRole, toast]);
 
-  // ... rest of the code
+    toast({ title: 'Save Error', description: 'Invalid mode or missing data.', variant: 'destructive' });
+  }, [currentUser, editingStatement, dialogAvatarRole, getHookForRole, generateAdaptedStatement]);
+
+  // Guard to prevent duplicate initiation
+  const initiatingDiscussionRef = useRef(false);
+
   const handleInitiateMultiStatementDiscussion = useCallback(async (): Promise<void> => {
     if (selectedStatements.length === 0) {
       toast({
@@ -560,76 +466,120 @@ const NarrativeBuildContent: React.FC = () => {
       });
       return;
     }
+    if (hasInitiatedDiscussion || initiatingDiscussionRef.current) return;
+
+    initiatingDiscussionRef.current = true;
     setIsDiscussingStatements(true);
-    console.log('[NarrativeBuild] Initiating discussion for selected statements:', selectedStatements);
 
     try {
-      // Add the user message first
-      const compiledStatementsContent = selectedStatements
-        .map(stmt => stmt.content || stmt.mission_statement || '')
-        .join('\n\n---\n\n');
-
-      addMessage({
-        role: 'user',
-        content: `Let's discuss these statements:\n${compiledStatementsContent}`,
-        name: currentUser?.email || 'User',
-        avatarUrl: currentUser?.user_metadata?.avatar_url
-      });
-
-      // Create a dynamic response based on the selected statements
       const statementCount = selectedStatements.length;
-      const statementList = selectedStatements
-        .map((stmt, idx) => `${idx + 1}. "${stmt.content || stmt.mission_statement || 'Untitled Statement'}"`)
-        .join('\n');
       
-      const dynamicResponse = `Thank you for sharing your selected vocational statement${statementCount > 1 ? 's' : ''}. I've reviewed your selection${statementCount > 1 ? 's' : ''} and am here to help you refine ${statementCount > 1 ? 'them' : 'it'} further.\n\n${statementCount > 1 ? 'These are the statements you\'ve selected for refinement:' : 'This is the statement you\'ve selected for refinement:'}\n${statementList}\n\nLet's work together to:\n1. Clarify the core message of ${statementCount > 1 ? 'each statement' : 'your statement'}\n2. Strengthen the theological foundation\n3. Ensure practical application\n4. Refine the language to be clear and impactful\n\nWould you like to start with any specific aspect of ${statementCount > 1 ? 'these statements' : 'this statement'}?`;
-
-      // Check if 'church' is in localStorage 'available_avatars' key
-      const availableAvatars = localStorage.getItem('available_avatars');
-      const hasChurchAvatar = availableAvatars && availableAvatars.includes('church');
-
-      // Only send one message based on the available avatars
-      if (hasChurchAvatar && selectedChurchAvatar) {
-        // If 'church' is available, only send church_avatar message
-        addMessage({
-          role: 'church',
-          content: dynamicResponse,
-          name: selectedChurchAvatar.name,
-          avatarUrl: selectedChurchAvatar.avatar_url || selectedChurchAvatar.image_url,
-          type: 'refinement_guidance'
+      if (statementCount === 1) {
+        // Single statement: Pass to conversation interface and generate message using narrative_response
+        const statement = selectedStatements[0];
+        const statementContent = statement.content || statement.mission_statement || 'Untitled Statement';
+        
+        // Get narrative_build_companion prompt for subsequent conversations
+        const narrativePromptResult = await getPromptByTypeStrong('narrative_build_companion');
+        if (!narrativePromptResult.success || !narrativePromptResult.data) {
+          throw new Error('Failed to load narrative_build_companion prompt');
+        }
+        
+        // Prepare parameters for the narrative prompt
+        const parameters = {
+          selected_statement: statementContent,
+          companion_name: (selectedCompanion as any)?.companion || selectedCompanion?.name || 'Companion',
+          research_summary: researchSummary || 'No research summary available'
+        };
+        
+        // Populate the prompt
+        const populatedPrompt = populatePrompt(narrativePromptResult.data.prompt, parameters);
+        
+        // Generate AI response
+        const { error: genErr, text } = await generateResponse({
+          messages: [{ role: 'user', content: populatedPrompt }],
+          maxTokens: 1000,
+          temperature: 0.7
         });
-      } else if (selectedCompanion) {
-        // Otherwise, only send selected_companion message
-        addMessage({
-          role: 'companion',
-          content: dynamicResponse,
-          name: selectedCompanion.name,
-          avatarUrl: selectedCompanion.avatar_url,
-          type: 'refinement_guidance'
-        });
+        
+        if (genErr) {
+          throw new Error(genErr);
+        }
+        
+        // Set conversation started flag and add the AI response to the conversation
+        setConversationStarted(true);
+        await sendMessage(`I'd like to refine this statement: "${statementContent}"`);
+        
       } else {
-        // Fallback to system message if no avatars are available
-        addMessage({
-          role: 'system',
-          content: dynamicResponse,
-          name: 'System Message',
-          type: 'refinement_guidance'
+        // Multiple statements: Send to OpenAI for synthesis using vocational_statement_synthesized_multiple
+        const promptType: PromptType = 'vocational_statement_synthesized_multiple';
+        const promptResult = await getPromptByTypeStrong(promptType);
+        
+        if (!promptResult.success || !promptResult.data) {
+          throw new Error(`Failed to load ${promptType} prompt`);
+        }
+        
+        // Compile statements for synthesis
+        const compiledStatementsContent = selectedStatements
+          .map(stmt => stmt.content || stmt.mission_statement || JSON.stringify(stmt))
+          .join('\n\n---\n\n');
+        
+        // Prepare parameters for synthesis
+        const parameters = {
+          compiled_statements: compiledStatementsContent,
+          research_summary: researchSummary || 'No research summary available'
+        };
+        
+        // Populate and call OpenAI for synthesis
+        const populatedPrompt = populatePrompt(promptResult.data.prompt, parameters);
+        
+        const { error: synthErr, text: synthesizedStatement } = await generateResponse({
+          messages: [{ role: 'user', content: populatedPrompt }],
+          maxTokens: 1500,
+          temperature: 0.7
         });
+        
+        if (synthErr) {
+          throw new Error(synthErr);
+        }
+        
+        // Set conversation started flag
+        setConversationStarted(true);
+        
+        // Get narrative_build_companion prompt for the conversation
+        const companionPromptResult = await getPromptByTypeStrong('narrative_build_companion');
+        if (!companionPromptResult.success || !companionPromptResult.data) {
+          throw new Error('Failed to load narrative_build_companion prompt');
+        }
+        
+        // Prepare parameters for the companion prompt
+        const companionParameters = {
+          selected_statement: synthesizedStatement,
+          companion_name: (selectedCompanion as any)?.companion || selectedCompanion?.name || 'Companion',
+          research_summary: researchSummary || 'No research summary available',
+          conversation_history: 'Beginning refinement of multiple selected statements'
+        };
+        
+        // Use the companion prompt to generate the conversation message
+        const companionPrompt = populatePrompt(companionPromptResult.data.prompt, companionParameters);
+        await sendMessage(companionPrompt);
       }
-
-      // No community_avatar message is sent
-
+      
+      setHasInitiatedDiscussion(true); // Latch - keep it true after first click
+      
     } catch (error: any) {
-      console.error('[NarrativeBuild] Error initiating multi-statement discussion:', error);
+      console.error('Error in handleInitiateMultiStatementDiscussion:', error);
       toast({
         title: 'Discussion Error',
-        description: error.message || 'Could not initiate discussion with AI avatars.',
+        description: error.message || 'Could not initiate discussion.',
         variant: 'destructive'
       });
     } finally {
       setIsDiscussingStatements(false);
+      initiatingDiscussionRef.current = false;
+      // Don't reset hasInitiatedDiscussion - keep it latched
     }
-  }, [selectedStatements, selectedChurchAvatar, selectedCompanion, toast, addMessage, currentUser, setIsDiscussingStatements]);
+  }, [selectedStatements, hasInitiatedDiscussion, toast, getPromptByTypeStrong, generateResponse, sendMessage, selectedCompanion, researchSummary]);
 
   const handleOpenEditVocationalModal = useCallback(async () => {
     if (selectedStatements.length === 0) {
@@ -642,11 +592,8 @@ const NarrativeBuildContent: React.FC = () => {
     }
 
     setIsSynthesizingForEdit(true);
-    console.log('[NarrativeBuild] Opening Edit Vocational Modal for statements:', selectedStatements);
-    console.log('[NarrativeBuild] Current message history:', narrativeMessages);
 
     try {
-      // Determine prompt type
       const promptType: PromptType = selectedStatements.length === 1
         ? 'vocational_statement_synthesis'
         : 'vocational_statement_synthesized_multiple';
@@ -657,99 +604,62 @@ const NarrativeBuildContent: React.FC = () => {
       }
       const promptTemplate = promptResult.data.prompt;
 
-      // Compile selected statements content
       const compiledStatementsContent = selectedStatements
-        .map(stmt => stmt.content || stmt.mission_statement || JSON.stringify(stmt)) // Fallback to stringify if no direct content
+        .map(stmt => stmt.content || stmt.mission_statement || JSON.stringify(stmt))
         .join('\n\n---\n\n');
 
-      // Compile message history content
       const compiledMessageHistory = narrativeMessages
-        .map(msg => `${msg.name || msg.role}: ${msg.content}`)
+        .map((msg: any) => `${msg.role}: ${msg.content}`)
         .join('\n');
 
       const placeholders = {
         selected_statements_content: compiledStatementsContent,
         message_history: compiledMessageHistory,
-        // research_summary: researchSummary, // Add if your prompts use it
       };
 
-      // Ensure all required placeholders for the specific prompt are present in `placeholders`
-      // This might require inspecting the prompt templates for 'vocational_statement_synthesis' and 'vocational_statement_synthesized_multiple'
-      // For now, proceeding with assumed placeholders. Adjust as needed.
       const populatedPrompt = populatePrompt(promptTemplate, placeholders);
 
       const aiResponse = await generateResponse({
         messages: [{ role: 'user', content: populatedPrompt }],
-        maxTokens: 1500, // Adjust as needed for expected length of synthesized vocational statement
+        maxTokens: 1500,
       });
 
       if (aiResponse.text && !aiResponse.error) {
-        let statementForEditing = aiResponse.text; // Default to raw text
+        let statementForEditing = aiResponse.text;
 
         try {
-          // Attempt 1: Parse directly
-          const parsedResponse = JSON.parse(aiResponse.text);
-
-          if (Array.isArray(parsedResponse) && parsedResponse.length > 0) {
-            const firstItem = parsedResponse[0];
-            if (firstItem && typeof firstItem.mission_statement === 'string') {
-              statementForEditing = firstItem.mission_statement;
-            } else if (typeof firstItem === 'string') {
-              statementForEditing = firstItem; // Array of strings
-            } else {
-              console.warn('[NarrativeBuild] Parsed array item is not in expected format (missing mission_statement or not a string). Using raw text.');
+          const parsed = JSON.parse(aiResponse.text);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const first = parsed[0];
+            if (first && typeof first.mission_statement === 'string') {
+              statementForEditing = first.mission_statement;
+            } else if (typeof first === 'string') {
+              statementForEditing = first;
             }
-          } else if (parsedResponse && typeof parsedResponse.synthesized_vocational_statement === 'string') {
-            // Handle single object with synthesized_vocational_statement key
-            statementForEditing = parsedResponse.synthesized_vocational_statement;
-          } else {
-            console.warn('[NarrativeBuild] Parsed response is not an array or expected object. Using raw text.');
+          } else if (parsed && typeof parsed.synthesized_vocational_statement === 'string') {
+            statementForEditing = parsed.synthesized_vocational_statement;
           }
-        } catch (e1) {
-          // Attempt 2: Try to fix if it looks like a list of objects needing brackets
-          console.warn('[NarrativeBuild] Initial JSON.parse failed. Attempting to fix and re-parse. Error:', e1);
-          if (aiResponse.text.trim().startsWith("{") && aiResponse.text.trim().endsWith("}") && aiResponse.text.includes("},{")) {
-            const fixedJsonString = `[${aiResponse.text}]`;
-            try {
-              const parsedFixedResponse = JSON.parse(fixedJsonString);
-              if (Array.isArray(parsedFixedResponse) && parsedFixedResponse.length > 0) {
-                const firstItem = parsedFixedResponse[0];
-                if (firstItem && typeof firstItem.mission_statement === 'string') {
-                  statementForEditing = firstItem.mission_statement;
-                } else if (typeof firstItem === 'string') {
-                  statementForEditing = firstItem;
-                } else {
-                  console.warn('[NarrativeBuild] Fixed and parsed array item is not in expected format. Using raw text.');
-                }
-              } else {
-                console.warn('[NarrativeBuild] Fixed string parsed, but not a non-empty array. Using raw text.');
-              }
-            } catch (e2) {
-              console.warn('[NarrativeBuild] Failed to parse even after attempting to fix JSON. Using raw text. Error:', e2);
-            }
-          } else {
-            console.warn('[NarrativeBuild] Does not look like a fixable list of JSON objects. Using raw text.');
-          }
+        } catch {
+          // fall back to raw text
         }
 
         setEditingVocationalContent(statementForEditing);
         setShowEditVocationalModal(true);
-        toast({ title: 'Synthesis Complete', description: 'You can now edit the synthesized vocational statement.', variant: 'default' });
+        toast({ title: 'Synthesis Complete', description: 'You can now edit the synthesized vocational statement.' });
       } else {
         throw new Error(aiResponse.error || 'Failed to synthesize vocational statement for editing.');
       }
 
     } catch (error: any) {
-      console.error('[NarrativeBuild] Error synthesizing vocational statement for editing:', error);
       toast({
         title: 'Synthesis Error',
-        description: error.message || 'Could not synthesize vocational statement for editing.',
+        description: error.message || 'Could not synthesize vocational statement.',
         variant: 'destructive',
       });
     } finally {
       setIsSynthesizingForEdit(false);
     }
-  }, [selectedStatements, narrativeMessages, getPromptByTypeStrong, generateResponse, toast, researchSummary]); // Added researchSummary to deps
+  }, [selectedStatements, narrativeMessages, getPromptByTypeStrong, generateResponse, toast]);
 
   const handleSaveEditedVocationalStatement = useCallback(async (editedContent: string) => {
     if (!currentUser) {
@@ -763,26 +673,21 @@ const NarrativeBuildContent: React.FC = () => {
 
     setIsSavingEditedVocationalStatement(true);
     try {
-      // Use the utility function to save vocational statement in standardized format
       const userId = currentUser.id;
-      
+
       if (selectedViewStatement) {
-        // If we're editing an existing statement
         const statementData = { ...selectedViewStatement, content: editedContent };
         await handleSaveVocationalStatement(statementData, 'edit', selectedViewStatement);
       } else {
-        // If this is a new statement from custom event or generation
-        // Save both to localStorage and database
-        localStorage.setItem('vocational_statement', editedContent);
+        localStorage.setItem(LS.VOCATIONAL_STATEMENT, editedContent);
         await saveVocationalStatement(editedContent, userId);
       }
-      
-      toast({ title: 'Success', description: 'Vocational statement saved successfully.', variant: 'default' });
-      setShowEditVocationalModal(false); // Close modal on successful save
-      navigate('/plan-build'); // Navigate to PlanBuild page after saving
+
+      toast({ title: 'Success', description: 'Vocational statement saved successfully.' });
+      setShowEditVocationalModal(false);
+      navigate('/scenario');
 
     } catch (error: any) {
-      console.error('[NarrativeBuild] Error saving edited vocational statement:', error);
       toast({
         title: 'Save Error',
         description: error.message || 'Could not save the vocational statement.',
@@ -791,104 +696,80 @@ const NarrativeBuildContent: React.FC = () => {
     } finally {
       setIsSavingEditedVocationalStatement(false);
     }
-  }, [currentUser, selectedViewStatement, navigate, toast]);
+  }, [currentUser, selectedViewStatement, navigate, toast, handleSaveVocationalStatement]);
 
-
-
-  /* handleDirectMessage moved earlier */
-
-  /* handleUserInputKeyDown moved earlier */
-
-  // Original handleOpenVocationalDialog definition is fine, calls to it will be fixed.
   const handleOpenVocationalDialog = useCallback((role: AvatarRole | 'system', statement?: UIVocationalStatement, mode: 'add' | 'edit' | 'adapt' = 'add') => {
     setDialogAvatarRole(role);
     setEditingStatement(statement || null);
     setDialogMode(mode);
     setShowVocationalDialog(true);
-  }, [setDialogAvatarRole, setEditingStatement, setDialogMode, setShowVocationalDialog]);
+  }, []);
 
   useEffect(() => {
     if (missingAvatars && !avatarsLoading) {
       setShowAvatarModal(true);
     }
-  }, [missingAvatars, avatarsLoading, setShowAvatarModal]);
+  }, [missingAvatars, avatarsLoading]);
 
+  const { prompts: _prompts } = usePrompts();
+
+  // Mentionable avatars: side-effect free
   const mentionableAvatars = useMemo(() => {
-    const avatars = [];
+    const avatars: Array<{ id: string; name: string; role: AvatarRole; avatarUrl?: string; type: string }> = [];
     if (selectedChurchAvatar) {
       avatars.push({
         id: selectedChurchAvatar.id,
         name: selectedChurchAvatar.name,
-        role: 'church' as AvatarRole,
+        role: 'church',
         avatarUrl: selectedChurchAvatar.avatar_url || selectedChurchAvatar.image_url,
         type: 'church'
       });
     }
-
     if (selectedCompanion) {
-      companionVocationalHook.generate({
-        researchSummary: researchSummary || '', // Added null/empty string fallback
-        avatarData: selectedCompanion,
-        avatarRole: 'companion',
-      }).then(() => {
-        console.log('[NarrativeBuild] Companion vocational statement generation complete.');
-      }).catch((err) => {
-        console.error('[NarrativeBuild] Companion vocational statement generation failed:', err);
+      avatars.push({
+        id: selectedCompanion.id,
+        name: (selectedCompanion as any)?.companion || selectedCompanion.name || 'Companion',
+        role: 'companion',
+        avatarUrl: selectedCompanion.avatar_url,
+        type: 'companion',
       });
     }
     return avatars;
   }, [selectedChurchAvatar, selectedCompanion]);
 
+  // Initial generation effect (no scenario dependency)
   const generationAttemptsRef = useRef(0);
-  const maxGenerationAttempts = 3; // Increased for testing
+  const maxGenerationAttempts = 3;
 
-  // Effect for initial statement generation for each avatar (SIMPLIFIED FOR TESTING)
   useEffect(() => {
-    console.log('%c[NarrativeBuild] EFFECT FOR INITIAL VOCATIONAL STATEMENT GENERATION TRIGGERED (Simplified)', 'color: orange; font-weight: bold; font-size: 1.2em;');
-    console.log('[NarrativeBuild] Simplified State Check:', {
-      researchSummaryAvailable: !!researchSummary,
-      researchSummaryLength: researchSummary ? researchSummary.length : 0,
-       // from usePrompts
-      promptsAvailable: prompts && Object.keys(prompts).length > 0,
-      selectedCompanion: !!selectedCompanion,
-      selectedChurchAvatar: !!selectedChurchAvatar,
-      generationAttempts: generationAttemptsRef.current,
-      maxAttempts: maxGenerationAttempts,
-    });
-
     if (
-      // Removed avatar selection checks to always allow statement generation
-      researchSummary && researchSummary.length > 0 &&
-      prompts && Object.keys(prompts).length > 0 && // Ensure prompts object is populated
+      researchSummary &&
+      researchSummary.length > 0 &&
+      prompts && Object.keys(prompts).length > 0 &&
       generationAttemptsRef.current < maxGenerationAttempts
     ) {
       generationAttemptsRef.current++;
-      console.log(`%c[NarrativeBuild] SIMPLIFIED: Conditions MET for generation (attempt ${generationAttemptsRef.current}). Calling generate...`, 'color: green; font-weight: bold;');
 
-        // Always generate church vocational statements, even without avatar
+      // generate church
       churchVocationalHook.generate({
         researchSummary,
-        // Use avatar data if available, otherwise use a default ChurchAvatar that strictly matches the interface
-        avatarData: selectedChurchAvatar || { 
-          id: 'default', 
+        avatarData: selectedChurchAvatar || {
+          id: 'default',
           name: 'Church',
           avatar_name: 'Default Church',
           role: 'church',
           avatar_point_of_view: 'A church perspective'
-        } as ChurchAvatar, // No need for unknown casting with proper structure
+        } as ChurchAvatar,
         avatarRole: 'church',
-      }).then(() => {
-        console.log('[NarrativeBuild] Church vocational statement generation complete.');
       }).catch((err) => {
         console.error('[NarrativeBuild] Church vocational statement generation failed:', err);
       });
 
-      // Always generate companion vocational statements, even without avatar
+      // generate companion
       companionVocationalHook.generate({
         researchSummary,
-        // Use avatar data if available, otherwise use a default Companion that strictly matches the interface
-        avatarData: selectedCompanion || { 
-          id: 'default', 
+        avatarData: selectedCompanion || {
+          id: 'default',
           name: 'Default Companion',
           role: 'companion',
           companion: 'Default Companion',
@@ -898,28 +779,12 @@ const NarrativeBuildContent: React.FC = () => {
           companion_type: 'guide'
         } as Companion,
         avatarRole: 'companion',
-      }).then(() => {
-        console.log('[NarrativeBuild] Companion vocational statement generation complete.');
       }).catch((err) => {
         console.error('[NarrativeBuild] Companion vocational statement generation failed:', err);
       });
 
-    } else {
-      console.log('%c[NarrativeBuild] SIMPLIFIED: Conditions for generation NOT met.', 'color: red; font-weight: bold;');
-      console.log('[NarrativeBuild] Reason for NOT meeting conditions (Simplified):', {
-        
-        avatarsSelected: !!(selectedCompanion || selectedChurchAvatar), // Changed to OR logic to allow either avatar to be sufficient
-        researchSummaryPresentAndNotEmpty: !!(researchSummary && researchSummary.length > 0),
-        attemptLimitReached: generationAttemptsRef.current >= maxGenerationAttempts,
-      });
     }
-  }, [
-    researchSummary,
-    selectedCompanion,
-    selectedChurchAvatar,
-    
-    prompts,
-  ]);
+  }, [researchSummary, selectedCompanion, selectedChurchAvatar, prompts, churchVocationalHook, companionVocationalHook]);
 
   const generatedChurchStatements = useMemo(() => mapHookStatementsToUI(churchVocationalHook.statements, 'church', selectedStatements), [churchVocationalHook.statements, selectedStatements, selectedChurchAvatar, mapHookStatementsToUI]);
   const generatedCompanionStatements = useMemo(() => mapHookStatementsToUI(companionVocationalHook.statements, 'companion', selectedStatements), [companionVocationalHook.statements, selectedStatements, selectedCompanion, mapHookStatementsToUI]);
@@ -931,137 +796,115 @@ const NarrativeBuildContent: React.FC = () => {
       ...generatedCompanionStatements,
       ...generatedSystemStatements,
     ];
-    console.log('[NarrativeBuild] allDisplayableStatements calculated:', {
-      churchCount: generatedChurchStatements.length,
-      companionCount: generatedCompanionStatements.length,
-      systemCount: generatedSystemStatements.length,
-      totalCount: statements.length,
-      statements
-    });
     return statements;
   }, [generatedChurchStatements, generatedCompanionStatements, generatedSystemStatements]);
 
-  // Moved handler definitions earlier to avoid 'used before declaration' errors
   const narrativeInputSubmitWrapper = useCallback(async (eventOrInput: React.FormEvent | string) => {
     let currentInput = '';
     if (typeof eventOrInput === 'string') {
       currentInput = eventOrInput;
     } else if (eventOrInput && typeof eventOrInput.preventDefault === 'function') {
       eventOrInput.preventDefault();
-      currentInput = userInput; // Assuming userInput state holds the value from NarrativeInput
+      currentInput = userInput;
     }
 
     if (!currentInput.trim()) return;
 
-    console.log('narrativeInputSubmitWrapper called with:', currentInput);
     if (handleUserMessageSubmit) {
-        await handleUserMessageSubmit(currentInput);
-        setUserInput(''); // Clear input after submission
+      await handleUserMessageSubmit(currentInput);
+      setUserInput('');
     } else {
-        console.warn('handleUserMessageSubmit is not defined, cannot send message.');
-        toast({ title: 'Error', description: 'Message submission handler not available.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Message submission handler not available.', variant: 'destructive' });
     }
-  }, [handleUserMessageSubmit, userInput, setUserInput, toast]);
+  }, [handleUserMessageSubmit, userInput, toast]);
 
-// Type provided by VocationalStatementDialog's onSave (derived from error message)
-type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
-  name: string;
-  content: string;
-  id?: string;
-  mission_statement?: string;
-  contextual_explanation?: string;
-  theological_justification?: string;
-  practical_application?: string;
-  // any other fields the dialog might send
-};
+  type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
+    name: string;
+    content: string;
+    id?: string;
+    mission_statement?: string;
+    contextual_explanation?: string;
+    theological_justification?: string;
+    practical_application?: string;
+  };
 
   const handleDialogSaveWrapper = useCallback((dataFromDialog: DialogProvidedStatementData) => {
     const originalStatement = editingStatement?.id ? allDisplayableStatements.find(s => s.id === editingStatement.id) : undefined;
-    console.log('handleDialogSaveWrapper called with data:', dataFromDialog, 'mode:', dialogMode, 'role:', dialogAvatarRole, 'originalStatement:', originalStatement);
     if (handleSaveVocationalStatement && dialogAvatarRole) {
-        const fullDataForSave: StatementDataFromDialog = {
-            id: dataFromDialog.id || uuidv4(),
-            name: dataFromDialog.name,
-            content: dataFromDialog.content,
-            avatar_role: dataFromDialog.avatar_role || dialogAvatarRole || 'system',
-            createdAt: typeof dataFromDialog.createdAt === 'string' ? dataFromDialog.createdAt : (dataFromDialog.createdAt instanceof Date ? dataFromDialog.createdAt.toISOString() : new Date().toISOString()),
-            updatedAt: typeof dataFromDialog.updatedAt === 'string' ? dataFromDialog.updatedAt : (dataFromDialog.updatedAt instanceof Date ? dataFromDialog.updatedAt.toISOString() : new Date().toISOString()),
-            mission_statement: dataFromDialog.mission_statement,
-            contextual_explanation: dataFromDialog.contextual_explanation,
-            theological_justification: dataFromDialog.theological_justification,
-            practical_application: dataFromDialog.practical_application,
-            key_insights: dataFromDialog.key_insights,
-            counter_arguments: dataFromDialog.counter_arguments,
-            supporting_scriptures: dataFromDialog.supporting_scriptures,
-            user_id: dataFromDialog.user_id,
-            original_ids: dataFromDialog.original_ids,
-            resourceType: "narrative_statement", // Adjusted to specific literal type as per TS error
-            category: "narrative", // Adjusted to specific literal type as per TS error
-        };
+      const fullDataForSave: StatementDataFromDialog = {
+        id: dataFromDialog.id || uuidv4(),
+        name: dataFromDialog.name,
+        content: dataFromDialog.content,
+        avatar_role: dataFromDialog.avatar_role || dialogAvatarRole || 'system',
+        createdAt: typeof dataFromDialog.createdAt === 'string' ? dataFromDialog.createdAt : (dataFromDialog.createdAt instanceof Date ? dataFromDialog.createdAt.toISOString() : new Date().toISOString()),
+        updatedAt: typeof dataFromDialog.updatedAt === 'string' ? dataFromDialog.updatedAt : (dataFromDialog.updatedAt instanceof Date ? dataFromDialog.updatedAt.toISOString() : new Date().toISOString()),
+        mission_statement: dataFromDialog.mission_statement,
+        contextual_explanation: dataFromDialog.contextual_explanation,
+        theological_justification: dataFromDialog.theological_justification,
+        practical_application: dataFromDialog.practical_application,
+        key_insights: dataFromDialog.key_insights,
+        counter_arguments: dataFromDialog.counter_arguments,
+        supporting_scriptures: dataFromDialog.supporting_scriptures,
+        user_id: dataFromDialog.user_id,
+        original_ids: dataFromDialog.original_ids,
+        resourceType: "narrative_statement",
+        category: "narrative",
+      };
 
-        handleSaveVocationalStatement(fullDataForSave, dialogMode, editingStatement || undefined);
+      handleSaveVocationalStatement(fullDataForSave, dialogMode, editingStatement || undefined);
     } else {
-        console.warn('handleSaveVocationalStatement or dialogAvatarRole is not defined, cannot save statement.');
-        toast({ title: 'Error', description: 'Statement save handler or role not available.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Statement save handler or role not available.', variant: 'destructive' });
     }
-}, [handleSaveVocationalStatement, dialogMode, dialogAvatarRole, editingStatement, allDisplayableStatements, toast]);
+  }, [handleSaveVocationalStatement, dialogMode, dialogAvatarRole, editingStatement, allDisplayableStatements, toast]);
 
   const handleToggleStatementSelection = useCallback((statementId: string) => {
     setSelectedStatements(prevSelected => {
       const isSelected = prevSelected.some(s => s.id === statementId);
       if (isSelected) {
-        // For radio buttons, we don't want to deselect when clicking an already selected item
-        return prevSelected;
+        return prevSelected.filter(s => s.id !== statementId);
       } else {
-        // For radio buttons, we only want one statement selected at a time
         const statementToAdd = allDisplayableStatements.find(s => s.id === statementId);
-        return statementToAdd ? [statementToAdd] : [];
+        return statementToAdd ? [...prevSelected, statementToAdd] : prevSelected;
       }
     });
-  }, [allDisplayableStatements, setSelectedStatements]);
+  }, [allDisplayableStatements]);
 
-  // Adjusted for EnhancedNarrativeConversation's expected signature (index: number)
   const handleMessageSelect = useCallback((index: number) => {
-    console.log('handleMessageSelect called with index:', index);
-    // If you need the messageId, you'd get it from narrativeMessages[index].id
-    // const messageId = narrativeMessages[index]?.id;
-    // console.log('Corresponding messageId:', messageId);
-  }, [/*narrativeMessages*/]); // Add narrativeMessages if you access it
+    // EnhancedNarrativeConversation manages selected flags via parent onMessageSelect
+  }, []);
 
   const handleRetryNarrativeGeneration = useCallback(() => {
-    console.log('handleRetryNarrativeGeneration called');
     toast({ title: 'Retry Clicked', description: 'Retry functionality to be fully implemented.', variant: 'default' });
   }, [toast]);
 
   const handleUserInputKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      narrativeInputSubmitWrapper(userInput); // Pass userInput directly
+      narrativeInputSubmitWrapper(userInput);
     }
   }, [narrativeInputSubmitWrapper, userInput]);
 
-  // Adjusted handleDirectMessage to not require a role if NarrativeInput doesn't provide it
-  const handleDirectMessage = useCallback(async () => { // Removed _role parameter
-    console.log('[NarrativeBuild] Direct message action triggered.');
+  const handleDirectMessage = useCallback(async () => {
     toast({ title: 'Direct Message', description: 'TODO: Implement direct message UI/flow.' });
   }, [toast]);
 
-  /* narrativeInputSubmitWrapper moved earlier */
-
-  /* handleDialogSaveWrapper moved earlier */
-
-  /* handleToggleStatementSelection moved earlier */
-
-  /* handleMessageSelect moved earlier */
-
-  /* handleRetryNarrativeGeneration moved earlier */
-
-  // Effect to show avatar modal if avatars are missing
+  // Show avatar modal if avatars are missing
   useEffect(() => {
-    if (!avatarsLoading && (missingAvatars.church || missingAvatars.companion)) {
-      setShowAvatarModal(true);
+    if (avatarsLoading) return;
+    if (!selectedChurchAvatar || !selectedCompanion) {
+      const timer = setTimeout(() => {
+        setShowAvatarModal(true);
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [avatarsLoading, missingAvatars]);
+  }, [avatarsLoading, selectedChurchAvatar, selectedCompanion]);
+
+  // Close the missing requirements modal if it's open and avatars are loaded
+  useEffect(() => {
+    if (showMissingModal && selectedChurchAvatar && selectedCompanion) {
+      setShowMissingModal(false);
+    }
+  }, [showMissingModal, selectedChurchAvatar, selectedCompanion]);
 
   // Error handling for statement generation hooks
   const combinedStatementsError = churchVocationalHook.error || companionVocationalHook.error || systemVocationalHook.error;
@@ -1071,45 +914,18 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
       hasShownStatementErrorRef.current = true;
       toast({
         title: 'Statement Generation Error',
-        description: `Failed to generate vocational statements: ${combinedStatementsError}. You may need to refresh or check avatar configurations.`, 
+        description: `Failed to generate vocational statements: ${combinedStatementsError}. You may need to refresh or check avatar configurations.`,
         variant: 'destructive',
         duration: 7000,
       });
-      setTimeout(() => { hasShownStatementErrorRef.current = false; }, 15000); // Allow new errors after a while
+      setTimeout(() => { hasShownStatementErrorRef.current = false; }, 15000);
     }
   }, [combinedStatementsError, toast]);
 
-
-
-  // Show avatar modal if avatars are missing
-  useEffect(() => {
-    if (avatarsLoading) return;
-    
-    if (!selectedChurchAvatar || !selectedCompanion) {
-      // Set a small timeout to ensure the component is fully rendered
-      const timer = setTimeout(() => {
-        setShowAvatarModal(true);
-      }, 100);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [avatarsLoading, selectedChurchAvatar, selectedCompanion]);
-  
-  // Close the missing requirements modal if it's open and avatars are loaded
-  useEffect(() => {
-    if (showMissingModal && selectedChurchAvatar && selectedCompanion) {
-      setShowMissingModal(false);
-    }
-  }, [showMissingModal, selectedChurchAvatar, selectedCompanion]);
-  
-
-  
-
-  
-  // Show loading state if avatars are still loading
+  // Loading avatars
   if (avatarsLoading) {
     return (
-      <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+      <div className="flex items-center justify-center h-[calc(100vh-200px)]" aria-live="polite">
         <div className="text-center">
           <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mb-4"></div>
           <p className="text-lg text-muted-foreground">Loading avatars...</p>
@@ -1118,7 +934,7 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
     );
   }
 
-  // --- Modal for missing requirements ---
+  // Missing requirements modal
   if (showMissingModal && missingRequirements.length > 0) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-black/40 z-50">
@@ -1139,9 +955,9 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
       <div className="mb-4">
-        <Button 
-          variant="ghost" 
-          className="mr-2 -ml-3 mt-1" 
+        <Button
+          variant="ghost"
+          className="mr-2 -ml-3 mt-1"
           onClick={() => navigate('/clergy-home')}
           aria-label="Back to homepage"
         >
@@ -1149,435 +965,360 @@ type DialogProvidedStatementData = Partial<HookVocationalStatement> & {
           <span className="ml-1">Back</span>
         </Button>
       </div>
+
       <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Refine your mission</h1>
-          {scenarioDetails && (
-            <div className="mb-4 bg-secondary/20 p-3 rounded-md">
-              <h2 className="text-lg font-medium">Active Scenario: {scenarioDetails.title}</h2>
-              {scenarioDetails.description && (
-                <p className="text-gray-600 text-sm">{scenarioDetails.description}</p>
-              )}
-            </div>
-          )}
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Based on combined research below you will find a series of optional mission statements.  Select a statement that most closely resembles your hope for the future.  After selecting a statement, use the interactive tool to refine your ongoing mission.
+            Based on combined research below you will find a series of optional mission statements. Select a statement
+            that most closely resembles your hope for the future. After selecting a statement, use the interactive tool
+            to refine your ongoing mission.
           </p>
         </div>
         <div className="md:w-64">
-          {showChurchCard ? (
-            <ChurchAvatarCard onChangeAspiration={() => setShowAvatarModal(true)} />
-          ) : (
-            selectedCompanion && (
-              <div className="p-4 border rounded-md bg-white shadow-sm">
-                <div className="flex flex-col items-center space-y-2">
-                  <Avatar className="h-16 w-16">
-                    <AvatarImage src={selectedCompanion?.avatar_url} alt={(selectedCompanion as any)?.companion || 'Companion'} />
-                    <AvatarFallback>{((selectedCompanion as any)?.companion || '').charAt(0)?.toUpperCase() || 'C'}</AvatarFallback>
-                  </Avatar>
-                  <h3 className="text-lg font-medium">{(selectedCompanion as any)?.companion || 'Your Companion'}</h3>
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setShowAvatarModal(true)} 
-                    size="sm"
-                  >
-                    Change point of view
-                  </Button>
-                </div>
+          {selectedCompanion && (
+            <div className="p-4 border rounded-md bg-white shadow-sm">
+              <div className="flex flex-col items-center space-y-2">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={selectedCompanion?.avatar_url} alt={(selectedCompanion as any)?.companion || 'Companion'} />
+                  <AvatarFallback>{((selectedCompanion as any)?.companion || '').charAt(0)?.toUpperCase() || 'C'}</AvatarFallback>
+                </Avatar>
+                <h3 className="text-lg font-medium">{(selectedCompanion as any)?.companion || 'Your Companion'}</h3>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowAvatarModal(true)}
+                  size="sm"
+                >
+                  Change point of view
+                </Button>
               </div>
-            )
+            </div>
           )}
         </div>
       </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Proposed mission statements</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {(churchVocationalHook.isGenerating || companionVocationalHook.isGenerating) && (
-              <div className="flex items-center justify-center py-4">
-                <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2" />
-                <span>Generating statements...</span>
-              </div>
-            )}
-            {(() => {
-              console.log('[NarrativeBuild] Rendering condition check:', {
-                statementsLength: allDisplayableStatements.length,
-                churchGenerating: churchVocationalHook.isGenerating,
-                companionGenerating: companionVocationalHook.isGenerating,
-                showEmptyMessage: allDisplayableStatements.length === 0 && !(churchVocationalHook.isGenerating || companionVocationalHook.isGenerating)
-              });
-              
-              if (allDisplayableStatements.length === 0 && !(churchVocationalHook.isGenerating || companionVocationalHook.isGenerating)) {
-                return <p className="text-muted-foreground py-4 text-center">No vocational statements generated yet. They will appear here once processed or can be added manually.</p>;
-              }
-              // Don't return null here - we want to continue to the statement rendering below
-              return null;
-            })()}
-            
-            {/* Sort statements by rank (if available) */}
-            {(() => {
-              // Sort statements with rank first, then unranked ones
-              const sortedStatements = [...allDisplayableStatements].sort((a, b) => {
-                // If both have ranks, sort by rank
-                if (a.rank !== undefined && b.rank !== undefined) {
-                  return a.rank - b.rank;
-                }
-                // Statements with ranks come before those without
-                if (a.rank !== undefined) return -1;
-                if (b.rank !== undefined) return 1;
-                // If neither has a rank, maintain original order
-                return 0;
-              });
-              
-              // Separate top statement from the rest
-              const topStatement = sortedStatements.length > 0 ? sortedStatements[0] : null;
-              const otherStatements = sortedStatements.slice(1);
-              
-              console.log('[NarrativeBuild] Statement rendering:', {
-                sortedStatementsLength: sortedStatements.length,
-                topStatement: topStatement ? { id: topStatement.id, content: topStatement.content?.substring(0, 50) + '...' } : null,
-                otherStatementsCount: otherStatements.length
-              });
-              
-              return (
-                <>
-                  {/* Featured Top Statement */}
-                  {topStatement && (
-                    <div className="mb-6">
-                      <div className="flex items-center gap-2 mb-2">
-                        <div className="bg-primary text-primary-foreground text-xs font-semibold px-2 py-1 rounded-full">
-                          {topStatement.rank !== undefined ? `Rank #${topStatement.rank}` : 'Sythnesized from All Contributions'}
+      <Card>
+        <CardHeader>
+          <CardTitle>Proposed mission statements</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {(churchVocationalHook.isGenerating || companionVocationalHook.isGenerating) && (
+            <div className="flex items-center justify-center py-4" aria-live="polite">
+              <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-primary mr-2" />
+              <span>Generating statements...</span>
+            </div>
+          )}
+
+          {allDisplayableStatements.length === 0 && !(churchVocationalHook.isGenerating || companionVocationalHook.isGenerating) && (
+            <p className="text-muted-foreground py-4 text-center">
+              No vocational statements generated yet. They will appear here once processed or can be added manually.
+            </p>
+          )}
+
+          {(() => {
+            const sortedStatements = [...allDisplayableStatements].sort((a, b) => {
+              if (a.rank !== undefined && b.rank !== undefined) return a.rank - b.rank;
+              if (a.rank !== undefined) return -1;
+              if (b.rank !== undefined) return 1;
+              return 0;
+            });
+
+            const topStatement = sortedStatements.length > 0 ? sortedStatements[0] : null;
+            const otherStatements = sortedStatements.slice(1);
+
+            return (
+              <>
+                {topStatement && (
+                  <div className="mb-6">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="bg-primary text-primary-foreground text-xs font-semibold px-2 py-1 rounded-full">
+                        {topStatement.rank !== undefined ? `Rank #${topStatement.rank}` : 'Synthesized from Contributions'}
+                      </div>
+                    </div>
+
+                    <Card
+                      key={topStatement.id}
+                      className={`flex flex-col shadow-md transition-all duration-200 ${topStatement.isSelected ? 'border-primary border-2 bg-primary/5' : 'border-primary/50'}`}
+                    >
+                      <CardHeader className="flex flex-row items-start space-x-3 p-5 bg-muted/30">
+                        <div className="mt-1 shrink-0">
+                          <Checkbox
+                            id={`select-stmt-${topStatement.id}`}
+                            checked={!!selectedStatements.find(s => s.id === topStatement.id)}
+                            onCheckedChange={() => handleToggleStatementSelection(topStatement.id!)}
+                            className="h-4 w-4"
+                            aria-label={`Select statement: ${topStatement.name}`}
+                          />
                         </div>
-                      </div>
-                      
-                      <Card 
-                        key={topStatement.id} 
-                        className={`flex flex-col shadow-md transition-all duration-200 ${topStatement.isSelected ? 'border-primary border-2 bg-primary/5' : 'border-primary/50'}`}
-                      >
-                        <CardHeader className="flex flex-row items-start space-x-3 p-5 bg-muted/30">
-                          <div className="mt-1 shrink-0">
-                            <input
-                              type="radio"
-                              id={`select-stmt-${topStatement.id}`}
-                              checked={topStatement.isSelected}
-                              onChange={() => handleToggleStatementSelection(topStatement.id)}
-                              className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
-                              aria-label={`Select statement: ${topStatement.name}`}
-                            />
+                        <div className="flex-grow">
+                          <CardTitle className="text-xl leading-tight">{topStatement.name}</CardTitle>
+                          {narrativeError && <p className="text-destructive text-sm">Error: {narrativeError}</p>}
+                        </div>
+                      </CardHeader>
+                      <CardContent className="flex-grow p-5 text-base space-y-3">
+                        {topStatement.mission_statement && (
+                          <div>
+                            <h4 className="font-semibold text-base mb-1">Mission Statement:</h4>
+                            <p>{topStatement.mission_statement}</p>
                           </div>
-                          <div className="flex-grow">
-                            <CardTitle className="text-xl leading-tight">{topStatement.name}</CardTitle>
-                            {narrativeError && <p className="text-destructive text-sm">Error: {narrativeError}</p>}
-
+                        )}
+                        {topStatement.contextual_explanation && (
+                          <div>
+                            <h4 className="font-semibold text-base mb-1">Contextual Explanation:</h4>
+                            <p>{topStatement.contextual_explanation}</p>
                           </div>
-                          <Button 
-                            variant="outline"
-                            size="sm"
-                            onClick={() => topStatement.avatar_role && handleOpenVocationalDialog(topStatement.avatar_role, topStatement, 'edit')}
-                            className="ml-auto shrink-0"
-                            aria-label={`Customize statement: ${topStatement.name}`}
-                          >
-                            Customize this statement
-                          </Button>
-                        </CardHeader>
-                        <CardContent className="flex-grow p-5 text-base space-y-3">
-                          {topStatement.mission_statement && (
-                            <div>
-                              <h4 className="font-semibold text-base mb-1">Mission Statement:</h4>
-                              <p>{topStatement.mission_statement}</p>
-                            </div>
-                          )}
-                          {topStatement.contextual_explanation && (
-                            <div>
-                              <h4 className="font-semibold text-base mb-1">Contextual Explanation:</h4>
-                              <p>{topStatement.contextual_explanation}</p>
-                            </div>
-                          )}
-                          {topStatement.theological_justification && (
-                            <div>
-                              <h4 className="font-semibold text-base mb-1">Theological Justification:</h4>
-                              <p>{topStatement.theological_justification}</p>
-                            </div>
-                          )}
-                          {topStatement.practical_application && (
-                            <div>
-                              <h4 className="font-semibold text-base mb-1">Practical Application:</h4>
-                              <p>{topStatement.practical_application}</p>
-                            </div>
-                          )}
-                          {(!topStatement.mission_statement && topStatement.content) && (
-                            <div>
-                              <h4 className="font-semibold text-base mb-1">Content:</h4>
-                              <p>{topStatement.content}</p>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  )}
-                  
-                  {/* Other Statements */}
-                  {otherStatements.length > 0 && (
-                    <div className="mt-6">
-                      <h3 className="text-lg font-semibold mb-3">Alternative Statements</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {otherStatements.map(stmt => (
-                          <Card 
-                            key={stmt.id} 
-                            className={`flex flex-col mb-4 last:mb-0 transition-all duration-200 ${stmt.isSelected ? 'border-primary border-2 bg-primary/5' : ''} cursor-pointer hover:shadow-md`}
-                            onClick={(e) => {
-                              // Only open modal if not clicking on radio or customize button
-                              if (e.target instanceof HTMLElement && 
-                                  !e.target.closest('input[type="radio"]') && 
-                                  !e.target.closest('button')) {
-                                setSelectedViewStatement(stmt);
-                                setShowStatementModal(true);
-                              }
-                            }}
-                          >
-                            <CardHeader className="flex flex-row items-start space-x-3 p-4">
-                              <div className="mt-1 shrink-0">
-                                <input
-                                  type="radio"
-                                  id={`select-stmt-${stmt.id}`}
-                                  checked={stmt.isSelected}
-                                  onChange={() => handleToggleStatementSelection(stmt.id)}
-                                  className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
-                                  aria-label={`Select statement: ${stmt.name}`}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              </div>
-                              <div className="flex-grow">
-                                <CardTitle className="text-md leading-tight">{stmt.name}</CardTitle>
-                                {stmt.rank !== undefined && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground mt-1">
-                                    Rank #{stmt.rank}
-                                  </span>
-                                )}
-
-                              </div>
-                              <Button 
-                                variant="outline"
-                                size="sm"
-                                onClick={() => stmt.avatar_role && handleOpenVocationalDialog(stmt.avatar_role, stmt, 'edit')}
-                                className="ml-auto shrink-0"
-                                aria-label={`Customize statement: ${stmt.name}`}
-                              >
-                                Customize
-                              </Button>
-                            </CardHeader>
-                            <CardContent className="flex-grow text-sm space-y-1">
-                              {stmt.mission_statement && <p className="line-clamp-2"><strong>Mission:</strong> {stmt.mission_statement}</p>}
-                              {stmt.contextual_explanation && <p className="line-clamp-2"><strong>Context:</strong> {stmt.contextual_explanation}</p>}
-                              {stmt.theological_justification && <p className="line-clamp-2"><strong>Theology:</strong> {stmt.theological_justification}</p>}
-                              {stmt.practical_application && <p className="line-clamp-2"><strong>Application:</strong> {stmt.practical_application}</p>}
-                              {(!stmt.mission_statement && stmt.content) && <p className="line-clamp-3">{stmt.content}</p>}
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-            
-            {selectedStatements.length > 0 && (
-              <div className="mt-6 flex justify-center">
-                <Button
-                  onClick={handleInitiateMultiStatementDiscussion}
-                  disabled={isGenerating || selectedStatements.length === 0}
-                  size="lg"
-                >
-                  {isDiscussingStatements ? (
-                    <><div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" /> Discussing...</>
-                  ) : (
-                    `Next step: Refine the ${selectedStatements.length} Statement(s) you have selected`
-                  )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="mt-6">
-          <CardHeader className="flex flex-col items-start">
-            <CardTitle>Customize your mission statement</CardTitle>
-            <p>Engage in conversation with your Aspirational partner customizing this mission statement so it reflects your vision of the future.</p>
-
-            {/* Button removed as its functionality is now in the Next Steps button */}
-          </CardHeader>
-          <CardContent>
-            <EnhancedNarrativeConversation
-              messages={narrativeMessages} /* Corrected: was 'messages' */
-              isGenerating={isNarrativeLoading} /* Corrected: was 'isGenerating' */
-              initialSetupCompleted={true} /* Changed to unconditional to match our approach */
-              promptsLoaded={true} /* TEMP: Assuming prompts are loaded, as promptsLoaded from usePrompts was removed */
-              onMessageSelect={handleMessageSelect} /* Signature adjusted */
-              error={narrativeError} /* Corrected: was 'error' */
-              onRetry={handleRetryNarrativeGeneration} /* Connected */
-              selectedSecondaryStatement={selectedStatements.length > 0 ? selectedStatements[0] : null}
-            />
-            <div className="mt-4">
-              <NarrativeMessageInput
-                userInput={userInput}
-                setUserInput={setUserInput}
-                handleSubmit={(event) => narrativeInputSubmitWrapper(event)} /* handleSubmit expects event, wrapper adapted */
-                onKeyDown={handleUserInputKeyDown}
-                isLoading={isNarrativeLoading} /* Corrected */
-                onDirectMessage={handleDirectMessage} /* Signature adjusted */
-                showDefineNarrativeButton={false} 
-                avatars={mentionableAvatars}
-                handleNavigateToScenario={() => console.log('Navigate to Scenario Clicked - Placeholder')}
-                handleFinalizeMissionStatement={handleOpenEditVocationalModal}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Next Steps Button */}
-        <div className="flex justify-end mt-8">
-          <Button
-            onClick={handleOpenEditVocationalModal}
-            size="lg"
-            className="btn-next-step"
-            disabled={selectedStatements.length === 0 || isSynthesizingForEdit || isNarrativeLoading}
-          >
-            {isSynthesizingForEdit ? (
-              <><div className="inline-block animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2" /> Synthesizing...</>
-            ) : (
-              <>Next Step: Finalize the Mission Statement<ArrowRight className="ml-2 h-4 w-4" /></>
-            )}
-          </Button>
-        </div>
-
-        {/* Main Avatar Selection Modal */}
-        <VocationAvatarModal 
-          open={showAvatarModal} 
-          onOpenChange={setShowAvatarModal}
-        />
-        
-        {/* Church Avatar Selection Modal */}
-        <ChurchAvatarModal
-          open={showChurchModal}
-          onOpenChange={setShowChurchModal}
-          selectChurchAvatar={(avatar) => {
-            if (selectChurchAvatar) {
-              selectChurchAvatar(avatar);
-              setShowChurchModal(false);
-            }
-          }}
-        />
-        
-        {/* Statement Detail Modal */}
-        <Dialog open={showStatementModal} onOpenChange={setShowStatementModal}>
-          <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="text-xl">
-                {selectedViewStatement?.name || 'Mission Statement'}
-              </DialogTitle>
-              <DialogDescription>
-                {selectedViewStatement?.avatar_role && selectedViewStatement?.avatar_name && (
-                  <span className="text-sm text-muted-foreground">
-                    Source: {selectedViewStatement.avatar_role.toUpperCase()} - {selectedViewStatement.avatar_name}
-                  </span>
+                        )}
+                        {topStatement.theological_justification && (
+                          <div>
+                            <h4 className="font-semibold text-base mb-1">Theological Justification:</h4>
+                            <p>{topStatement.theological_justification}</p>
+                          </div>
+                        )}
+                        {topStatement.practical_application && (
+                          <div>
+                            <h4 className="font-semibold text-base mb-1">Practical Application:</h4>
+                            <p>{topStatement.practical_application}</p>
+                          </div>
+                        )}
+                        {(!topStatement.mission_statement && topStatement.content) && (
+                          <div>
+                            <h4 className="font-semibold text-base mb-1">Content:</h4>
+                            <p>{topStatement.content}</p>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
                 )}
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-6 py-4">
-              {selectedViewStatement?.mission_statement && (
-                <div>
-                  <h3 className="font-semibold mb-2">Mission Statement</h3>
-                  <p className="text-base">{selectedViewStatement.mission_statement}</p>
-                </div>
-              )}
-              
-              {selectedViewStatement?.contextual_explanation && (
-                <div>
-                  <h3 className="font-semibold mb-2">Contextual Explanation</h3>
-                  <p className="text-base">{selectedViewStatement.contextual_explanation}</p>
-                </div>
-              )}
-              
-              {selectedViewStatement?.theological_justification && (
-                <div>
-                  <h3 className="font-semibold mb-2">Theological Justification</h3>
-                  <p className="text-base">{selectedViewStatement.theological_justification}</p>
-                </div>
-              )}
-              
-              {selectedViewStatement?.practical_application && (
-                <div>
-                  <h3 className="font-semibold mb-2">Practical Application</h3>
-                  <p className="text-base">{selectedViewStatement.practical_application}</p>
-                </div>
-              )}
-              
-              {(!selectedViewStatement?.mission_statement && selectedViewStatement?.content) && (
-                <div>
-                  <h3 className="font-semibold mb-2">Content</h3>
-                  <p className="text-base">{selectedViewStatement.content}</p>
-                </div>
-              )}
+
+                {otherStatements.length > 0 && (
+                  <div className="mt-6">
+                    <h3 className="text-lg font-semibold mb-3">Alternative Statements</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {otherStatements.map(stmt => (
+                        <Card
+                          key={stmt.id}
+                          className={`flex flex-col mb-4 last:mb-0 transition-all duration-200 ${selectedStatements.find(s => s.id === stmt.id) ? 'border-primary border-2 bg-primary/5' : ''} cursor-pointer hover:shadow-md`}
+                          onClick={(e) => {
+                            if (e.target instanceof HTMLElement &&
+                              !e.target.closest('input[type="checkbox"]') &&
+                              !e.target.closest('button')) {
+                              setSelectedViewStatement(stmt);
+                              setShowStatementModal(true);
+                            }
+                          }}
+                          role="button"
+                          aria-label={`Open details for ${stmt.name}`}
+                        >
+                          <CardHeader className="flex flex-row items-start space-x-3 p-4">
+                            <div className="mt-1 shrink-0" onClick={(e) => e.stopPropagation()}>
+                              <Checkbox
+                                id={`select-stmt-${stmt.id}`}
+                                checked={!!selectedStatements.find(s => s.id === stmt.id)}
+                                onCheckedChange={() => handleToggleStatementSelection(stmt.id!)}
+                                className="h-4 w-4"
+                                aria-label={`Select statement: ${stmt.name}`}
+                              />
+                            </div>
+                            <div className="flex-grow">
+                              <CardTitle className="text-md leading-tight">{stmt.name}</CardTitle>
+                              {stmt.rank !== undefined && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-muted text-muted-foreground mt-1">
+                                  Rank #{stmt.rank}
+                                </span>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="flex-grow text-sm space-y-1">
+                            {stmt.mission_statement && <p className="line-clamp-2"><strong>Mission:</strong> {stmt.mission_statement}</p>}
+                            {stmt.contextual_explanation && <p className="line-clamp-2"><strong>Context:</strong> {stmt.contextual_explanation}</p>}
+                            {stmt.theological_justification && <p className="line-clamp-2"><strong>Theology:</strong> {stmt.theological_justification}</p>}
+                            {stmt.practical_application && <p className="line-clamp-2"><strong>Application:</strong> {stmt.practical_application}</p>}
+                            {(!stmt.mission_statement && stmt.content) && <p className="line-clamp-3">{stmt.content}</p>}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {/* Refine action bar */}
+          <div className="mt-6 flex items-center justify-between p-3 rounded-md bg-muted/20 border">
+            <div className="text-sm text-muted-foreground">
+              <span className="font-medium">Selected:</span> {selectedStatements.length} statement{selectedStatements.length === 1 ? '' : 's'}
             </div>
-            <DialogFooter>
-              <div className="flex justify-between w-full">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (selectedViewStatement?.id) {
-                      handleToggleStatementSelection(selectedViewStatement.id);
-                    }
-                  }}
-                >
-                  {selectedViewStatement?.isSelected ? 'Deselect' : 'Select'} Statement
-                </Button>
-                <Button
-                  variant="default"
-                  onClick={() => {
-                    if (selectedViewStatement?.avatar_role) {
-                      handleOpenVocationalDialog(selectedViewStatement.avatar_role, selectedViewStatement, 'edit');
-                      setShowStatementModal(false);
-                    }
-                  }}
-                >
-                  Customize This Statement
-                </Button>
+            <Button
+              onClick={handleInitiateMultiStatementDiscussion}
+              disabled={isDiscussingStatements || hasInitiatedDiscussion || selectedStatements.length === 0}
+              className="min-w-[220px]"
+            >
+              {isDiscussingStatements ? (
+                <span className="inline-flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Refining...
+                </span>
+              ) : hasInitiatedDiscussion ? (
+                'Refinement started'
+              ) : (
+                'Refine selected statements'
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader className="flex flex-col items-start">
+          <CardTitle>Customize your mission statement</CardTitle>
+          <p>Engage in conversation with your Aspirational partner customizing this mission statement so it reflects your vision of the future.</p>
+        </CardHeader>
+        <CardContent>
+          <EnhancedNarrativeConversation
+            messages={narrativeMessages}
+            isGenerating={isNarrativeLoading}
+            initialSetupCompleted={true}
+            promptsLoaded={true}
+            onMessageSelect={handleMessageSelect}
+            error={narrativeError}
+            onRetry={handleRetryNarrativeGeneration}
+            selectedSecondaryStatement={null}
+            hideNextSteps={true}
+            hideActions={true}
+          />
+          <div className="mt-4">
+            <NarrativeMessageInput
+              userInput={userInput}
+              setUserInput={setUserInput}
+              handleSubmit={(event) => narrativeInputSubmitWrapper(event)}
+              onKeyDown={handleUserInputKeyDown}
+              isLoading={isNarrativeLoading}
+              onDirectMessage={handleDirectMessage}
+              showDefineNarrativeButton={true}
+              avatars={mentionableAvatars}
+              handleNavigateToScenario={() => console.log('Navigate to Scenario Clicked - Placeholder')}
+              handleFinalizeMissionStatement={handleOpenEditVocationalModal}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Avatar Selection Modal */}
+      <VocationAvatarModal
+        open={showAvatarModal}
+        onOpenChange={setShowAvatarModal}
+      />
+
+      {/* Church Avatar Selection Modal */}
+      <ChurchAvatarModal
+        open={showChurchModal}
+        onOpenChange={setShowChurchModal}
+        selectChurchAvatar={(avatar) => {
+          if (selectChurchAvatar) {
+            selectChurchAvatar(avatar);
+            setShowChurchModal(false);
+          }
+        }}
+      />
+
+      {/* Statement Detail Modal */}
+      <Dialog open={showStatementModal} onOpenChange={setShowStatementModal}>
+        <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl">
+              {selectedViewStatement?.name || 'Mission Statement'}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedViewStatement?.avatar_role && selectedViewStatement?.avatar_name && (
+                <span className="text-sm text-muted-foreground">
+                  Source: {selectedViewStatement.avatar_role.toUpperCase()} - {selectedViewStatement.avatar_name}
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-6 py-4">
+            {selectedViewStatement?.mission_statement && (
+              <div>
+                <h3 className="font-semibold mb-2">Mission Statement</h3>
+                <p className="text-base">{selectedViewStatement.mission_statement}</p>
               </div>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            )}
 
-        {showVocationalDialog && (
-          <VocationalStatementDialog
-            isOpen={showVocationalDialog}
-            onClose={() => {
-              setShowVocationalDialog(false);
-              setEditingStatement(null);
-            }}
-            onSave={handleDialogSaveWrapper} /* Connected */
-            isLoading={isSynthesizingStatement || churchVocationalHook.isGenerating || companionVocationalHook.isGenerating}
-            narrativeContext={researchSummary} // Or selectedNarrativeMessages for more focused context
-            initialStatementData={editingStatement}
-            selectedStatements={selectedStatements} // For context if adapting multiple
-            mode={dialogMode}
-            avatarRole={dialogAvatarRole}
-            key={editingStatement?.id || dialogAvatarRole + dialogMode} // Force re-mount for different modes/statements
-          />
-        )}
+            {selectedViewStatement?.contextual_explanation && (
+              <div>
+                <h3 className="font-semibold mb-2">Contextual Explanation</h3>
+                <p className="text-base">{selectedViewStatement.contextual_explanation}</p>
+              </div>
+            )}
 
-        {showEditVocationalModal && (
-          <EditVocationalStatementModal
-            isOpen={showEditVocationalModal}
-            onClose={() => setShowEditVocationalModal(false)}
-            initialContent={editingVocationalContent}
-            onSave={handleSaveEditedVocationalStatement}
-            isSaving={isSavingEditedVocationalStatement}
-          />
-        )}
-      </div>
+            {selectedViewStatement?.theological_justification && (
+              <div>
+                <h3 className="font-semibold mb-2">Theological Justification</h3>
+                <p className="text-base">{selectedViewStatement.theological_justification}</p>
+              </div>
+            )}
+
+            {selectedViewStatement?.practical_application && (
+              <div>
+                <h3 className="font-semibold mb-2">Practical Application</h3>
+                <p className="text-base">{selectedViewStatement.practical_application}</p>
+              </div>
+            )}
+
+            {(!selectedViewStatement?.mission_statement && selectedViewStatement?.content) && (
+              <div>
+                <h3 className="font-semibold mb-2">Content</h3>
+                <p className="text-base">{selectedViewStatement.content}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <div className="flex justify-between w-full">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  if (selectedViewStatement?.id) {
+                    handleToggleStatementSelection(selectedViewStatement.id);
+                  }
+                }}
+              >
+                {selectedViewStatement && selectedStatements.find(s => s.id === selectedViewStatement.id) ? 'Deselect' : 'Select'} Statement
+              </Button>
+            </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {showVocationalDialog && (
+        <VocationalStatementDialog
+          isOpen={showVocationalDialog}
+          onClose={() => {
+            setShowVocationalDialog(false);
+            setEditingStatement(null);
+          }}
+          onSave={handleDialogSaveWrapper}
+          isLoading={isSynthesizingStatement || churchVocationalHook.isGenerating || companionVocationalHook.isGenerating}
+          narrativeContext={researchSummary}
+          initialStatementData={editingStatement}
+          selectedStatements={selectedStatements}
+          mode={dialogMode}
+          avatarRole={dialogAvatarRole}
+          key={editingStatement?.id || dialogAvatarRole + dialogMode}
+        />
+      )}
+
+      {showEditVocationalModal && (
+        <EditVocationalStatementModal
+          isOpen={showEditVocationalModal}
+          onClose={() => setShowEditVocationalModal(false)}
+          initialContent={editingVocationalContent}
+          onSave={handleSaveEditedVocationalStatement}
+          isSaving={isSavingEditedVocationalStatement}
+        />
+      )}
+    </div>
   );
 };
 

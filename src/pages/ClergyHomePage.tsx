@@ -120,7 +120,6 @@ const PHASES = [
         icon: <Compass className="h-5 w-5" />,
         color: ['#BFDBFE', '#2563EB'],
       },
-
     ],
   },
   {

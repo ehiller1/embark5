@@ -1735,7 +1735,7 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
                 size="lg"
               >
                 <Wand2 className="h-5 w-5 mr-2" />
-                {isGenerating ? 'Generating...' : 'Generate with AI'}
+                {isGenerating ? 'Generating...' : 'Generate'}
               </Button>
               <Button onClick={onCancel} variant="outline" size="lg">
                 <X className="h-4 w-4 mr-2" />
@@ -1751,7 +1751,7 @@ export const CampaignWizardComprehensive: React.FC<CampaignWizardComprehensivePr
               <div>
                 <h3 className="font-semibold text-blue-900 mb-1">AI-Powered Campaign Generation</h3>
                 <p className="text-blue-800 text-sm">
-                  Click "Generate with AI" to automatically populate all campaign fields with intelligent, 
+                  Click "Generate" to automatically populate all campaign fields with intelligent, 
                   contextual content based on your ministry's needs. You can then customize and refine 
                   each section to match your specific requirements.
                 </p>

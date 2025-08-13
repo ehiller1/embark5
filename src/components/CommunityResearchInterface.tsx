@@ -212,6 +212,16 @@ export function CommunityResearchInterface({
   onNext,
 }: CommunityResearchInterfaceProps) {
   const research = useCommunityResearchState(activeCategory, searchPrompt);
+  const [selectedResultId, setSelectedResultId] = useState<string | null>(null);
+
+  const handleSelectResult = (result: SearchResult) => {
+    setSelectedResultId(result.id);
+  };
+
+  const handleAnnotate = (result: SearchResult) => {
+    setSelectedResultId(result.id);
+    research.saveNoteFromResult(result);
+  };
 
   // Show category selection message only when no category is selected
   if (!activeCategory) {
@@ -290,10 +300,12 @@ export function CommunityResearchInterface({
                 onSearch={research.handleSearch}
                 results={research.searchResults}
                 isLoading={research.isLoading}
-                onSaveResult={research.saveNoteFromResult}
+                onSelectResult={handleSelectResult}
+                onAnnotate={handleAnnotate}
                 activeCategory={activeCategory}
                 hasValidationError={!!research.validationError}
                 pageType="community_research"
+                selectedResultId={selectedResultId}
               />
             </div>
           )}

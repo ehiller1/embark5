@@ -5,6 +5,8 @@ import { supabase } from '@/integrations/lib/supabase';
 export type PromptType = typeof REQUIRED_PROMPT_TYPES[number];
 
 const promptCache = new Map<PromptType, Prompt>();
+// Track in-flight requests to dedupe concurrent fetches per type
+const inFlightRequests = new Map<PromptType, Promise<{ success: boolean; data?: Prompt; error?: any }>>();
 
 export interface Prompt {
   id: string;
@@ -32,6 +34,7 @@ export const REQUIRED_PROMPT_TYPES = [
   // 'community_avatar_prompt', // Not strictly required for core narrative build flow
   'narrative_building',
   'narrative_builder_intro',
+  'narrative_build_companion',
   'section_avatar_intro',
   'narrative_response',
   'assessment_report',
@@ -125,46 +128,56 @@ export async function getPromptByType(type: PromptType): Promise<{ success: bool
     return { success: true, data: promptCache.get(type) };
   }
 
-  try {
-    console.log(`[promptUtils] Fetching prompt from DB for type: ${type}`);
-    
-    const { data, error } = await supabase
-      .from('prompts')
-      .select('*')
-      .eq('prompt_type', type);
-    
-    if (error) {
-      console.error(`[promptUtils] Error fetching ${type} prompt:`, error);
-      return { success: false, error };
-    }
-    
-    if (!data || data.length === 0) {
-      console.log(`[promptUtils] No ${type} prompt found in database`);
-      return { success: false, error: `No ${type} prompt found` };
-    }
-    
-    // If multiple prompts exist, log a warning and use the most recent one
-    if (data.length > 1) {
-      console.warn(`[promptUtils] Multiple prompts found for type ${type}, using most recent`);
-      // Sort by created_at in descending order and take the first one
-      // Sort by created_at in descending order and take the first one
-      const sortedData = data.sort((a, b) => {
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
-        return dateB - dateA;
-      });
-      promptCache.set(type, sortedData[0]); // Cache the chosen prompt
-      return { success: true, data: sortedData[0] };
-    }
-    
-    console.log(`[promptUtils] Successfully retrieved prompt for type: ${type}`);
-    promptCache.set(type, data[0]); // Cache the fetched prompt
-    return { success: true, data: data[0] };
-    
-  } catch (err) {
-    console.error(`[promptUtils] Error in getPromptByType for ${type}:`, err);
-    return { success: false, error: err };
+  // If a request for this type is already in flight, return the same promise
+  const existing = inFlightRequests.get(type);
+  if (existing) {
+    return existing;
   }
+
+  const requestPromise = (async () => {
+    try {
+      console.log(`[promptUtils] Fetching prompt from DB for type: ${type}`);
+      const { data, error } = await supabase
+        .from('prompts')
+        .select('*')
+        .eq('prompt_type', type);
+
+      if (error) {
+        console.error(`[promptUtils] Error fetching ${type} prompt:`, error);
+        return { success: false, error } as const;
+      }
+
+      if (!data || data.length === 0) {
+        console.log(`[promptUtils] No ${type} prompt found in database`);
+        return { success: false, error: `No ${type} prompt found` } as const;
+      }
+
+      // If multiple prompts exist, log a warning and use the most recent one
+      let chosen = data[0];
+      if (data.length > 1) {
+        console.warn(`[promptUtils] Multiple prompts found for type ${type}, using most recent`);
+        const sortedData = data.sort((a, b) => {
+          const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+          const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+          return dateB - dateA;
+        });
+        chosen = sortedData[0];
+      }
+
+      console.log(`[promptUtils] Successfully retrieved prompt for type: ${type}`);
+      promptCache.set(type, chosen);
+      return { success: true, data: chosen } as const;
+    } catch (err) {
+      console.error(`[promptUtils] Error in getPromptByType for ${type}:`, err);
+      return { success: false, error: err } as const;
+    } finally {
+      // Clear in-flight marker on completion
+      inFlightRequests.delete(type);
+    }
+  })();
+
+  inFlightRequests.set(type, requestPromise);
+  return requestPromise;
 }
 
 /**
@@ -285,7 +298,23 @@ export const PROMPT_PARAMETERS: PromptParameterConfig = {
   },
   missional_avatar: {},
   narrative_response: {},
-  narrative_builder_intro: {},
+  narrative_builder_intro: {
+    church_avatar: { required: true, description: 'Church avatar name or representative' },
+    community_avatar: { required: true, description: 'Community avatar name or representative' },
+    companion_name: { required: true, description: 'Name of the companion avatar' },
+    companion_type: { required: true, description: 'Type of companion avatar' },
+    companion_traits: { required: true, description: 'Traits of the companion avatar' },
+    companion_speech_pattern: { required: true, description: 'Speech pattern of the companion avatar' },
+    companion_knowledge_domains: { required: true, description: 'Knowledge domains of the companion avatar' },
+    vocational_statement: { required: true, description: 'The vocational statement to discuss' }
+  },
+  narrative_build_companion: {
+    vocational_statement: { required: true, description: 'The vocational statement to discuss' },
+    companion_name: { required: true, description: 'Name of the companion avatar' },
+    companion_type: { required: true, description: 'Type of companion avatar' },
+    companion_traits: { required: true, description: 'Traits of the companion avatar' },
+    companion_speech_pattern: { required: true, description: 'Speech pattern of the companion avatar' }
+  },
   no_scenario_discernment: {
     companion_name: { required: true, description: 'companion_name' },
     companion_type: { required: true, description: 'companion_type' },
@@ -341,11 +370,19 @@ export const PROMPT_PARAMETERS: PromptParameterConfig = {
     companion_knowledge_domains: { required: true, description: 'companion_knowledge_domains' }
   },
   church_assessment: {
+    church_name: { required: true, description: 'church_name' },
+    location: { required: true, description: 'location' },
     companion_name: { required: true, description: 'companion_name' },
     companion_type: { required: true, description: 'companion_type' },
     companion_traits: { required: true, description: 'companion_traits' },
     companion_speech_pattern: { required: true, description: 'companion_speech_pattern' },
-    companion_knowledge_domains: { required: true, description: 'companion_knowledge_domains' }
+    companion_knowledge_domains: { required: true, description: 'companion_knowledge_domains' },
+    church_avatar_name: { required: true, description: 'church_avatar_name' },
+    church_avatar_description: { required: true, description: 'church_avatar_description' },
+    church_celebrations: { required: true, description: 'church_celebrations' },
+    church_opportunities: { required: true, description: 'church_opportunities' },
+    church_obstacles: { required: true, description: 'church_obstacles' },
+    church_engagement: { required: true, description: 'church_engagement' }
   },
   church_avatars: {
     research_summary: { required: true, description: 'research_summary' },

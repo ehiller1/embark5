@@ -30,7 +30,7 @@ const ChurchResearch: React.FC = () => {
   
   const handleNext = () => {
     // The ChurchResearchInterface component already saves the data to church_assessment_data
-    navigate('/ResearchSummary');
+    navigate('/research-summary');
   };
 
   if (!isAuthenticated) return null;

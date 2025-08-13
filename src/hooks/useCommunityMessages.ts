@@ -154,23 +154,22 @@ export function useCommunityMessages() {
         throw new Error(error as string || 'Failed to get prompt');
       }
 
-      // Add user message
-      const userMessage: Message = {
-        id: Date.now(),
-        sender: "user",
-        content: content.trim(),
-        timestamp: new Date(),
-      };
-      
+      // Prepare loading/system message and user message
       const loadingMessage: Message = {
         id: Date.now() + 1,
         sender: "assistant",
         content: "Let me consider your community assessment...",
         timestamp: new Date(),
       };
-      
-      // Add user message and loading message
-      setMessages(prev => [...prev, userMessage, loadingMessage]);
+      const userMessage: Message = {
+        id: Date.now(),
+        sender: "user",
+        content: content.trim(),
+        timestamp: new Date(),
+      };
+
+      // Add loading message first, then user message (desired visual order: system, then user, then system response)
+      setMessages(prev => [...prev, loadingMessage, userMessage]);
 
       // Track that first user message has been sent
       if (!isFirstUserMessageSent) {

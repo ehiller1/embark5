@@ -454,11 +454,14 @@ export default function ResearchSummary(): JSX.Element {
             </div>
             <div>
               <Button 
-                onClick={() => navigate('/narrative-build')}
+                onClick={() => navigate('/scenario')}
                 size="lg" 
-                className="btn-next-step"
+                className="text-black font-medium py-2 px-6 rounded-lg transition-colors"
+                style={{ backgroundColor: '#fdcd62' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#fcc332'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#fdcd62'}
               >
-                Next Steps: Defining a Mission Statement<ArrowRight className="ml-2 h-4 w-4" />
+                Next Step: Define Ministries<ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>

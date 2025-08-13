@@ -1,27 +1,16 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation, Outlet } from 'react-router-dom';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { VocationAvatarModal } from '@/components/VocationAvatarModal';
+import { ChatSupportIcon } from '@/components/ChatSupportIcon';
 
 interface MainLayoutProps {
   children?: React.ReactNode;
 }
 
 export const MainLayout: React.FC<MainLayoutProps> = ({}) => {
-  const [isNarrativeModalOpen, setIsNarrativeModalOpen] = useState(false);
   const location = useLocation();
-
-  // Pages that need the avatar modal
-  const needsAvatarModal = [
-    '/narrative-build',
-    
-    // Add other paths that need the avatar modal here
-  ].some(path => location.pathname.startsWith(path));
-
-  // Show modal only when triggered and on pages that need it
-  const shouldShowModal = isNarrativeModalOpen && needsAvatarModal;
 
   // Pages where footer is fixed to bottom
   const isSpecialPage = ['/church-assessment'].includes(location.pathname);
@@ -49,11 +38,8 @@ export const MainLayout: React.FC<MainLayoutProps> = ({}) => {
         <Footer />
       </div>
 
-      {/* Narrative avatar modal */}
-      <VocationAvatarModal
-        open={shouldShowModal}
-        onOpenChange={setIsNarrativeModalOpen}
-      />
+      {/* Chat Support Icon - positioned relative to viewport */}
+      <ChatSupportIcon />
     </div>
   );
 };

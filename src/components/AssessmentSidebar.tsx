@@ -1,6 +1,5 @@
 import * as React from "react";
 import { useState } from 'react';
-import { CompanionsList } from './CompanionsList';
 import {
   Sidebar,
   SidebarContent,
@@ -31,7 +30,7 @@ export function AssessmentSidebar({ children }: AssessmentSidebarProps) {
             </div>
             <SidebarGroup>
               <SidebarGroupContent>
-                <CompanionsList />
+                {/* CompanionsList removed per user request */}
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
